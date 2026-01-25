@@ -1,0 +1,48 @@
+{
+  "feature": "{{FEATURE_NAME}}",
+  "description": "{{PROJECT_DESCRIPTION}}",
+  "branch": "feature/{{FEATURE_NAME}}",
+  "worktree": "worktrees/{{FEATURE_NAME}}",
+  "phase": "initialized",
+  "phases": {
+    "init": {
+      "completed": false,
+      "commit": null
+    },
+    "requirements": {
+      "completed": false,
+      "approved": false,
+      "commit": null
+    },
+    "design": {
+      "completed": false,
+      "approved": false,
+      "commit": null
+    },
+    "tasks": {
+      "completed": false,
+      "approved": false,
+      "commit": null
+    },
+    "implementation": {
+      "completed": false,
+      "tasks_completed": [],
+      "tasks_remaining": [],
+      "commits": []
+    },
+    "validation": {
+      "completed": false,
+      "passed": false,
+      "commit": null
+    },
+    "pr": {
+      "created": false,
+      "url": null,
+      "number": null,
+      "merged": false,
+      "merge_commit": null
+    }
+  },
+  "created_at": "{{TIMESTAMP}}",
+  "updated_at": "{{TIMESTAMP}}"
+}
