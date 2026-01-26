@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile, rm, readdir, rename, access } from 'node:fs
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import type { FlowState } from '../types/index.js';
+import { sanitizeFeatureName } from './WorktreeService.js';
 
 /**
  * State store service interface
@@ -34,14 +35,14 @@ function getFlowsDir(baseDir: string): string {
  * Get feature state file path
  */
 function getStatePath(baseDir: string, feature: string): string {
-  return join(getFlowsDir(baseDir), feature, 'state.json');
+  return join(getFlowsDir(baseDir), sanitizeFeatureName(feature), 'state.json');
 }
 
 /**
  * Get feature directory path
  */
 function getFeatureDir(baseDir: string, feature: string): string {
-  return join(getFlowsDir(baseDir), feature);
+  return join(getFlowsDir(baseDir), sanitizeFeatureName(feature));
 }
 
 /**

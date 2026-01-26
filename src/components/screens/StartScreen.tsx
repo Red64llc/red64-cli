@@ -27,6 +27,7 @@ import {
   createWorktreeService,
   createCommitService,
   createTaskParser,
+  sanitizeFeatureName,
   type Task
 } from '../../services/index.js';
 import { join } from 'node:path';
@@ -88,6 +89,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   const featureName = args[0] ?? 'unnamed';
   const description = args[1] ?? 'No description provided';
   const mode: WorkflowMode = flags.brownfield ? 'brownfield' : 'greenfield';
+  const verbose = flags.verbose ?? false;
   const repoPath = process.cwd();
 
   // Initialize services
@@ -150,30 +152,74 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Execute a Claude command
   const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string }> => {
+    const dir = workDir ?? getWorkingDir();
+
+    // Verbose mode: show command being executed
+    if (verbose) {
+      addOutput(`[verbose] Command: claude -p "${prompt}"`);
+      addOutput(`[verbose] Working dir: ${dir}`);
+      if (flags.skipPermissions) {
+        addOutput(`[verbose] Flags: --dangerously-skip-permissions`);
+      }
+    }
+
     setFlowState(prev => ({ ...prev, isExecuting: true, error: null }));
 
     const result = await services.agentInvoker.invoke({
       prompt,
-      workingDirectory: workDir ?? getWorkingDir(),
+      workingDirectory: dir,
       skipPermissions: flags.skipPermissions ?? false,
       tier: flags.tier,
       onOutput: (chunk) => {
         // Stream output in real-time
         const lines = chunk.split('\n').filter(l => l.trim());
         lines.forEach(line => addOutput(line));
+      },
+      onError: (chunk) => {
+        // Stream stderr in verbose mode
+        if (verbose) {
+          const lines = chunk.split('\n').filter(l => l.trim());
+          lines.forEach(line => addOutput(`[stderr] ${line}`));
+        }
       }
     });
 
     setFlowState(prev => ({ ...prev, isExecuting: false }));
 
+    // Verbose mode: show result
+    if (verbose) {
+      addOutput(`[verbose] Exit code: ${result.exitCode}`);
+      addOutput(`[verbose] Success: ${result.success}`);
+      if (result.timedOut) {
+        addOutput(`[verbose] Timed out: true`);
+      }
+    }
+
     if (!result.success) {
-      const errorMsg = result.stderr || 'Command failed';
+      // Build detailed error message
+      let errorMsg = 'Command failed';
+      if (result.timedOut) {
+        errorMsg = 'Command timed out (10 min limit)';
+      } else if (result.stderr) {
+        errorMsg = result.stderr.trim().split('\n')[0]; // First line of stderr
+      } else if (result.exitCode !== 0) {
+        errorMsg = `Command exited with code ${result.exitCode}`;
+      }
+
+      // In verbose mode, show full stderr
+      if (verbose && result.stderr) {
+        addOutput(`[verbose] Full stderr:`);
+        result.stderr.split('\n').forEach(line => {
+          if (line.trim()) addOutput(`  ${line}`);
+        });
+      }
+
       setFlowState(prev => ({ ...prev, error: errorMsg }));
       return { success: false, output: result.stdout, error: errorMsg };
     }
 
     return { success: true, output: result.stdout };
-  }, [services.agentInvoker, flags, getWorkingDir, addOutput]);
+  }, [services.agentInvoker, flags, verbose, getWorkingDir, addOutput]);
 
   // Commit changes with formatted message
   const commitChanges = useCallback(async (message: string, workDir?: string): Promise<boolean> => {
@@ -232,23 +278,34 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       addOutput(`Mode: ${mode}`);
       addOutput('');
 
-      // Step 1: Create git worktree for isolation
-      addOutput('Creating git worktree for feature isolation...');
-      const worktreeResult = await services.worktreeService.create(repoPath, featureName);
+      // Step 1: Create or reuse git worktree for isolation
+      addOutput('Setting up git worktree for feature isolation...');
 
-      if (!worktreeResult.success) {
-        addOutput(`Worktree error: ${worktreeResult.error}`);
-        addOutput('Continuing without worktree isolation...');
-        // Continue without worktree
+      // Check if worktree already exists
+      const existingWorktree = await services.worktreeService.check(repoPath, featureName);
+      let workDir = repoPath;
+
+      if (existingWorktree.exists) {
+        // Reuse existing worktree
+        workDir = existingWorktree.path;
+        setFlowState(prev => ({ ...prev, worktreePath: existingWorktree.path }));
+        addOutput(`Using existing worktree: ${existingWorktree.path}`);
+        addOutput(`Branch: ${existingWorktree.branch}`);
       } else {
-        const wtPath = worktreeResult.path!;
-        setFlowState(prev => ({ ...prev, worktreePath: wtPath }));
-        addOutput(`Worktree created: ${wtPath}`);
-        addOutput(`Branch: feature/${featureName}`);
-      }
+        // Create new worktree
+        const worktreeResult = await services.worktreeService.create(repoPath, featureName);
 
-      // Use worktree path if available
-      const workDir = worktreeResult.path ?? repoPath;
+        if (!worktreeResult.success) {
+          addOutput(`Worktree error: ${worktreeResult.error}`);
+          addOutput('Continuing without worktree isolation...');
+          // Continue without worktree
+        } else {
+          workDir = worktreeResult.path!;
+          setFlowState(prev => ({ ...prev, worktreePath: worktreeResult.path! }));
+          addOutput(`Worktree created: ${worktreeResult.path}`);
+          addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
+        }
+      }
 
       // Step 2: Transition to initializing
       const initPhase = transitionPhase({
@@ -341,7 +398,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await commitChanges(`generate implementation tasks`, workDir);
 
     // Parse tasks for implementation phase
-    const specDir = join(workDir, '.red64', 'specs', featureName);
+    const specDir = join(workDir, '.red64', 'specs', sanitizeFeatureName(featureName));
     const tasks = await services.taskParser.parse(specDir);
     const pendingTasks = services.taskParser.getPendingTasks(tasks);
 
@@ -419,7 +476,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Flow completed successfully!');
     addOutput(`Worktree: ${flowState.worktreePath ?? 'none'}`);
-    addOutput(`Branch: feature/${featureName}`);
+    addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
   };
 
   // Handle approval decision
@@ -523,8 +580,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         </Box>
         <Text>Feature "{featureName}" has been implemented.</Text>
         <Box marginTop={1} flexDirection="column">
-          <Text dimColor>Spec: .red64/specs/{featureName}/</Text>
-          <Text dimColor>Branch: feature/{featureName}</Text>
+          <Text dimColor>Spec: .red64/specs/{sanitizeFeatureName(featureName)}/</Text>
+          <Text dimColor>Branch: feature/{sanitizeFeatureName(featureName)}</Text>
           {flowState.worktreePath && (
             <Text dimColor>Worktree: {flowState.worktreePath}</Text>
           )}
@@ -543,8 +600,18 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           <Text bold color="red">Flow Error</Text>
         </Box>
         <Text color="red">{flowState.error ?? 'An unknown error occurred'}</Text>
-        <Box marginTop={1}>
-          <Text dimColor>Run "red64 resume {featureName}" to retry.</Text>
+        <Box marginTop={1} flexDirection="column">
+          <Text dimColor>Feature: {featureName}</Text>
+          {flowState.worktreePath && (
+            <Text dimColor>Worktree: {flowState.worktreePath}</Text>
+          )}
+          <Text dimColor>Phase: {flowState.phase.type}</Text>
+          <Box marginTop={1}>
+            <Text>Tip: Run with --verbose for detailed debugging</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>Run "red64 resume {sanitizeFeatureName(featureName)}" to retry.</Text>
+          </Box>
         </Box>
       </Box>
     );
@@ -604,7 +671,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       {isApprovalPhase && !flowState.isExecuting && (
         <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
           <Text bold>Review Required</Text>
-          <Text dimColor>Review output in .red64/specs/{featureName}/</Text>
+          <Text dimColor>Review output in .red64/specs/{sanitizeFeatureName(featureName)}/</Text>
           <Box marginTop={1}>
             <Select
               options={APPROVAL_OPTIONS}

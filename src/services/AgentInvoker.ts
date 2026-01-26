@@ -59,20 +59,21 @@ export function createAgentInvoker(): AgentInvokerService {
           stdio: ['pipe', 'pipe', 'pipe']
         });
 
+        // Close stdin immediately - Claude CLI doesn't need input
+        currentProcess.stdin?.end();
+
         let stdout = '';
         let stderr = '';
         let timedOut = false;
 
-        // Handle timeout
-        let timeoutId: NodeJS.Timeout | undefined;
-        if (options.timeout) {
-          timeoutId = setTimeout(() => {
-            timedOut = true;
-            if (currentProcess) {
-              currentProcess.kill('SIGTERM');
-            }
-          }, options.timeout);
-        }
+        // Handle timeout (default 10 minutes for long-running tasks)
+        const timeoutMs = options.timeout ?? 600000;
+        const timeoutId = setTimeout(() => {
+          timedOut = true;
+          if (currentProcess) {
+            currentProcess.kill('SIGTERM');
+          }
+        }, timeoutMs);
 
         // Capture stdout
         // Requirements: 7.5 - Capture stdout/stderr and return them to calling code
@@ -100,9 +101,7 @@ export function createAgentInvoker(): AgentInvokerService {
 
         // Handle process close
         currentProcess.on('close', (code) => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
+          clearTimeout(timeoutId);
 
           const exitCode = code ?? -1;
           const success = exitCode === 0 && !timedOut && !aborted;
@@ -121,9 +120,7 @@ export function createAgentInvoker(): AgentInvokerService {
 
         // Handle spawn errors
         currentProcess.on('error', (error) => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
+          clearTimeout(timeoutId);
 
           resolve({
             success: false,

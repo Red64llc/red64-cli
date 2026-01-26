@@ -118,17 +118,32 @@ function parseWorktreeList(output: string): WorktreeInfo[] {
 }
 
 /**
+ * Sanitize feature name for use in git branch names and paths
+ * - Replace spaces with hyphens
+ * - Remove invalid characters
+ * - Convert to lowercase
+ */
+export function sanitizeFeatureName(feature: string): string {
+  return feature
+    .toLowerCase()
+    .replace(/\s+/g, '-')           // Replace spaces with hyphens
+    .replace(/[^a-z0-9\-_]/g, '')   // Remove invalid characters
+    .replace(/-+/g, '-')            // Collapse multiple hyphens
+    .replace(/^-|-$/g, '');         // Trim leading/trailing hyphens
+}
+
+/**
  * Get worktree path for a feature
  */
 function getWorktreePath(repoPath: string, feature: string): string {
-  return join(repoPath, 'worktrees', feature);
+  return join(repoPath, 'worktrees', sanitizeFeatureName(feature));
 }
 
 /**
  * Get branch name for a feature
  */
 function getBranchName(feature: string): string {
-  return `feature/${feature}`;
+  return `feature/${sanitizeFeatureName(feature)}`;
 }
 
 /**
@@ -180,7 +195,8 @@ export function createWorktreeService(): WorktreeServiceInterface {
      * Requirements: 1.4 - Create worktree at worktrees/<feature> with branch feature/<feature>
      */
     async create(repoPath: string, feature: string): Promise<WorktreeResult> {
-      const worktreePath = `worktrees/${feature}`;
+      const sanitized = sanitizeFeatureName(feature);
+      const worktreePath = `worktrees/${sanitized}`;
       const branchName = getBranchName(feature);
 
       const result = await execGit(
@@ -212,7 +228,7 @@ export function createWorktreeService(): WorktreeServiceInterface {
       feature: string,
       force?: boolean
     ): Promise<WorktreeResult> {
-      const worktreePath = `worktrees/${feature}`;
+      const worktreePath = `worktrees/${sanitizeFeatureName(feature)}`;
       const args = force
         ? ['worktree', 'remove', '--force', worktreePath]
         : ['worktree', 'remove', worktreePath];

@@ -32,6 +32,7 @@ export {
 
 export {
   createWorktreeService,
+  sanitizeFeatureName,
   type WorktreeServiceInterface,
   type WorktreeInfo,
   type WorktreeResult
