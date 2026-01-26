@@ -164,16 +164,16 @@ export function createCommitService(): CommitServiceInterface {
      * Format commit message for task completion
      * Requirements: 5.7 - Generate meaningful commit messages
      */
-    formatTaskCommitMessage(feature: string, taskIndex: number, taskTitle: string): string {
-      return `feat(${feature}): implement task ${taskIndex} - ${taskTitle}`;
+    formatTaskCommitMessage(_feature: string, _taskIndex: number, taskTitle: string): string {
+      return taskTitle;
     },
 
     /**
      * Format commit message for phase completion
      * Requirements: 1.6 - Commit changes at each phase
      */
-    formatPhaseCommitMessage(feature: string, phase: string): string {
-      return `feat(${feature}): complete ${phase} phase`;
+    formatPhaseCommitMessage(_feature: string, phase: string): string {
+      return phase;
     }
   };
 }

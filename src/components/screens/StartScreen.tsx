@@ -274,10 +274,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
 
       // Commit init
-      await commitChanges(
-        `chore(${featureName}): initialize spec directory\n\nCreated .red64/specs/${featureName}/`,
-        workDir
-      );
+      await commitChanges(`initialize spec directory`, workDir);
 
       // Step 3: Generate requirements
       const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
@@ -301,10 +298,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
 
     // Commit requirements
-    await commitChanges(
-      `docs(${featureName}): generate requirements\n\nEARS-format requirements in .red64/specs/${featureName}/requirements.md`,
-      workDir
-    );
+    await commitChanges(`generate requirements`, workDir);
 
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
@@ -324,10 +318,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
 
     // Commit design
-    await commitChanges(
-      `docs(${featureName}): generate technical design\n\nDesign document in .red64/specs/${featureName}/design.md`,
-      workDir
-    );
+    await commitChanges(`generate technical design`, workDir);
 
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
@@ -347,10 +338,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
 
     // Commit tasks
-    await commitChanges(
-      `docs(${featureName}): generate implementation tasks\n\nTask list in .red64/specs/${featureName}/tasks.md`,
-      workDir
-    );
+    await commitChanges(`generate implementation tasks`, workDir);
 
     // Parse tasks for implementation phase
     const specDir = join(workDir, '.red64', 'specs', featureName);
@@ -458,7 +446,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           addOutput('Running gap analysis...');
           const gapResult = await executeCommand(`/red64:validate-gap ${featureName}`, workDir);
           if (gapResult.success) {
-            await commitChanges(`docs(${featureName}): gap analysis`, workDir);
+            await commitChanges(`gap analysis`, workDir);
           }
           transitionPhase({ type: 'PHASE_COMPLETE' });
           break;
@@ -467,7 +455,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           addOutput('Validating design...');
           const valResult = await executeCommand(`/red64:validate-design ${featureName}`, workDir);
           if (valResult.success) {
-            await commitChanges(`docs(${featureName}): design validation`, workDir);
+            await commitChanges(`design validation`, workDir);
           }
           transitionPhase({ type: 'PHASE_COMPLETE' });
           break;
