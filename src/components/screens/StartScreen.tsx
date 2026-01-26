@@ -31,6 +31,7 @@ import {
   type Task
 } from '../../services/index.js';
 import { join } from 'node:path';
+import { appendFile, mkdir } from 'node:fs/promises';
 
 /**
  * Phase display information
@@ -122,6 +123,31 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   const services = servicesRef.current;
 
+  // Log file path
+  const logFileRef = useRef<string | null>(null);
+
+  // Initialize log file
+  const initLogFile = useCallback(async (workDir: string) => {
+    const logDir = join(workDir, '.red64', 'flows', sanitizeFeatureName(featureName));
+    await mkdir(logDir, { recursive: true });
+    const logPath = join(logDir, 'flow.log');
+    logFileRef.current = logPath;
+
+    // Write header
+    const header = `\n${'='.repeat(60)}\nFlow started: ${new Date().toISOString()}\nFeature: ${featureName}\nMode: ${mode}\n${'='.repeat(60)}\n\n`;
+    await appendFile(logPath, header);
+
+    return logPath;
+  }, [featureName, mode]);
+
+  // Log to file
+  const logToFile = useCallback(async (message: string) => {
+    if (logFileRef.current) {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      await appendFile(logFileRef.current, `[${timestamp}] ${message}\n`).catch(() => {});
+    }
+  }, []);
+
   // Flow state
   const [flowState, setFlowState] = useState<FlowScreenState>({
     phase: { type: 'idle' },
@@ -137,13 +163,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Track if flow has been started
   const flowStartedRef = useRef(false);
 
-  // Add output line
+  // Add output line (to screen and log file)
   const addOutput = useCallback((line: string) => {
     setFlowState(prev => ({
       ...prev,
       output: [...prev.output.slice(-50), line]
     }));
-  }, []);
+    // Also log to file
+    logToFile(line);
+  }, [logToFile]);
 
   // Get working directory (worktree or repo)
   const getWorkingDir = useCallback(() => {
@@ -154,12 +182,37 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string }> => {
     const dir = workDir ?? getWorkingDir();
 
-    // Verbose mode: show command being executed
+    // Build tier config dir path
+    const tierConfigDir = flags.tier
+      ? `${process.env.HOME ?? '~'}/.claude-${flags.tier}`
+      : null;
+
+    // Always log command to file
+    await logToFile(`--- Executing command ---`);
+    await logToFile(`Command: claude -p "${prompt}"`);
+    await logToFile(`Working dir: ${dir}`);
+    if (flags.skipPermissions) {
+      await logToFile(`Flags: --dangerously-skip-permissions`);
+    }
+    if (tierConfigDir) {
+      await logToFile(`CLAUDE_CONFIG_DIR: ${tierConfigDir}`);
+    }
+    if (flags.sandbox) {
+      await logToFile(`Sandbox: Docker isolated mode`);
+    }
+
+    // Verbose mode: also show on screen
     if (verbose) {
       addOutput(`[verbose] Command: claude -p "${prompt}"`);
       addOutput(`[verbose] Working dir: ${dir}`);
       if (flags.skipPermissions) {
         addOutput(`[verbose] Flags: --dangerously-skip-permissions`);
+      }
+      if (tierConfigDir) {
+        addOutput(`[verbose] CLAUDE_CONFIG_DIR: ${tierConfigDir}`);
+      }
+      if (flags.sandbox) {
+        addOutput(`[verbose] Sandbox: Docker isolated mode`);
       }
     }
 
@@ -170,6 +223,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       workingDirectory: dir,
       skipPermissions: flags.skipPermissions ?? false,
       tier: flags.tier,
+      sandbox: flags.sandbox ?? false,
       onOutput: (chunk) => {
         // Stream output in real-time
         const lines = chunk.split('\n').filter(l => l.trim());
@@ -186,7 +240,23 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     setFlowState(prev => ({ ...prev, isExecuting: false }));
 
-    // Verbose mode: show result
+    // Always log result to file
+    await logToFile(`Exit code: ${result.exitCode}`);
+    await logToFile(`Success: ${result.success}`);
+    if (result.timedOut) {
+      await logToFile(`Timed out: true`);
+    }
+    if (result.stdout) {
+      await logToFile(`--- stdout ---`);
+      await logToFile(result.stdout);
+    }
+    if (result.stderr) {
+      await logToFile(`--- stderr ---`);
+      await logToFile(result.stderr);
+    }
+    await logToFile(`--- end command ---\n`);
+
+    // Verbose mode: show result on screen
     if (verbose) {
       addOutput(`[verbose] Exit code: ${result.exitCode}`);
       addOutput(`[verbose] Success: ${result.success}`);
@@ -206,7 +276,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         errorMsg = `Command exited with code ${result.exitCode}`;
       }
 
-      // In verbose mode, show full stderr
+      // In verbose mode, show full stderr on screen
       if (verbose && result.stderr) {
         addOutput(`[verbose] Full stderr:`);
         result.stderr.split('\n').forEach(line => {
@@ -274,6 +344,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     flowStartedRef.current = true;
 
     const startFlow = async () => {
+      // Initialize log file first (in repo, will move to worktree if created)
+      const logPath = await initLogFile(repoPath);
+      addOutput(`Log file: ${logPath}`);
+      addOutput('');
       addOutput(`Starting flow: ${featureName}`);
       addOutput(`Mode: ${mode}`);
       addOutput('');
@@ -594,6 +668,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   }
 
   if (flowState.phase.type === 'error') {
+    const logPath = logFileRef.current ?? join(repoPath, '.red64', 'flows', sanitizeFeatureName(featureName), 'flow.log');
     return (
       <Box flexDirection="column" padding={1}>
         <Box marginBottom={1}>
@@ -606,8 +681,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             <Text dimColor>Worktree: {flowState.worktreePath}</Text>
           )}
           <Text dimColor>Phase: {flowState.phase.type}</Text>
-          <Box marginTop={1}>
-            <Text>Tip: Run with --verbose for detailed debugging</Text>
+          <Box marginTop={1} flexDirection="column">
+            <Text bold>Log file:</Text>
+            <Text color="yellow">{logPath}</Text>
           </Box>
           <Box marginTop={1}>
             <Text dimColor>Run "red64 resume {sanitizeFeatureName(featureName)}" to retry.</Text>

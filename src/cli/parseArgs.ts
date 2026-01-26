@@ -29,6 +29,7 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     version: false,
     verbose: false,
     yes: false,
+    sandbox: false,
     // Init-specific flags
     repo: undefined,
     stack: undefined,
@@ -42,7 +43,15 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
 
   // Parse arguments
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
+    let arg = argv[i];
+    let argValue: string | undefined;
+
+    // Handle --flag=value syntax
+    if (arg.startsWith('--') && arg.includes('=')) {
+      const eqIndex = arg.indexOf('=');
+      argValue = arg.slice(eqIndex + 1);
+      arg = arg.slice(0, eqIndex);
+    }
 
     if (arg === '--skip-permissions' || arg === '-s') {
       (flags as { skipPermissions: boolean }).skipPermissions = true;
@@ -53,10 +62,11 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { greenfield: boolean; brownfield: boolean }).greenfield = true;
       (flags as { greenfield: boolean; brownfield: boolean }).brownfield = false;
     } else if (arg === '--tier' || arg === '-t') {
-      const nextArg = argv[i + 1];
-      if (nextArg && !nextArg.startsWith('-')) {
-        (flags as { tier: string | undefined }).tier = nextArg;
-        i++; // Skip the value
+      // Use argValue if --tier=value, otherwise next arg
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { tier: string | undefined }).tier = value;
+        if (!argValue) i++; // Only skip if we used next arg
       }
     } else if (arg === '--help' || arg === '-h') {
       (flags as { help: boolean }).help = true;
@@ -66,17 +76,19 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { verbose: boolean }).verbose = true;
     } else if (arg === '--yes' || arg === '-y') {
       (flags as { yes: boolean }).yes = true;
+    } else if (arg === '--sandbox') {
+      (flags as { sandbox: boolean }).sandbox = true;
     } else if (arg === '--repo') {
-      const nextArg = argv[i + 1];
-      if (nextArg && !nextArg.startsWith('-')) {
-        (flags as { repo: string | undefined }).repo = nextArg;
-        i++;
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { repo: string | undefined }).repo = value;
+        if (!argValue) i++;
       }
     } else if (arg === '--stack') {
-      const nextArg = argv[i + 1];
-      if (nextArg && !nextArg.startsWith('-')) {
-        (flags as { stack: string | undefined }).stack = nextArg;
-        i++;
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { stack: string | undefined }).stack = value;
+        if (!argValue) i++;
       }
     } else if (arg === '--skip-guided') {
       (flags as { 'skip-guided': boolean })['skip-guided'] = true;
@@ -126,6 +138,7 @@ Global Options:
   -b, --brownfield          Enable brownfield mode (gap analysis)
   -g, --greenfield          Greenfield mode (default)
   -t, --tier <name>         Use specified Claude config directory
+  --sandbox                 Run Claude in Docker container for isolation
   -h, --help                Show help
   -v, --version             Show version
 `.trim();

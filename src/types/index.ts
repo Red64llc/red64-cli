@@ -35,6 +35,7 @@ export interface GlobalFlags {
   readonly version: boolean;
   readonly verbose: boolean;
   readonly yes: boolean;
+  readonly sandbox: boolean;
   // Init command specific flags
   readonly repo?: string;
   readonly stack?: string;
@@ -113,6 +114,7 @@ export interface AgentInvokeOptions {
   readonly workingDirectory: string;
   readonly skipPermissions: boolean;
   readonly tier: string | undefined;
+  readonly sandbox?: boolean;  // Run in Docker sandbox
   readonly onOutput?: (chunk: string) => void;
   readonly onError?: (chunk: string) => void;
   readonly timeout?: number;

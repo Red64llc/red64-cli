@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# Red64 Agent Sandbox
+# Isolated Docker environment for running Claude CLI commands safely
+# =============================================================================
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install base dependencies
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+    git \
+    curl \
+    ca-certificates \
+    openssh-client \
+    sudo \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create agent user with sudo access
+RUN useradd -m -u 1000 -s /bin/bash agent && \
+    echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    mkdir -p /home/agent/.local/bin && \
+    chown -R agent:agent /home/agent
+
+# Install Node.js 22 LTS
+ENV NODE_VERSION=22
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+    apt-get install --no-install-recommends -y nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    npm cache clean --force
+
+# Install Claude CLI
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    cp /root/.local/bin/claude /usr/local/bin/claude && \
+    chmod 755 /usr/local/bin/claude
+
+# Git configuration
+RUN git config --system user.name "Red64 Agent" && \
+    git config --system user.email "agent@red64.local" && \
+    git config --system init.defaultBranch main
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown agent:agent /workspace
+
+WORKDIR /workspace
+
+# Switch to non-root user
+USER agent
+
+ENV PATH=/home/agent/.local/bin:$PATH
+
+# Default command
+CMD ["/bin/bash"]

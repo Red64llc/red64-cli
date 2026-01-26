@@ -1,10 +1,13 @@
 /**
  * Agent Invoker service for Claude CLI execution
  * Requirements: 7.1-7.7, 2.1-2.6
+ * Supports both direct execution and Docker sandbox mode
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { AgentInvokeOptions, AgentResult } from '../types/index.js';
+
+const SANDBOX_IMAGE = 'red64-sandbox:latest';
 
 /**
  * Agent invoker service interface
@@ -32,6 +35,11 @@ export function createAgentInvoker(): AgentInvokerService {
     async invoke(options: AgentInvokeOptions): Promise<AgentResult> {
       aborted = false;
 
+      // Use Docker sandbox if enabled
+      if (options.sandbox) {
+        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted);
+      }
+
       return new Promise((resolve) => {
         // Build command arguments
         const args: string[] = ['-p', options.prompt];
@@ -47,8 +55,10 @@ export function createAgentInvoker(): AgentInvokerService {
 
         // Set CLAUDE_CONFIG_DIR if tier is specified
         // Requirements: 7.4 - Set CLAUDE_CONFIG_DIR environment variable when tier is specified
+        // Format: --tier=red64 -> CLAUDE_CONFIG_DIR=~/.claude-red64
         if (options.tier) {
-          env.CLAUDE_CONFIG_DIR = options.tier;
+          const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '~';
+          env.CLAUDE_CONFIG_DIR = `${homeDir}/.claude-${options.tier}`;
         }
 
         // Spawn Claude CLI
@@ -146,4 +156,118 @@ export function createAgentInvoker(): AgentInvokerService {
       }
     }
   };
+}
+
+/**
+ * Invoke Claude CLI inside Docker sandbox
+ * Provides isolation for running with --dangerously-skip-permissions
+ */
+function invokeInDocker(
+  options: AgentInvokeOptions,
+  getProcess: () => ChildProcess | null,
+  setProcess: (p: ChildProcess | null) => void,
+  isAborted: () => boolean
+): Promise<AgentResult> {
+  return new Promise((resolve) => {
+    // Build docker run command
+    const dockerArgs: string[] = [
+      'run',
+      '--rm',                                          // Remove container after exit
+      '-w', '/workspace',                              // Working directory inside container
+      '-v', `${options.workingDirectory}:/workspace`,  // Mount workspace
+    ];
+
+    // Pass through API key if available
+    if (process.env.ANTHROPIC_API_KEY) {
+      dockerArgs.push('-e', `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY}`);
+    }
+
+    // Mount Claude config directory if tier is specified
+    if (options.tier) {
+      const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '~';
+      const configDir = `${homeDir}/.claude-${options.tier}`;
+      dockerArgs.push('-v', `${configDir}:/home/agent/.claude`);
+      dockerArgs.push('-e', 'CLAUDE_CONFIG_DIR=/home/agent/.claude');
+    }
+
+    // Add image
+    dockerArgs.push(SANDBOX_IMAGE);
+
+    // Add claude command with args
+    // In sandbox, always use --dangerously-skip-permissions since it's isolated
+    dockerArgs.push('claude', '-p', options.prompt, '--dangerously-skip-permissions');
+
+    const proc = spawn('docker', dockerArgs, {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    setProcess(proc);
+
+    // Close stdin immediately
+    proc.stdin?.end();
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    // Handle timeout (default 10 minutes)
+    const timeoutMs = options.timeout ?? 600000;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      const p = getProcess();
+      if (p) {
+        p.kill('SIGTERM');
+      }
+    }, timeoutMs);
+
+    // Capture stdout
+    proc.stdout?.on('data', (data: Buffer) => {
+      const chunk = data.toString();
+      stdout += chunk;
+      if (options.onOutput) {
+        options.onOutput(chunk);
+      }
+    });
+
+    // Capture stderr
+    proc.stderr?.on('data', (data: Buffer) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      if (options.onError) {
+        options.onError(chunk);
+      }
+    });
+
+    // Handle process close
+    proc.on('close', (code) => {
+      clearTimeout(timeoutId);
+      const exitCode = code ?? -1;
+      const success = exitCode === 0 && !timedOut && !isAborted();
+
+      resolve({
+        success,
+        exitCode,
+        stdout,
+        stderr,
+        timedOut
+      });
+
+      setProcess(null);
+    });
+
+    // Handle spawn errors
+    proc.on('error', (error) => {
+      clearTimeout(timeoutId);
+
+      resolve({
+        success: false,
+        exitCode: -1,
+        stdout,
+        stderr: stderr || `Docker error: ${error.message}`,
+        timedOut: false
+      });
+
+      setProcess(null);
+    });
+  });
 }
