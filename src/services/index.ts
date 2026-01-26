@@ -124,3 +124,9 @@ export {
   type FetchResult,
   type GitHubErrorCode
 } from './GitHubService.js';
+
+export {
+  createSpecInitService,
+  type SpecInitService,
+  type SpecInitResult
+} from './SpecInitService.js';

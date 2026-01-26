@@ -5,9 +5,67 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { AgentInvokeOptions, AgentResult } from '../types/index.js';
 
 const SANDBOX_IMAGE = 'red64-sandbox:latest';
+
+/**
+ * Try to read API key from Claude config directory
+ * Claude stores credentials in various files within the config dir
+ */
+function readApiKeyFromConfig(configDir: string): string | null {
+  // Try common credential file locations
+  const credentialPaths = [
+    join(configDir, 'credentials.json'),
+    join(configDir, '.credentials.json'),
+    join(configDir, 'settings.json'),
+    join(configDir, 'config.json'),
+  ];
+
+  for (const credPath of credentialPaths) {
+    if (existsSync(credPath)) {
+      try {
+        const content = readFileSync(credPath, 'utf-8');
+        const data = JSON.parse(content);
+        // Check various possible key names
+        const apiKey = data.apiKey || data.api_key || data.ANTHROPIC_API_KEY || data.anthropicApiKey;
+        if (apiKey && typeof apiKey === 'string' && apiKey.startsWith('sk-')) {
+          return apiKey;
+        }
+      } catch {
+        // Continue to next file
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get API key from environment or Claude config
+ */
+function getApiKey(tier?: string): string | null {
+  // First check environment variable
+  if (process.env.ANTHROPIC_API_KEY) {
+    return process.env.ANTHROPIC_API_KEY;
+  }
+
+  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '';
+  if (!homeDir) return null;
+
+  // Try tier-specific config first
+  if (tier) {
+    const tierConfig = join(homeDir, `.claude-${tier}`);
+    const key = readApiKeyFromConfig(tierConfig);
+    if (key) return key;
+  }
+
+  // Try default Claude config
+  const defaultConfig = join(homeDir, '.claude');
+  return readApiKeyFromConfig(defaultConfig);
+}
 
 /**
  * Agent invoker service interface
@@ -177,18 +235,14 @@ function invokeInDocker(
       '-v', `${options.workingDirectory}:/workspace`,  // Mount workspace
     ];
 
-    // Pass through API key if available
-    if (process.env.ANTHROPIC_API_KEY) {
-      dockerArgs.push('-e', `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY}`);
+    // Get API key from env or Claude config files
+    const apiKey = getApiKey(options.tier);
+    if (apiKey) {
+      dockerArgs.push('-e', `ANTHROPIC_API_KEY=${apiKey}`);
     }
 
-    // Mount Claude config directory if tier is specified
-    if (options.tier) {
-      const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '~';
-      const configDir = `${homeDir}/.claude-${options.tier}`;
-      dockerArgs.push('-v', `${configDir}:/home/agent/.claude`);
-      dockerArgs.push('-e', 'CLAUDE_CONFIG_DIR=/home/agent/.claude');
-    }
+    // Don't mount the Claude config - let Claude create a fresh one inside container
+    // The API key is passed via env var, which is all that's needed
 
     // Add image
     dockerArgs.push(SANDBOX_IMAGE);

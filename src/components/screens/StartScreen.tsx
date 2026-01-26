@@ -27,6 +27,7 @@ import {
   createWorktreeService,
   createCommitService,
   createTaskParser,
+  createSpecInitService,
   sanitizeFeatureName,
   type Task
 } from '../../services/index.js';
@@ -101,6 +102,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     worktreeService: ReturnType<typeof createWorktreeService>;
     commitService: ReturnType<typeof createCommitService>;
     taskParser: ReturnType<typeof createTaskParser>;
+    specInitService: ReturnType<typeof createSpecInitService>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -110,6 +112,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const worktreeService = createWorktreeService();
     const commitService = createCommitService();
     const taskParser = createTaskParser();
+    const specInitService = createSpecInitService();
 
     servicesRef.current = {
       stateStore,
@@ -117,7 +120,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       flowMachine,
       worktreeService,
       commitService,
-      taskParser
+      taskParser,
+      specInitService
     };
   }
 
@@ -391,18 +395,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       await saveFlowState(initPhase, workDir);
 
-      // Execute spec-init
+      // Initialize spec directory directly (no agent call needed)
       addOutput('');
       addOutput('Initializing spec directory...');
-      const initResult = await executeCommand(
-        `/red64:spec-init "${featureName}" "${description}"`,
-        workDir
-      );
+      const initResult = await services.specInitService.init(workDir, featureName, description);
 
       if (!initResult.success) {
         transitionPhase({ type: 'ERROR', error: initResult.error ?? 'Initialization failed' });
         return;
       }
+
+      addOutput(`Created: ${initResult.specDir}`);
 
       // Commit init
       await commitChanges(`initialize spec directory`, workDir);
