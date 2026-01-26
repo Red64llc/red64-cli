@@ -4,7 +4,7 @@
  * Tasks: 6.1, 6.2, 6.3
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
@@ -30,8 +30,23 @@ import {
   GitHubFetchError
 } from '../../services/index.js';
 
-const DEFAULT_REPO = 'red64/framework';
+const DEFAULT_REPO = 'Red64llc/red64-cli';
 const DEFAULT_VERSION = 'main';
+
+// Skip fetch mode - use bundled framework templates for development
+// Set to false to download from GitHub
+const SKIP_FETCH_MODE = true;
+
+// Get the bundled framework path (for SKIP_FETCH_MODE)
+function getBundledFrameworkPath(): string {
+  // When running from source: /path/to/red64-cli/framework
+  // When running from installed package: /path/to/node_modules/red64-cli/framework
+  const modulePath = new URL(import.meta.url).pathname;
+  const rootDir = modulePath.includes('/dist/')
+    ? modulePath.split('/dist/')[0]
+    : modulePath.split('/src/')[0];
+  return `${rootDir}/framework`;
+}
 
 /**
  * InitScreen - Orchestrates the init command multi-step wizard
@@ -150,11 +165,34 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     };
   }, [setupData.stack, steeringFiles]);
 
+  // Use refs to avoid callback dependency issues
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
+  const setupDataRef = useRef(setupData);
+  setupDataRef.current = setupData;
+
+  // Track if fetch has been attempted to prevent re-runs
+  const fetchAttemptedRef = useRef(false);
+  const extractAttemptedRef = useRef(false);
+  const templateAttemptedRef = useRef(false);
+
   // Fetch framework files when in fetching state
   useEffect(() => {
     if (step.type !== 'fetching') return;
+    if (fetchAttemptedRef.current) return;
+    fetchAttemptedRef.current = true;
 
     const fetchFramework = async () => {
+      // Skip fetch mode - use bundled framework templates
+      if (SKIP_FETCH_MODE) {
+        const frameworkPath = getBundledFrameworkPath();
+        const stacks = await services.templateService.listStacks(frameworkPath);
+        setAvailableStacks(stacks.length > 0 ? stacks : ['generic', 'react', 'node', 'python']);
+        setStep({ type: 'extracting' });
+        return;
+      }
+
       try {
         const result = await services.githubService.fetchTarball({
           repo: initFlags.repo,
@@ -170,63 +208,94 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         setAvailableStacks(stacks);
 
         // Transition to next step
-        handleNext();
+        setStep({ type: 'extracting' });
       } catch (error) {
         if (error instanceof GitHubFetchError) {
-          handleError({
-            code: error.code === 'NETWORK_ERROR' ? 'NETWORK_ERROR' : 'NETWORK_ERROR',
-            message: error.message,
-            recoverable: true,
-            suggestion: 'Check your network connection or try using cached files.'
+          setStep({
+            type: 'error',
+            error: {
+              code: 'NETWORK_ERROR',
+              message: error.message,
+              recoverable: true,
+              suggestion: 'Check your network connection or try using cached files.'
+            }
           });
         } else {
-          handleError({
-            code: 'NETWORK_ERROR',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            recoverable: false
+          setStep({
+            type: 'error',
+            error: {
+              code: 'NETWORK_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown error',
+              recoverable: false
+            }
           });
         }
       }
     };
 
     fetchFramework();
-  }, [step.type, services.githubService, services.templateService, initFlags, handleNext, handleError]);
+  }, [step.type, services.githubService, services.templateService, initFlags]);
 
-  // Extract files when in extracting state
+  // Extract/install framework when in extracting state
   useEffect(() => {
     if (step.type !== 'extracting') return;
+    if (extractAttemptedRef.current) return;
+    extractAttemptedRef.current = true;
 
-    const extractFiles = async () => {
+    const installFramework = async () => {
       try {
-        await services.templateService.createStructure(process.cwd());
-        handleNext();
+        // Use bundled framework path in SKIP_FETCH_MODE
+        const frameworkPath = SKIP_FETCH_MODE
+          ? getBundledFrameworkPath()
+          : ''; // TODO: Use extracted tarball location when implemented
+
+        await services.templateService.installFramework({
+          sourceDir: frameworkPath,
+          targetDir: process.cwd(),
+          variables: {}
+        });
+
+        setStep({
+          type: 'guided-setup',
+          data: setupDataRef.current
+        });
       } catch (error) {
-        handleError({
-          code: 'EXTRACTION_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to create directory structure',
-          recoverable: false
+        setStep({
+          type: 'error',
+          error: {
+            code: 'EXTRACTION_ERROR',
+            message: error instanceof Error ? error.message : 'Failed to install framework',
+            recoverable: false
+          }
         });
       }
     };
 
-    extractFiles();
-  }, [step.type, services.templateService, handleNext, handleError]);
+    installFramework();
+  }, [step.type, services.templateService]);
 
   // Apply templates when in applying-templates state
   useEffect(() => {
     if (step.type !== 'applying-templates') return;
+    if (templateAttemptedRef.current) return;
+    templateAttemptedRef.current = true;
 
     const applyTemplates = async () => {
       try {
-        // Note: In a full implementation, sourceDir would be the extracted tarball location
-        // For now, we create the structure and skip template application
+        const currentSetupData = setupDataRef.current;
+
+        // Use bundled framework path in SKIP_FETCH_MODE, otherwise use extracted tarball
+        const sourceDir = SKIP_FETCH_MODE
+          ? getBundledFrameworkPath()
+          : ''; // TODO: Use extracted tarball location when implemented
+
         const files = await services.templateService.applyStackTemplates({
-          sourceDir: '', // Would be tarball extract location
+          sourceDir,
           targetDir: process.cwd(),
-          stack: setupData.stack ?? 'generic',
+          stack: currentSetupData.stack ?? 'generic',
           variables: {
-            projectName: setupData.projectName ?? 'my-project',
-            description: setupData.description ?? ''
+            projectName: currentSetupData.projectName ?? 'my-project',
+            description: currentSetupData.description ?? ''
           }
         });
 
@@ -236,26 +305,49 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         await services.configService.save(process.cwd(), {
           version: initFlags.version ?? DEFAULT_VERSION,
           repo: initFlags.repo ?? DEFAULT_REPO,
-          stack: setupData.stack ?? 'generic',
-          projectType: setupData.projectType ?? 'other',
-          projectName: setupData.projectName ?? 'my-project',
-          description: setupData.description ?? '',
+          stack: currentSetupData.stack ?? 'generic',
+          projectType: currentSetupData.projectType ?? 'other',
+          projectName: currentSetupData.projectName ?? 'my-project',
+          description: currentSetupData.description ?? '',
           initializedAt: new Date().toISOString(),
-          customValues: setupData.customValues ?? {}
+          customValues: currentSetupData.customValues ?? {}
         });
 
-        handleNext();
+        if (initFlags['no-steering']) {
+          setStep({
+            type: 'complete',
+            summary: {
+              createdDirs: [
+                '.red64',
+                '.red64/steering',
+                '.red64/specs',
+                '.red64/commands',
+                '.red64/agents',
+                '.red64/templates',
+                '.red64/settings'
+              ],
+              appliedStack: currentSetupData.stack ?? 'generic',
+              configPath: '.red64/config.json',
+              steeringFiles: files
+            }
+          });
+        } else {
+          setStep({ type: 'steering-prompt' });
+        }
       } catch (error) {
-        handleError({
-          code: 'EXTRACTION_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to apply templates',
-          recoverable: false
+        setStep({
+          type: 'error',
+          error: {
+            code: 'EXTRACTION_ERROR',
+            message: error instanceof Error ? error.message : 'Failed to apply templates',
+            recoverable: false
+          }
         });
       }
     };
 
     applyTemplates();
-  }, [step.type, setupData, services, initFlags, handleNext, handleError]);
+  }, [step.type, services, initFlags]);
 
   // Render current step
   const renderStep = () => {

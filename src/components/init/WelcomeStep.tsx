@@ -3,7 +3,7 @@
  * Task 5.1: Display welcome message and check for existing directory
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import type { BaseStepProps, ConflictResolution } from './types.js';
@@ -21,17 +21,24 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({
 }) => {
   const [checking, setChecking] = useState(true);
 
+  // Use ref to stabilize callback
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+
+  const hasTransitionedRef = useRef(false);
+
   useEffect(() => {
     // Simulate a brief check delay for UX
     const timer = setTimeout(() => {
       setChecking(false);
-      if (!directoryExists) {
-        onNext();
+      if (!directoryExists && !hasTransitionedRef.current) {
+        hasTransitionedRef.current = true;
+        onNextRef.current();
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [directoryExists, onNext]);
+  }, [directoryExists]);
 
   if (checking) {
     return (

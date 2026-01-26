@@ -34,6 +34,15 @@ export interface ExtractOptions {
 }
 
 /**
+ * Framework installation options
+ */
+export interface InstallFrameworkOptions {
+  readonly sourceDir: string;  // Path to framework directory
+  readonly targetDir: string;  // User's project directory
+  readonly variables?: Record<string, string>;
+}
+
+/**
  * Template service interface
  * Requirements: 1.3, 2.1-2.7, 3.1-3.6
  */
@@ -49,6 +58,12 @@ export interface TemplateService {
    * Create unified directory structure
    */
   createStructure(targetDir: string): Promise<StructureResult>;
+
+  /**
+   * Install the full framework from source to target
+   * Copies framework/.red64/ to target/.red64/
+   */
+  installFramework(options: InstallFrameworkOptions): Promise<StructureResult>;
 
   /**
    * Apply stack-specific steering templates
@@ -136,6 +151,40 @@ async function isDirectory(path: string): Promise<boolean> {
 }
 
 /**
+ * Copy framework directory recursively, tracking created dirs and files
+ */
+async function copyFrameworkDir(
+  srcDir: string,
+  destDir: string,
+  variables: Record<string, string>,
+  createdDirs: string[],
+  createdFiles: string[],
+  relativePath = ''
+): Promise<void> {
+  await mkdir(destDir, { recursive: true });
+  if (relativePath) {
+    createdDirs.push(relativePath);
+  }
+
+  const entries = await readdir(srcDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = join(srcDir, entry.name);
+    const destPath = join(destDir, entry.name);
+    const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+
+    if (entry.isDirectory()) {
+      await copyFrameworkDir(srcPath, destPath, variables, createdDirs, createdFiles, entryRelPath);
+    } else if (entry.isFile()) {
+      let content = await readFile(srcPath, 'utf-8');
+      content = replaceVariables(content, variables);
+      await writeFile(destPath, content, 'utf-8');
+      createdFiles.push(entryRelPath);
+    }
+  }
+}
+
+/**
  * Copy directory recursively with transformations
  */
 async function copyDirWithTransform(
@@ -195,6 +244,37 @@ export function createTemplateService(): TemplateService {
         const fullPath = join(targetDir, dir);
         await mkdir(fullPath, { recursive: true });
         createdDirs.push(dir);
+      }
+
+      return { createdDirs, createdFiles };
+    },
+
+    async installFramework(options: InstallFrameworkOptions): Promise<StructureResult> {
+      const { sourceDir, targetDir, variables = {} } = options;
+      const createdDirs: string[] = [];
+      const createdFiles: string[] = [];
+
+      // Source: framework/.red64/
+      const frameworkSrc = join(sourceDir, '.red64');
+      // Destination: targetDir/.red64/
+      const frameworkDest = join(targetDir, '.red64');
+
+      if (!(await pathExists(frameworkSrc))) {
+        // Fall back to creating empty structure if framework not found
+        return this.createStructure(targetDir);
+      }
+
+      // Recursively copy framework with variable replacement
+      await copyFrameworkDir(frameworkSrc, frameworkDest, variables, createdDirs, createdFiles);
+
+      // Ensure additional directories exist (specs, steering might not be in framework)
+      const additionalDirs = ['.red64/specs', '.red64/steering'];
+      for (const dir of additionalDirs) {
+        const fullPath = join(targetDir, dir);
+        if (!(await pathExists(fullPath))) {
+          await mkdir(fullPath, { recursive: true });
+          createdDirs.push(dir);
+        }
       }
 
       return { createdDirs, createdFiles };

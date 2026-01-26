@@ -75,7 +75,6 @@ export const AbortScreen: React.FC<ScreenProps> = ({ args }) => {
   const featureName = args[0];
 
   const [state, setState] = useState<AbortScreenState>({ step: 'loading' });
-  const [deleteBranch, setDeleteBranch] = useState(false);
   const [stateStore] = useState<StateStoreService>(() => createStateStore(getBaseDir()));
   const [worktreeService] = useState<WorktreeServiceInterface>(() => createWorktreeService());
   const [branchService] = useState<BranchServiceInterface>(() => createBranchService());
@@ -128,7 +127,6 @@ export const AbortScreen: React.FC<ScreenProps> = ({ args }) => {
   const handleBranchDecision = async (item: SelectMenuItem<BranchAction>) => {
     if (state.step !== 'branch-options') return;
 
-    setDeleteBranch(item.value === 'delete');
     setState({ step: 'cleaning', flowState: state.flowState, results: [] });
 
     // Start cleanup

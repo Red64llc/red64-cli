@@ -3,7 +3,7 @@
  * Task 5.3: Guided configuration for project setup
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Select, TextInput } from '@inkjs/ui';
 import type { BaseStepProps, SetupData } from './types.js';
@@ -39,9 +39,18 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   const [projectName, setProjectName] = useState('');
   const [, setDescription] = useState('');
 
+  // Use refs to stabilize callbacks
+  const onCompleteRef = useRef(onComplete);
+  const onNextRef = useRef(onNext);
+  onCompleteRef.current = onComplete;
+  onNextRef.current = onNext;
+
+  const skipHandledRef = useRef(false);
+
   // Handle skip-guided mode
-  React.useEffect(() => {
-    if (skipGuided) {
+  useEffect(() => {
+    if (skipGuided && !skipHandledRef.current) {
+      skipHandledRef.current = true;
       const data: SetupData = {
         projectType: 'other',
         stack: defaultStack ?? 'generic',
@@ -49,10 +58,10 @@ export const SetupStep: React.FC<SetupStepProps> = ({
         description: '',
         customValues: {}
       };
-      onComplete(data);
-      onNext();
+      onCompleteRef.current(data);
+      onNextRef.current();
     }
-  }, [skipGuided, defaultStack, onComplete, onNext]);
+  }, [skipGuided, defaultStack]);
 
   const handleProjectTypeSelect = (value: string) => {
     setProjectType(value as ProjectType);
@@ -90,8 +99,10 @@ export const SetupStep: React.FC<SetupStepProps> = ({
     );
   }
 
+  // Filter out 'generic' from availableStacks to avoid duplicate, then add it with better label at end
+  const filteredStacks = availableStacks.filter(s => s !== 'generic');
   const stackOptions = [
-    ...availableStacks.map(s => ({ value: s, label: s })),
+    ...filteredStacks.map(s => ({ value: s, label: s })),
     { value: 'generic', label: 'Generic (no framework-specific templates)' }
   ];
 

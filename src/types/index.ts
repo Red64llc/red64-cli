@@ -98,6 +98,9 @@ export interface FlowState {
     readonly description: string;
     readonly mode: 'greenfield' | 'brownfield';
     readonly tier?: string;
+    readonly worktreePath?: string;
+    readonly prUrl?: string;
+    readonly prNumber?: number;
   };
 }
 
@@ -140,3 +143,7 @@ export {
   isTerminalPhase,
   getPhaseSequence
 } from './extended-flow.js';
+
+// Re-export service types
+export type { GitStatus } from '../services/GitStatusChecker.js';
+export type { PRStatus } from '../services/PRStatusFetcher.js';

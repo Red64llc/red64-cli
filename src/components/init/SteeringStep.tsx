@@ -3,7 +3,7 @@
  * Task 5.4: Offer steering enhancement options
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Select } from '@inkjs/ui';
 import type { BaseStepProps } from './types.js';
@@ -28,12 +28,19 @@ export const SteeringStep: React.FC<SteeringStepProps> = ({
 }) => {
   const [showingOptions, setShowingOptions] = useState(true);
 
+  // Use ref to stabilize callback
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+
+  const skipHandledRef = useRef(false);
+
   // Skip steering step if --no-steering flag is set
-  React.useEffect(() => {
-    if (noSteering) {
-      onNext();
+  useEffect(() => {
+    if (noSteering && !skipHandledRef.current) {
+      skipHandledRef.current = true;
+      onNextRef.current();
     }
-  }, [noSteering, onNext]);
+  }, [noSteering]);
 
   const handleAction = (value: string) => {
     const action = value as SteeringAction;

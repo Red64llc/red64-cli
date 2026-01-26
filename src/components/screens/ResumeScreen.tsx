@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import type { ScreenProps } from './ScreenProps.js';
 import type { FlowState, GitStatus, ExtendedFlowPhase, WorkflowMode } from '../../types/index.js';
-import { getPhaseSequence, GREENFIELD_PHASES } from '../../types/index.js';
+import { getPhaseSequence } from '../../types/index.js';
 import { createStateStore, type StateStoreService } from '../../services/StateStore.js';
 import { createGitStatusChecker, type GitStatusCheckerService } from '../../services/GitStatusChecker.js';
 import { Spinner, PhaseProgressView, ErrorDisplay, SelectMenu, type SelectMenuItem } from '../ui/index.js';

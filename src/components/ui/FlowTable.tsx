@@ -7,7 +7,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { formatDistanceToNow } from 'date-fns';
-import type { FlowState, ExtendedFlowPhase } from '../../types/index.js';
+import type { FlowState } from '../../types/index.js';
 
 /**
  * Props for FlowTable component

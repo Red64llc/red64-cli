@@ -142,7 +142,7 @@ function getDisplayPhases(phases: readonly ExtendedFlowPhase['type'][]): Extende
 export const PhaseProgressView: React.FC<PhaseProgressViewProps> = ({
   phases,
   currentPhase,
-  mode
+  mode: _mode
 }) => {
   const displayPhases = getDisplayPhases(phases);
 

@@ -6,8 +6,14 @@
   "bin": {
     "red64": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "framework"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:framework && tsc",
+    "build:framework": "node scripts/build-framework.mjs",
+    "build:ts": "tsc",
     "dev": "tsx src/cli.tsx",
     "test": "vitest",
     "test:ui": "vitest --ui",
