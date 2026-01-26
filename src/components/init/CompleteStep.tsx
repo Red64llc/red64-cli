@@ -56,8 +56,8 @@ export const CompleteStep: React.FC<CompleteStepProps> = ({ summary }) => {
       <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
         <Text bold>Next steps:</Text>
         <Box marginTop={1} flexDirection="column">
-          <Text><Text color="cyan">1.</Text> Customize steering → <Text dimColor>red64 steering</Text></Text>
-          <Text><Text color="cyan">2.</Text> Start a spec      → <Text dimColor>red64 start "description"</Text></Text>
+          <Text><Text color="cyan">1.</Text> Review steering docs in <Text dimColor>.red64/steering/</Text></Text>
+          <Text><Text color="cyan">2.</Text> Start a feature   → <Text dimColor>red64 start my-feature "description"</Text></Text>
           <Text><Text color="cyan">3.</Text> View commands     → <Text dimColor>red64 help</Text></Text>
         </Box>
       </Box>
