@@ -92,3 +92,29 @@ export interface FlowState {
     readonly tier?: string;
   };
 }
+
+/**
+ * Agent invocation options for Claude CLI execution
+ * Requirements: 7.1, 7.2, 7.5, 7.6
+ */
+export interface AgentInvokeOptions {
+  readonly prompt: string;
+  readonly workingDirectory: string;
+  readonly skipPermissions: boolean;
+  readonly tier: string | undefined;
+  readonly onOutput?: (chunk: string) => void;
+  readonly onError?: (chunk: string) => void;
+  readonly timeout?: number;
+}
+
+/**
+ * Agent invocation result from Claude CLI
+ * Requirements: 7.1, 7.2, 7.5, 7.6
+ */
+export interface AgentResult {
+  readonly success: boolean;
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly timedOut: boolean;
+}
