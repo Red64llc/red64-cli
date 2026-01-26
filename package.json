@@ -1,0 +1,41 @@
+{
+  "name": "red64-cli",
+  "version": "0.1.0",
+  "description": "Red64 Flow Orchestrator - Deterministic spec-driven development CLI",
+  "type": "module",
+  "bin": {
+    "red64": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.tsx",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "cli",
+    "spec-driven",
+    "workflow",
+    "orchestration"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "meow": "^14.0.0",
+    "@inkjs/ui": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8",
+    "ink-testing-library": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
