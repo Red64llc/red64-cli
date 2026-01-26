@@ -4,8 +4,8 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Text } from 'ink';
-import { Spinner } from '@inkjs/ui';
+import { Box, Text, useApp } from 'ink';
+import { Spinner, Select } from '@inkjs/ui';
 import type { BaseStepProps, ConflictResolution } from './types.js';
 
 export interface WelcomeStepProps extends BaseStepProps {
@@ -13,17 +13,27 @@ export interface WelcomeStepProps extends BaseStepProps {
   readonly onConflictResolution?: (resolution: ConflictResolution) => void;
 }
 
+const CONFLICT_OPTIONS: { value: ConflictResolution; label: string }[] = [
+  { value: 'overwrite', label: 'Overwrite - Replace existing configuration' },
+  { value: 'merge', label: 'Merge - Keep existing files, add missing ones' },
+  { value: 'abort', label: 'Abort - Cancel initialization' }
+];
+
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({
   directoryExists,
   onNext,
   onError: _onError,
-  onConflictResolution: _onConflictResolution
+  onConflictResolution
 }) => {
+  const { exit } = useApp();
   const [checking, setChecking] = useState(true);
 
   // Use ref to stabilize callback
   const onNextRef = useRef(onNext);
   onNextRef.current = onNext;
+
+  const onConflictResolutionRef = useRef(onConflictResolution);
+  onConflictResolutionRef.current = onConflictResolution;
 
   const hasTransitionedRef = useRef(false);
 
@@ -39,6 +49,17 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({
 
     return () => clearTimeout(timer);
   }, [directoryExists]);
+
+  const handleConflictSelect = (value: string) => {
+    const resolution = value as ConflictResolution;
+    if (resolution === 'abort') {
+      exit();
+      return;
+    }
+    // Call resolution handler and proceed
+    onConflictResolutionRef.current?.(resolution);
+    onNextRef.current();
+  };
 
   if (checking) {
     return (
@@ -60,15 +81,14 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({
           <Text bold color="yellow">Existing .red64/ directory found</Text>
         </Box>
         <Text>A red64 configuration already exists in this project.</Text>
-        <Box marginTop={1}>
-          <Text dimColor>
-            Use the arrow keys to select an action and press Enter:
-          </Text>
-        </Box>
         <Box marginTop={1} flexDirection="column">
-          <Text>- Overwrite: Replace existing configuration</Text>
-          <Text>- Merge: Keep existing files, add missing ones</Text>
-          <Text>- Abort: Cancel initialization</Text>
+          <Text dimColor>Select an action:</Text>
+          <Box marginTop={1}>
+            <Select
+              options={CONFLICT_OPTIONS}
+              onChange={handleConflictSelect}
+            />
+          </Box>
         </Box>
       </Box>
     );

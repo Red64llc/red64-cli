@@ -26,6 +26,7 @@ export type InitStep =
   | { type: 'extracting' }
   | { type: 'guided-setup'; data: Partial<SetupData> }
   | { type: 'applying-templates' }
+  | { type: 'git-setup' }
   | { type: 'steering-prompt' }
   | { type: 'complete'; summary: InitSummary }
   | { type: 'error'; error: InitError };
@@ -49,6 +50,8 @@ export interface InitSummary {
   readonly appliedStack: string;
   readonly configPath: string;
   readonly steeringFiles: readonly string[];
+  readonly gitInitialized?: boolean;
+  readonly gitCommitted?: boolean;
 }
 
 /**

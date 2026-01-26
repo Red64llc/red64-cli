@@ -26,9 +26,11 @@ import {
   createGitHubService,
   createTemplateService,
   createConfigService,
+  createCommitService,
   type FetchProgress,
   GitHubFetchError
 } from '../../services/index.js';
+import { spawn } from 'node:child_process';
 
 const DEFAULT_REPO = 'Red64llc/red64-cli';
 const DEFAULT_VERSION = 'main';
@@ -48,6 +50,24 @@ function getBundledFrameworkPath(): string {
   return `${rootDir}/framework`;
 }
 
+// Check if directory is a git repository
+async function isGitRepo(dir: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn('git', ['rev-parse', '--git-dir'], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
+    proc.on('close', (code) => resolve(code === 0));
+    proc.on('error', () => resolve(false));
+  });
+}
+
+// Initialize git repository
+async function gitInit(dir: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn('git', ['init'], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
+    proc.on('close', (code) => resolve(code === 0));
+    proc.on('error', () => resolve(false));
+  });
+}
+
 /**
  * InitScreen - Orchestrates the init command multi-step wizard
  * Task 6.1: State management
@@ -61,6 +81,9 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   const [availableStacks, setAvailableStacks] = useState<readonly string[]>([]);
   const [steeringFiles, setSteeringFiles] = useState<readonly string[]>([]);
   const [directoryExists, setDirectoryExists] = useState(false);
+  const [gitInitialized, setGitInitialized] = useState(false);
+  const [gitCommitted, setGitCommitted] = useState(false);
+  const [conflictResolution, setConflictResolution] = useState<'overwrite' | 'merge' | null>(null);
 
   // Extract init-specific flags
   const initFlags: InitFlags = {
@@ -82,8 +105,9 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     });
     const templateService = createTemplateService();
     const configService = createConfigService();
+    const commitService = createCommitService();
 
-    return { cacheService, githubService, templateService, configService };
+    return { cacheService, githubService, templateService, configService, commitService };
   });
 
   // Check for existing directory
@@ -147,23 +171,29 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     setSetupData(data);
   }, []);
 
+  const handleConflictResolution = useCallback((resolution: 'overwrite' | 'merge' | 'abort') => {
+    if (resolution !== 'abort') {
+      setConflictResolution(resolution);
+    }
+  }, []);
+
   // Create summary for complete step
   const createSummary = useCallback((): InitSummary => {
     return {
       createdDirs: [
+        '.claude',
         '.red64',
         '.red64/steering',
         '.red64/specs',
-        '.red64/commands',
-        '.red64/agents',
-        '.red64/templates',
         '.red64/settings'
       ],
       appliedStack: setupData.stack ?? 'generic',
       configPath: '.red64/config.json',
-      steeringFiles
+      steeringFiles,
+      gitInitialized,
+      gitCommitted
     };
-  }, [setupData.stack, steeringFiles]);
+  }, [setupData.stack, steeringFiles, gitInitialized, gitCommitted]);
 
   // Use refs to avoid callback dependency issues
   const stepRef = useRef(step);
@@ -244,6 +274,20 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
 
     const installFramework = async () => {
       try {
+        const cwd = process.cwd();
+
+        // If overwrite mode, remove existing directories first
+        if (conflictResolution === 'overwrite') {
+          const { rm } = await import('node:fs/promises');
+          try {
+            await rm(`${cwd}/.red64`, { recursive: true, force: true });
+            await rm(`${cwd}/.claude`, { recursive: true, force: true });
+            await rm(`${cwd}/CLAUDE.md`, { force: true });
+          } catch {
+            // Ignore errors if files don't exist
+          }
+        }
+
         // Use bundled framework path in SKIP_FETCH_MODE
         const frameworkPath = SKIP_FETCH_MODE
           ? getBundledFrameworkPath()
@@ -251,7 +295,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
 
         await services.templateService.installFramework({
           sourceDir: frameworkPath,
-          targetDir: process.cwd(),
+          targetDir: cwd,
           variables: {}
         });
 
@@ -272,7 +316,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     };
 
     installFramework();
-  }, [step.type, services.templateService]);
+  }, [step.type, services.templateService, conflictResolution]);
 
   // Apply templates when in applying-templates state
   useEffect(() => {
@@ -313,27 +357,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
           customValues: currentSetupData.customValues ?? {}
         });
 
-        if (initFlags['no-steering']) {
-          setStep({
-            type: 'complete',
-            summary: {
-              createdDirs: [
-                '.red64',
-                '.red64/steering',
-                '.red64/specs',
-                '.red64/commands',
-                '.red64/agents',
-                '.red64/templates',
-                '.red64/settings'
-              ],
-              appliedStack: currentSetupData.stack ?? 'generic',
-              configPath: '.red64/config.json',
-              steeringFiles: files
-            }
-          });
-        } else {
-          setStep({ type: 'steering-prompt' });
-        }
+        // Transition to git setup
+        setStep({ type: 'git-setup' });
       } catch (error) {
         setStep({
           type: 'error',
@@ -349,6 +374,72 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     applyTemplates();
   }, [step.type, services, initFlags]);
 
+  // Git setup ref
+  const gitSetupAttemptedRef = useRef(false);
+
+  // Setup git when in git-setup state
+  useEffect(() => {
+    if (step.type !== 'git-setup') return;
+    if (gitSetupAttemptedRef.current) return;
+    gitSetupAttemptedRef.current = true;
+
+    const setupGit = async () => {
+      const cwd = process.cwd();
+      let initialized = false;
+      let committed = false;
+
+      try {
+        // Check if already a git repo
+        const isRepo = await isGitRepo(cwd);
+
+        if (!isRepo) {
+          // Initialize git repository
+          const initSuccess = await gitInit(cwd);
+          if (initSuccess) {
+            initialized = true;
+            setGitInitialized(true);
+          }
+        } else {
+          initialized = true;
+          setGitInitialized(true);
+        }
+
+        // Stage and commit framework files
+        if (initialized) {
+          const result = await services.commitService.stageAndCommit(
+            cwd,
+            'chore: initialize red64 framework\n\nAdded .claude/, .red64/, and CLAUDE.md for spec-driven development.'
+          );
+          if (result.success) {
+            committed = true;
+            setGitCommitted(true);
+          }
+        }
+      } catch {
+        // Git errors are non-fatal, continue to next step
+      }
+
+      // Transition to next step
+      if (initFlags['no-steering']) {
+        setStep({
+          type: 'complete',
+          summary: {
+            createdDirs: ['.claude', '.red64', '.red64/steering', '.red64/specs', '.red64/settings'],
+            appliedStack: setupDataRef.current.stack ?? 'generic',
+            configPath: '.red64/config.json',
+            steeringFiles,
+            gitInitialized: initialized,
+            gitCommitted: committed
+          }
+        });
+      } else {
+        setStep({ type: 'steering-prompt' });
+      }
+    };
+
+    setupGit();
+  }, [step.type, services.commitService, initFlags, steeringFiles]);
+
   // Render current step
   const renderStep = () => {
     switch (step.type) {
@@ -358,6 +449,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
             directoryExists={directoryExists}
             onNext={handleNext}
             onError={handleError}
+            onConflictResolution={handleConflictResolution}
           />
         );
 
@@ -402,6 +494,13 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         return (
           <Box flexDirection="column" padding={1}>
             <Spinner label="Applying stack templates..." />
+          </Box>
+        );
+
+      case 'git-setup':
+        return (
+          <Box flexDirection="column" padding={1}>
+            <Spinner label="Setting up git repository..." />
           </Box>
         );
 
