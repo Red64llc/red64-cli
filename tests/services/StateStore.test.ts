@@ -219,4 +219,58 @@ describe('StateStore', () => {
       expect(loaded).toBeUndefined();
     });
   });
+
+  describe('archive', () => {
+    it('should archive flow state by renaming state file', async () => {
+      const { access } = await import('node:fs/promises');
+      const state = createTestState('test-feature', { type: 'idle' });
+      await stateStore.save(state);
+
+      await stateStore.archive('test-feature');
+
+      // Original state.json should no longer exist
+      const exists = await stateStore.exists('test-feature');
+      expect(exists).toBe(false);
+
+      // state.archived.json should exist
+      const archivePath = join(tempDir, '.red64', 'flows', 'test-feature', 'state.archived.json');
+      await expect(access(archivePath)).resolves.not.toThrow();
+    });
+
+    it('should not throw when archiving non-existent feature', async () => {
+      await expect(stateStore.archive('non-existent')).resolves.not.toThrow();
+    });
+
+    it('should not include archived flows in list', async () => {
+      const state1 = createTestState('feature-1', { type: 'idle' });
+      const state2 = createTestState('feature-2', { type: 'idle' });
+
+      await stateStore.save(state1);
+      await stateStore.save(state2);
+      await stateStore.archive('feature-1');
+
+      const flows = await stateStore.list();
+
+      expect(flows).toHaveLength(1);
+      expect(flows[0].feature).toBe('feature-2');
+    });
+
+    it('should preserve archived state content', async () => {
+      const { readFile } = await import('node:fs/promises');
+      const state = createTestState('test-feature', {
+        type: 'requirements-review',
+        feature: 'test-feature'
+      });
+      await stateStore.save(state);
+
+      await stateStore.archive('test-feature');
+
+      const archivePath = join(tempDir, '.red64', 'flows', 'test-feature', 'state.archived.json');
+      const content = await readFile(archivePath, 'utf-8');
+      const archived = JSON.parse(content);
+
+      expect(archived.feature).toBe('test-feature');
+      expect(archived.phase.type).toBe('requirements-review');
+    });
+  });
 });

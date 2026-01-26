@@ -1,16 +1,16 @@
 {
   "feature_name": "red64-init",
   "created_at": "2026-01-25T00:00:00Z",
-  "updated_at": "2026-01-25T00:00:00Z",
+  "updated_at": "2026-01-26T00:00:00Z",
   "language": "en",
-  "phase": "requirements-generated",
+  "phase": "design-generated",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "design": {
-      "generated": false,
+      "generated": true,
       "approved": false
     },
     "tasks": {

@@ -71,3 +71,22 @@ export {
   type PRMergeOptions,
   type PRMergeResult
 } from './PRCreatorService.js';
+
+export {
+  createGitStatusChecker,
+  type GitStatusCheckerService,
+  type GitStatus
+} from './GitStatusChecker.js';
+
+export {
+  createPRStatusFetcher,
+  type PRStatusFetcherService,
+  type PRStatus,
+  type PRCloseResult
+} from './PRStatusFetcher.js';
+
+export {
+  createBranchService,
+  type BranchServiceInterface,
+  type BranchDeleteResult
+} from './BranchService.js';

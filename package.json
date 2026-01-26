@@ -22,18 +22,19 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "date-fns": "^3.6.0",
     "ink": "^5.0.1",
-    "react": "^18.3.1",
     "meow": "^14.0.0",
-    "@inkjs/ui": "^2.0.0"
+    "react": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "@types/react": "^18.3.18",
-    "typescript": "^5.7.3",
+    "ink-testing-library": "^4.0.0",
     "tsx": "^4.19.2",
-    "vitest": "^2.1.8",
-    "ink-testing-library": "^4.0.0"
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   },
   "engines": {
     "node": ">=20.0.0"

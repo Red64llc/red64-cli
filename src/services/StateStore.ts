@@ -11,6 +11,7 @@ import type { FlowState } from '../types/index.js';
 /**
  * State store service interface
  * Requirements: 1.5 - Persist and restore flow state through TypeScript file I/O
+ * Task 1.4: Extended with archive capability for abort flows
  */
 export interface StateStoreService {
   save(state: FlowState): Promise<void>;
@@ -18,6 +19,7 @@ export interface StateStoreService {
   list(): Promise<readonly FlowState[]>;
   delete(feature: string): Promise<void>;
   exists(feature: string): Promise<boolean>;
+  archive(feature: string): Promise<void>;
 }
 
 /**
@@ -178,6 +180,25 @@ export function createStateStore(baseDir: string): StateStoreService {
         return true;
       } catch {
         return false;
+      }
+    },
+
+    /**
+     * Archive flow state for historical preservation
+     * Task 1.4: Rename state.json to state.archived.json
+     * Requirements: 4.5 - Archive flow state on abort
+     */
+    async archive(feature: string): Promise<void> {
+      const statePath = getStatePath(baseDir, feature);
+      const featureDir = getFeatureDir(baseDir, feature);
+      const archivePath = join(featureDir, 'state.archived.json');
+
+      try {
+        await access(statePath);
+        // Atomic rename for archive
+        await rename(statePath, archivePath);
+      } catch {
+        // State file doesn't exist - nothing to archive
       }
     }
   };
