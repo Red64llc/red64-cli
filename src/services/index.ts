@@ -90,3 +90,36 @@ export {
   type BranchServiceInterface,
   type BranchDeleteResult
 } from './BranchService.js';
+
+export {
+  createCacheService,
+  type CacheService,
+  type CacheEntry,
+  type CacheServiceConfig
+} from './CacheService.js';
+
+export {
+  createTemplateService,
+  type TemplateService,
+  type StructureResult,
+  type StackTemplateOptions,
+  type ExtractOptions
+} from './TemplateService.js';
+
+export {
+  createConfigService,
+  type ConfigService,
+  type InitConfig,
+  type ProjectType
+} from './ConfigService.js';
+
+export {
+  createGitHubService,
+  GitHubFetchError,
+  type GitHubService,
+  type GitHubServiceConfig,
+  type FetchOptions,
+  type FetchProgress,
+  type FetchResult,
+  type GitHubErrorCode
+} from './GitHubService.js';

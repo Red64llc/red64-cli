@@ -26,7 +26,15 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     greenfield: true, // Default to greenfield mode
     tier: undefined,
     help: false,
-    version: false
+    version: false,
+    verbose: false,
+    yes: false,
+    // Init-specific flags
+    repo: undefined,
+    stack: undefined,
+    'skip-guided': undefined,
+    'no-steering': undefined,
+    'no-cache': undefined
   };
 
   const positionalArgs: string[] = [];
@@ -54,6 +62,28 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { help: boolean }).help = true;
     } else if (arg === '--version' || arg === '-v') {
       (flags as { version: boolean }).version = true;
+    } else if (arg === '--verbose') {
+      (flags as { verbose: boolean }).verbose = true;
+    } else if (arg === '--yes' || arg === '-y') {
+      (flags as { yes: boolean }).yes = true;
+    } else if (arg === '--repo') {
+      const nextArg = argv[i + 1];
+      if (nextArg && !nextArg.startsWith('-')) {
+        (flags as { repo: string | undefined }).repo = nextArg;
+        i++;
+      }
+    } else if (arg === '--stack') {
+      const nextArg = argv[i + 1];
+      if (nextArg && !nextArg.startsWith('-')) {
+        (flags as { stack: string | undefined }).stack = nextArg;
+        i++;
+      }
+    } else if (arg === '--skip-guided') {
+      (flags as { 'skip-guided': boolean })['skip-guided'] = true;
+    } else if (arg === '--no-steering') {
+      (flags as { 'no-steering': boolean })['no-steering'] = true;
+    } else if (arg === '--no-cache') {
+      (flags as { 'no-cache': boolean })['no-cache'] = true;
     } else if (!arg.startsWith('-')) {
       positionalArgs.push(arg);
     }

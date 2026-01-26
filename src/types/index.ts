@@ -33,6 +33,14 @@ export interface GlobalFlags {
   readonly tier: string | undefined;
   readonly help: boolean;
   readonly version: boolean;
+  readonly verbose: boolean;
+  readonly yes: boolean;
+  // Init command specific flags
+  readonly repo?: string;
+  readonly stack?: string;
+  readonly 'skip-guided'?: boolean;
+  readonly 'no-steering'?: boolean;
+  readonly 'no-cache'?: boolean;
 }
 
 /**
