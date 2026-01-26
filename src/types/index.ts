@@ -118,3 +118,17 @@ export interface AgentResult {
   readonly stderr: string;
   readonly timedOut: boolean;
 }
+
+// Re-export extended flow types
+export {
+  type ExtendedFlowPhase,
+  type ExtendedFlowEvent,
+  type ExtendedFlowState,
+  type WorkflowMode,
+  GREENFIELD_PHASES,
+  BROWNFIELD_PHASES,
+  isApprovalPhase,
+  isGeneratingPhase,
+  isTerminalPhase,
+  getPhaseSequence
+} from './extended-flow.js';

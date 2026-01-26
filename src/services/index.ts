@@ -23,3 +23,51 @@ export {
   type PhaseExecutorService,
   type PhaseExecutionResult
 } from './PhaseExecutor.js';
+
+export {
+  createFeatureValidator,
+  type FeatureValidatorService,
+  type ValidationResult
+} from './FeatureValidator.js';
+
+export {
+  createWorktreeService,
+  type WorktreeServiceInterface,
+  type WorktreeInfo,
+  type WorktreeResult
+} from './WorktreeService.js';
+
+export {
+  createExtendedFlowMachine,
+  extendedTransition,
+  type ExtendedFlowMachineService
+} from './ExtendedFlowStateMachine.js';
+
+export {
+  createCommitService,
+  type CommitServiceInterface,
+  type CommitResult
+} from './CommitService.js';
+
+export {
+  createTaskParser,
+  type TaskParserService,
+  type Task
+} from './TaskParser.js';
+
+export {
+  createTaskRunner,
+  type TaskRunnerService,
+  type TaskExecutionOptions,
+  type TaskExecutionResult,
+  type CheckpointDecision
+} from './TaskRunner.js';
+
+export {
+  createPRCreatorService,
+  type PRCreatorServiceInterface,
+  type PRCreateOptions,
+  type PRCreateResult,
+  type PRMergeOptions,
+  type PRMergeResult
+} from './PRCreatorService.js';
