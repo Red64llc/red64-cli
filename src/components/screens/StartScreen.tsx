@@ -1,20 +1,35 @@
 /**
  * Start screen component - orchestrates the spec-driven development flow
  * Requirements: 4.2
+ *
+ * Flow:
+ * 1. Create git worktree for isolation
+ * 2. Initialize spec directory → commit
+ * 3. Generate requirements → commit
+ * 4. Approval gate
+ * 5. Generate design → commit
+ * 6. Approval gate
+ * 7. Generate tasks → commit
+ * 8. Approval gate
+ * 9. For each task: run spec-impl {task} → commit
+ * 10. Complete
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, GlobalFlags, ExtendedFlowPhase, WorkflowMode } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode } from '../../types/index.js';
 import {
   createStateStore,
   createAgentInvoker,
-  createPhaseExecutor,
   createExtendedFlowMachine,
-  type PhaseExecutionResult
+  createWorktreeService,
+  createCommitService,
+  createTaskParser,
+  type Task
 } from '../../services/index.js';
+import { join } from 'node:path';
 
 /**
  * Phase display information
@@ -56,33 +71,51 @@ interface FlowScreenState {
   output: string[];
   error: string | null;
   isExecuting: boolean;
+  worktreePath: string | null;
+  currentTask: number;
+  totalTasks: number;
+  tasks: readonly Task[];
 }
 
 /**
- * Start screen - orchestrates the spec-driven development flow
- * Requirements: 4.2 - Start new feature flow
+ * Start screen - orchestrates the spec-driven development flow with:
+ * - Git worktree isolation
+ * - Commits after each phase
+ * - Task-by-task implementation with commits
  */
 export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   const { exit } = useApp();
   const featureName = args[0] ?? 'unnamed';
   const description = args[1] ?? 'No description provided';
   const mode: WorkflowMode = flags.brownfield ? 'brownfield' : 'greenfield';
+  const repoPath = process.cwd();
 
   // Initialize services
   const servicesRef = useRef<{
     stateStore: ReturnType<typeof createStateStore>;
     agentInvoker: ReturnType<typeof createAgentInvoker>;
-    phaseExecutor: ReturnType<typeof createPhaseExecutor>;
     flowMachine: ReturnType<typeof createExtendedFlowMachine>;
+    worktreeService: ReturnType<typeof createWorktreeService>;
+    commitService: ReturnType<typeof createCommitService>;
+    taskParser: ReturnType<typeof createTaskParser>;
   } | null>(null);
 
   if (!servicesRef.current) {
-    const stateStore = createStateStore(process.cwd());
+    const stateStore = createStateStore(repoPath);
     const agentInvoker = createAgentInvoker();
-    const phaseExecutor = createPhaseExecutor(agentInvoker, stateStore);
     const flowMachine = createExtendedFlowMachine();
+    const worktreeService = createWorktreeService();
+    const commitService = createCommitService();
+    const taskParser = createTaskParser();
 
-    servicesRef.current = { stateStore, agentInvoker, phaseExecutor, flowMachine };
+    servicesRef.current = {
+      stateStore,
+      agentInvoker,
+      flowMachine,
+      worktreeService,
+      commitService,
+      taskParser
+    };
   }
 
   const services = servicesRef.current;
@@ -92,7 +125,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     phase: { type: 'idle' },
     output: [],
     error: null,
-    isExecuting: false
+    isExecuting: false,
+    worktreePath: null,
+    currentTask: 0,
+    totalTasks: 0,
+    tasks: []
   });
 
   // Track if flow has been started
@@ -102,34 +139,63 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   const addOutput = useCallback((line: string) => {
     setFlowState(prev => ({
       ...prev,
-      output: [...prev.output.slice(-50), line] // Keep last 50 lines
+      output: [...prev.output.slice(-50), line]
     }));
   }, []);
 
-  // Execute a generation phase
-  const executePhase = useCallback(async (phase: ExtendedFlowPhase): Promise<PhaseExecutionResult> => {
+  // Get working directory (worktree or repo)
+  const getWorkingDir = useCallback(() => {
+    return flowState.worktreePath ?? repoPath;
+  }, [flowState.worktreePath, repoPath]);
+
+  // Execute a Claude command
+  const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string }> => {
     setFlowState(prev => ({ ...prev, isExecuting: true, error: null }));
 
-    // Convert ExtendedFlowPhase to FlowPhase for executor
-    const flowPhase = convertToFlowPhase(phase);
-
-    const result = await services.phaseExecutor.execute(
-      flowPhase,
-      flags as GlobalFlags,
-      process.cwd()
-    );
+    const result = await services.agentInvoker.invoke({
+      prompt,
+      workingDirectory: workDir ?? getWorkingDir(),
+      skipPermissions: flags.skipPermissions ?? false,
+      tier: flags.tier,
+      onOutput: (chunk) => {
+        // Stream output in real-time
+        const lines = chunk.split('\n').filter(l => l.trim());
+        lines.forEach(line => addOutput(line));
+      }
+    });
 
     setFlowState(prev => ({ ...prev, isExecuting: false }));
 
-    if (!result.success && result.error) {
-      setFlowState(prev => ({ ...prev, error: result.error ?? null }));
+    if (!result.success) {
+      const errorMsg = result.stderr || 'Command failed';
+      setFlowState(prev => ({ ...prev, error: errorMsg }));
+      return { success: false, output: result.stdout, error: errorMsg };
     }
 
-    return result;
-  }, [services.phaseExecutor, flags]);
+    return { success: true, output: result.stdout };
+  }, [services.agentInvoker, flags, getWorkingDir, addOutput]);
+
+  // Commit changes with formatted message
+  const commitChanges = useCallback(async (message: string, workDir?: string): Promise<boolean> => {
+    const dir = workDir ?? getWorkingDir();
+    addOutput(`Committing: ${message.split('\n')[0]}...`);
+
+    const result = await services.commitService.stageAndCommit(dir, message);
+
+    if (!result.success) {
+      addOutput(`Commit warning: ${result.error ?? 'No changes to commit'}`);
+      return true; // Continue even if nothing to commit
+    }
+
+    if (result.commitHash) {
+      addOutput(`Committed: ${result.commitHash.substring(0, 7)}`);
+    }
+
+    return true;
+  }, [services.commitService, getWorkingDir, addOutput]);
 
   // Save flow state
-  const saveFlowState = useCallback(async (phase: ExtendedFlowPhase) => {
+  const saveFlowState = useCallback(async (phase: ExtendedFlowPhase, workDir?: string) => {
     const state: FlowState = {
       feature: featureName,
       phase: convertToFlowPhase(phase),
@@ -139,12 +205,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       metadata: {
         description,
         mode,
-        tier: flags.tier
+        tier: flags.tier,
+        worktreePath: flowState.worktreePath ?? undefined
       }
     };
 
-    await services.stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, services.stateStore]);
+    // Save to worktree if available
+    const stateStore = createStateStore(workDir ?? getWorkingDir());
+    await stateStore.save(state);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, getWorkingDir]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -163,7 +232,25 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       addOutput(`Mode: ${mode}`);
       addOutput('');
 
-      // Transition to initializing
+      // Step 1: Create git worktree for isolation
+      addOutput('Creating git worktree for feature isolation...');
+      const worktreeResult = await services.worktreeService.create(repoPath, featureName);
+
+      if (!worktreeResult.success) {
+        addOutput(`Worktree error: ${worktreeResult.error}`);
+        addOutput('Continuing without worktree isolation...');
+        // Continue without worktree
+      } else {
+        const wtPath = worktreeResult.path!;
+        setFlowState(prev => ({ ...prev, worktreePath: wtPath }));
+        addOutput(`Worktree created: ${wtPath}`);
+        addOutput(`Branch: feature/${featureName}`);
+      }
+
+      // Use worktree path if available
+      const workDir = worktreeResult.path ?? repoPath;
+
+      // Step 2: Transition to initializing
       const initPhase = transitionPhase({
         type: 'START',
         feature: featureName,
@@ -171,126 +258,248 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         mode
       });
 
-      await saveFlowState(initPhase);
+      await saveFlowState(initPhase, workDir);
 
-      // Execute initializing phase
+      // Execute spec-init
+      addOutput('');
       addOutput('Initializing spec directory...');
-      const initResult = await executePhase(initPhase);
+      const initResult = await executeCommand(
+        `/red64:spec-init "${featureName}" "${description}"`,
+        workDir
+      );
 
       if (!initResult.success) {
         transitionPhase({ type: 'ERROR', error: initResult.error ?? 'Initialization failed' });
         return;
       }
 
-      // Transition to requirements generation
+      // Commit init
+      await commitChanges(
+        `chore(${featureName}): initialize spec directory\n\nCreated .red64/specs/${featureName}/`,
+        workDir
+      );
+
+      // Step 3: Generate requirements
       const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-      await saveFlowState(reqPhase);
-      await runGenerationPhase(reqPhase);
+      await saveFlowState(reqPhase, workDir);
+      await runRequirementsPhase(workDir);
     };
 
     startFlow();
   }, []);
 
-  // Run a generation phase and transition to approval
-  const runGenerationPhase = async (phase: ExtendedFlowPhase) => {
-    const phaseInfo = PHASE_LABELS[phase.type] ?? { label: phase.type, description: '' };
-    addOutput(`${phaseInfo.description}...`);
+  // Run requirements phase
+  const runRequirementsPhase = async (workDir: string) => {
+    addOutput('');
+    addOutput('Generating requirements...');
 
-    const result = await executePhase(phase);
+    const result = await executeCommand(`/red64:spec-requirements ${featureName}`, workDir);
 
     if (!result.success) {
-      transitionPhase({ type: 'ERROR', error: result.error ?? 'Phase failed' });
+      transitionPhase({ type: 'ERROR', error: result.error ?? 'Requirements generation failed' });
       return;
     }
 
-    // Transition to approval phase
+    // Commit requirements
+    await commitChanges(
+      `docs(${featureName}): generate requirements\n\nEARS-format requirements in .red64/specs/${featureName}/requirements.md`,
+      workDir
+    );
+
+    // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(approvalPhase);
+    await saveFlowState(approvalPhase, workDir);
+  };
+
+  // Run design phase
+  const runDesignPhase = async (workDir: string) => {
+    addOutput('');
+    addOutput('Generating technical design...');
+
+    const result = await executeCommand(`/red64:spec-design ${featureName}`, workDir);
+
+    if (!result.success) {
+      transitionPhase({ type: 'ERROR', error: result.error ?? 'Design generation failed' });
+      return;
+    }
+
+    // Commit design
+    await commitChanges(
+      `docs(${featureName}): generate technical design\n\nDesign document in .red64/specs/${featureName}/design.md`,
+      workDir
+    );
+
+    // Transition to approval
+    const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+    await saveFlowState(approvalPhase, workDir);
+  };
+
+  // Run tasks phase
+  const runTasksPhase = async (workDir: string) => {
+    addOutput('');
+    addOutput('Generating implementation tasks...');
+
+    const result = await executeCommand(`/red64:spec-tasks ${featureName}`, workDir);
+
+    if (!result.success) {
+      transitionPhase({ type: 'ERROR', error: result.error ?? 'Tasks generation failed' });
+      return;
+    }
+
+    // Commit tasks
+    await commitChanges(
+      `docs(${featureName}): generate implementation tasks\n\nTask list in .red64/specs/${featureName}/tasks.md`,
+      workDir
+    );
+
+    // Parse tasks for implementation phase
+    const specDir = join(workDir, '.red64', 'specs', featureName);
+    const tasks = await services.taskParser.parse(specDir);
+    const pendingTasks = services.taskParser.getPendingTasks(tasks);
+
+    setFlowState(prev => ({
+      ...prev,
+      tasks: pendingTasks,
+      totalTasks: pendingTasks.length
+    }));
+
+    addOutput(`Found ${pendingTasks.length} tasks to implement`);
+
+    // Transition to approval
+    const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+    await saveFlowState(approvalPhase, workDir);
+  };
+
+  // Run implementation - one task at a time with commits
+  const runImplementation = async (workDir: string) => {
+    const { tasks } = flowState;
+
+    if (tasks.length === 0) {
+      addOutput('No tasks to implement');
+      transitionPhase({ type: 'PHASE_COMPLETE' });
+      await completeFlow(workDir);
+      return;
+    }
+
+    addOutput('');
+    addOutput('Starting implementation...');
+    addOutput(`Total tasks: ${tasks.length}`);
+    addOutput('');
+
+    // Execute each task one at a time
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      const taskNum = i + 1;
+
+      setFlowState(prev => ({ ...prev, currentTask: taskNum }));
+
+      addOutput(`[${taskNum}/${tasks.length}] Task ${task.id}: ${task.title}`);
+
+      // Run spec-impl for this specific task
+      const result = await executeCommand(
+        `/red64:spec-impl ${featureName} ${task.id}`,
+        workDir
+      );
+
+      if (!result.success) {
+        addOutput(`Task ${task.id} failed: ${result.error}`);
+        // Continue to next task instead of failing entirely
+        continue;
+      }
+
+      // Commit after each task
+      await commitChanges(
+        services.commitService.formatTaskCommitMessage(featureName, taskNum, task.title),
+        workDir
+      );
+
+      addOutput(`Task ${task.id} completed`);
+      addOutput('');
+    }
+
+    // All tasks complete
+    addOutput('All tasks completed!');
+    await completeFlow(workDir);
+  };
+
+  // Complete the flow
+  const completeFlow = async (workDir: string) => {
+    const completePhase: ExtendedFlowPhase = { type: 'complete', feature: featureName };
+    transitionPhase({ type: 'PHASE_COMPLETE' });
+    await saveFlowState(completePhase, workDir);
+
+    addOutput('');
+    addOutput('Flow completed successfully!');
+    addOutput(`Worktree: ${flowState.worktreePath ?? 'none'}`);
+    addOutput(`Branch: feature/${featureName}`);
   };
 
   // Handle approval decision
   const handleApproval = useCallback(async (decision: string) => {
-    const currentPhase = flowState.phase;
+    const workDir = getWorkingDir();
 
     if (decision === 'approve') {
       const nextPhase = transitionPhase({ type: 'APPROVE' });
-      await saveFlowState(nextPhase);
+      await saveFlowState(nextPhase, workDir);
 
-      // Check if next phase is a terminal phase
-      if (nextPhase.type === 'complete') {
-        addOutput('');
-        addOutput('Flow completed successfully!');
-        return;
+      // Route to appropriate next phase
+      switch (nextPhase.type) {
+        case 'design-generating':
+          await runDesignPhase(workDir);
+          break;
+        case 'tasks-generating':
+          await runTasksPhase(workDir);
+          break;
+        case 'implementing':
+          await runImplementation(workDir);
+          break;
+        case 'gap-analysis':
+          // Brownfield: run gap analysis
+          addOutput('Running gap analysis...');
+          const gapResult = await executeCommand(`/red64:validate-gap ${featureName}`, workDir);
+          if (gapResult.success) {
+            await commitChanges(`docs(${featureName}): gap analysis`, workDir);
+          }
+          transitionPhase({ type: 'PHASE_COMPLETE' });
+          break;
+        case 'design-validation':
+          // Brownfield: run design validation
+          addOutput('Validating design...');
+          const valResult = await executeCommand(`/red64:validate-design ${featureName}`, workDir);
+          if (valResult.success) {
+            await commitChanges(`docs(${featureName}): design validation`, workDir);
+          }
+          transitionPhase({ type: 'PHASE_COMPLETE' });
+          break;
+        case 'complete':
+          await completeFlow(workDir);
+          break;
+        default:
+          addOutput(`Unexpected phase: ${nextPhase.type}`);
       }
-
-      // Check if it's an implementing phase
-      if (nextPhase.type === 'implementing') {
-        addOutput('Starting implementation...');
-        await runImplementation(nextPhase);
-        return;
-      }
-
-      // Run the next generation phase
-      await runGenerationPhase(nextPhase);
     } else if (decision === 'reject') {
       const prevPhase = transitionPhase({ type: 'REJECT' });
-      await saveFlowState(prevPhase);
+      await saveFlowState(prevPhase, workDir);
       addOutput('Regenerating...');
-      await runGenerationPhase(prevPhase);
-    } else if (decision === 'pause') {
-      if (currentPhase.type === 'implementing' && 'currentTask' in currentPhase) {
-        transitionPhase({ type: 'PAUSE' });
+
+      // Re-run the appropriate generation phase
+      switch (prevPhase.type) {
+        case 'requirements-generating':
+          await runRequirementsPhase(workDir);
+          break;
+        case 'design-generating':
+          await runDesignPhase(workDir);
+          break;
+        case 'tasks-generating':
+          await runTasksPhase(workDir);
+          break;
       }
+    } else if (decision === 'pause') {
       addOutput('Flow paused. Use "red64 resume" to continue.');
+      addOutput(`Worktree: ${flowState.worktreePath ?? repoPath}`);
       exit();
     }
-  }, [flowState.phase, transitionPhase, saveFlowState, addOutput, exit]);
-
-  // Run implementation phase
-  const runImplementation = async (phase: ExtendedFlowPhase) => {
-    addOutput('Executing implementation tasks...');
-
-    const result = await executePhase(phase);
-
-    if (!result.success) {
-      transitionPhase({ type: 'ERROR', error: result.error ?? 'Implementation failed' });
-      return;
-    }
-
-    // Transition to validation
-    const validationPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(validationPhase);
-
-    addOutput('Running validation...');
-    const validationResult = await executePhase(validationPhase);
-
-    if (!validationResult.success) {
-      addOutput('Validation completed with warnings.');
-    }
-
-    // Transition to PR creation
-    const prPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(prPhase);
-
-    addOutput('Creating pull request...');
-    const prResult = await executePhase(prPhase);
-
-    if (prResult.success) {
-      const prUrl = extractPRUrl(prResult.output ?? '');
-      if (prUrl) {
-        transitionPhase({ type: 'PR_CREATED', prUrl });
-        addOutput(`Pull request created: ${prUrl}`);
-      } else {
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-      }
-    }
-
-    // Complete the flow
-    transitionPhase({ type: 'SKIP_MERGE' });
-    await saveFlowState({ type: 'complete', feature: featureName });
-    addOutput('');
-    addOutput('Flow completed successfully!');
-  };
+  }, [flowState, transitionPhase, saveFlowState, getWorkingDir, exit]);
 
   // Check if current phase is an approval phase
   const isApprovalPhase = [
@@ -310,6 +519,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       <Box marginBottom={1}>
         <Text bold color="cyan">{phaseInfo.label}</Text>
         <Text dimColor> - {phaseInfo.description}</Text>
+        {flowState.currentTask > 0 && flowState.totalTasks > 0 && (
+          <Text dimColor> [{flowState.currentTask}/{flowState.totalTasks}]</Text>
+        )}
       </Box>
     );
   };
@@ -323,8 +535,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         </Box>
         <Text>Feature "{featureName}" has been implemented.</Text>
         <Box marginTop={1} flexDirection="column">
-          <Text dimColor>Spec directory: .red64/specs/{featureName}/</Text>
-          <Text dimColor>Run "red64 status" to view flow status.</Text>
+          <Text dimColor>Spec: .red64/specs/{featureName}/</Text>
+          <Text dimColor>Branch: feature/{featureName}</Text>
+          {flowState.worktreePath && (
+            <Text dimColor>Worktree: {flowState.worktreePath}</Text>
+          )}
+          <Box marginTop={1}>
+            <Text>Next: Review changes and create a PR</Text>
+          </Box>
         </Box>
       </Box>
     );
@@ -363,12 +581,19 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         <Text dimColor> - {featureName}</Text>
       </Box>
 
+      {/* Worktree info */}
+      {flowState.worktreePath && (
+        <Box marginBottom={1}>
+          <Text dimColor>Worktree: {flowState.worktreePath}</Text>
+        </Box>
+      )}
+
       {/* Phase indicator */}
       {renderPhaseIndicator()}
 
       {/* Output log */}
       <Box flexDirection="column" marginBottom={1}>
-        {flowState.output.slice(-8).map((line, i) => (
+        {flowState.output.slice(-10).map((line, i) => (
           <Text key={i} dimColor={i < flowState.output.length - 1}>{line}</Text>
         ))}
       </Box>
@@ -381,7 +606,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       )}
 
       {/* Error display */}
-      {flowState.error && (
+      {flowState.error && !flowState.isExecuting && (
         <Box marginBottom={1}>
           <Text color="red">{flowState.error}</Text>
         </Box>
@@ -391,7 +616,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       {isApprovalPhase && !flowState.isExecuting && (
         <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
           <Text bold>Review Required</Text>
-          <Text dimColor>Please review the generated output in .red64/specs/{featureName}/</Text>
+          <Text dimColor>Review output in .red64/specs/{featureName}/</Text>
           <Box marginTop={1}>
             <Select
               options={APPROVAL_OPTIONS}
@@ -405,7 +630,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 };
 
 /**
- * Convert ExtendedFlowPhase to FlowPhase for executor compatibility
+ * Convert ExtendedFlowPhase to FlowPhase for state persistence
  */
 function convertToFlowPhase(phase: ExtendedFlowPhase): import('../../types/index.js').FlowPhase {
   switch (phase.type) {
@@ -439,18 +664,9 @@ function convertToFlowPhase(phase: ExtendedFlowPhase): import('../../types/index
     case 'error':
       return { type: 'error', feature: phase.feature, error: phase.error };
     default:
-      // For brownfield-specific phases, map to closest equivalent
       if ('feature' in phase) {
         return { type: 'idle' };
       }
       return { type: 'idle' };
   }
-}
-
-/**
- * Extract PR URL from command output
- */
-function extractPRUrl(output: string): string | null {
-  const match = output.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/);
-  return match ? match[0] : null;
 }
