@@ -102,6 +102,7 @@ export interface FlowState {
     readonly worktreePath?: string;
     readonly prUrl?: string;
     readonly prNumber?: number;
+    readonly resolvedFeatureName?: string; // The actual spec directory name after spec-init
   };
 }
 

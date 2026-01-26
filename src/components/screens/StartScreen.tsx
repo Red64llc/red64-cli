@@ -78,6 +78,7 @@ interface FlowScreenState {
   currentTask: number;
   totalTasks: number;
   tasks: readonly Task[];
+  resolvedFeatureName: string | null; // The actual feature name after spec-init
 }
 
 /**
@@ -161,7 +162,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     worktreePath: null,
     currentTask: 0,
     totalTasks: 0,
-    tasks: []
+    tasks: [],
+    resolvedFeatureName: null
   });
 
   // Track if flow has been started
@@ -326,14 +328,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         description,
         mode,
         tier: flags.tier,
-        worktreePath: flowState.worktreePath ?? undefined
+        worktreePath: flowState.worktreePath ?? undefined,
+        resolvedFeatureName: flowState.resolvedFeatureName ?? undefined
       }
     };
 
     // Save to worktree if available
     const stateStore = createStateStore(workDir ?? getWorkingDir());
     await stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, flowState.worktreePath, getWorkingDir]);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, getWorkingDir]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -405,26 +408,33 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         return;
       }
 
+      // IMPORTANT: Update the resolved feature name from spec-init result
+      // This ensures all subsequent commands use the correct feature name
+      setFlowState(prev => ({ ...prev, resolvedFeatureName: initResult.featureName }));
       addOutput(`Created: ${initResult.specDir}`);
+      addOutput(`Feature name: ${initResult.featureName}`);
 
       // Commit init
       await commitChanges(`initialize spec directory`, workDir);
 
-      // Step 3: Generate requirements
+      // Step 3: Generate requirements - pass the resolved feature name
       const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
       await saveFlowState(reqPhase, workDir);
-      await runRequirementsPhase(workDir);
+      await runRequirementsPhase(workDir, initResult.featureName);
     };
 
     startFlow();
   }, []);
 
   // Run requirements phase
-  const runRequirementsPhase = async (workDir: string) => {
+  const runRequirementsPhase = async (workDir: string, resolvedName?: string) => {
+    // Use resolved name if provided, otherwise get from state or sanitize original
+    const effectiveName = resolvedName ?? flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+
     addOutput('');
     addOutput('Generating requirements...');
 
-    const result = await executeCommand(`/red64:spec-requirements ${featureName}`, workDir);
+    const result = await executeCommand(`/red64:spec-requirements ${effectiveName}`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Requirements generation failed' });
@@ -441,10 +451,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Run design phase
   const runDesignPhase = async (workDir: string) => {
+    const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+
     addOutput('');
     addOutput('Generating technical design...');
 
-    const result = await executeCommand(`/red64:spec-design ${featureName}`, workDir);
+    const result = await executeCommand(`/red64:spec-design ${effectiveName}`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Design generation failed' });
@@ -461,10 +473,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Run tasks phase
   const runTasksPhase = async (workDir: string) => {
+    const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+
     addOutput('');
     addOutput('Generating implementation tasks...');
 
-    const result = await executeCommand(`/red64:spec-tasks ${featureName}`, workDir);
+    const result = await executeCommand(`/red64:spec-tasks ${effectiveName}`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Tasks generation failed' });
@@ -474,8 +488,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Commit tasks
     await commitChanges(`generate implementation tasks`, workDir);
 
-    // Parse tasks for implementation phase
-    const specDir = join(workDir, '.red64', 'specs', sanitizeFeatureName(featureName));
+    // Parse tasks for implementation phase - use effective name for spec directory
+    const specDir = join(workDir, '.red64', 'specs', effectiveName);
     const tasks = await services.taskParser.parse(specDir);
     const pendingTasks = services.taskParser.getPendingTasks(tasks);
 
@@ -495,6 +509,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Run implementation - one task at a time with commits
   const runImplementation = async (workDir: string) => {
     const { tasks } = flowState;
+    const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
 
     if (tasks.length === 0) {
       addOutput('No tasks to implement');
@@ -517,9 +532,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       addOutput(`[${taskNum}/${tasks.length}] Task ${task.id}: ${task.title}`);
 
-      // Run spec-impl for this specific task
+      // Run spec-impl for this specific task - use effective name
       const result = await executeCommand(
-        `/red64:spec-impl ${featureName} ${task.id}`,
+        `/red64:spec-impl ${effectiveName} ${task.id}`,
         workDir
       );
 
@@ -529,9 +544,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         continue;
       }
 
-      // Commit after each task
+      // Commit after each task - use effective name
       await commitChanges(
-        services.commitService.formatTaskCommitMessage(featureName, taskNum, task.title),
+        services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
         workDir
       );
 
@@ -546,7 +561,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Complete the flow
   const completeFlow = async (workDir: string) => {
-    const completePhase: ExtendedFlowPhase = { type: 'complete', feature: featureName };
+    const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+    const completePhase: ExtendedFlowPhase = { type: 'complete', feature: effectiveName };
     transitionPhase({ type: 'PHASE_COMPLETE' });
     await saveFlowState(completePhase, workDir);
 
@@ -559,6 +575,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Handle approval decision
   const handleApproval = useCallback(async (decision: string) => {
     const workDir = getWorkingDir();
+    const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
 
     if (decision === 'approve') {
       const nextPhase = transitionPhase({ type: 'APPROVE' });
@@ -578,7 +595,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         case 'gap-analysis':
           // Brownfield: run gap analysis
           addOutput('Running gap analysis...');
-          const gapResult = await executeCommand(`/red64:validate-gap ${featureName}`, workDir);
+          const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName}`, workDir);
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
           }
@@ -587,7 +604,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         case 'design-validation':
           // Brownfield: run design validation
           addOutput('Validating design...');
-          const valResult = await executeCommand(`/red64:validate-design ${featureName}`, workDir);
+          const valResult = await executeCommand(`/red64:validate-design ${effectiveName}`, workDir);
           if (valResult.success) {
             await commitChanges(`design validation`, workDir);
           }
