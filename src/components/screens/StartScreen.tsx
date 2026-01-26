@@ -401,6 +401,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // Initialize spec directory directly (no agent call needed)
       addOutput('');
       addOutput('Initializing spec directory...');
+      addOutput(`Working directory: ${workDir}`);
       const initResult = await services.specInitService.init(workDir, featureName, description);
 
       if (!initResult.success) {
@@ -411,7 +412,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // IMPORTANT: Update the resolved feature name from spec-init result
       // This ensures all subsequent commands use the correct feature name
       setFlowState(prev => ({ ...prev, resolvedFeatureName: initResult.featureName }));
-      addOutput(`Created: ${initResult.specDir}`);
+      addOutput(`Spec directory: ${initResult.specDir}`);
       addOutput(`Feature name: ${initResult.featureName}`);
 
       // Commit init

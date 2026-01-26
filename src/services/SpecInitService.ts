@@ -4,7 +4,7 @@
  * Replaces the /red64:spec-init command for orchestrator use
  */
 
-import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { sanitizeFeatureName } from './WorktreeService.js';
@@ -104,35 +104,12 @@ async function readTemplateOrDefault(
 }
 
 /**
- * Find unique feature name by checking existing specs
+ * Check if spec already exists
+ * Returns true if spec directory exists with spec.json
  */
-async function findUniqueName(workDir: string, baseName: string): Promise<string> {
-  const specsDir = join(workDir, '.red64', 'specs');
-
-  // If specs directory doesn't exist, base name is unique
-  if (!existsSync(specsDir)) {
-    return baseName;
-  }
-
-  try {
-    const existing = await readdir(specsDir);
-
-    // If base name doesn't exist, use it
-    if (!existing.includes(baseName)) {
-      return baseName;
-    }
-
-    // Find next available suffix
-    let suffix = 2;
-    while (existing.includes(`${baseName}-${suffix}`)) {
-      suffix++;
-    }
-
-    return `${baseName}-${suffix}`;
-  } catch {
-    // If we can't read the directory, assume base name is unique
-    return baseName;
-  }
+async function specExists(workDir: string, featureName: string): Promise<boolean> {
+  const specJsonPath = join(workDir, '.red64', 'specs', featureName, 'spec.json');
+  return existsSync(specJsonPath);
 }
 
 /**
@@ -143,23 +120,33 @@ export function createSpecInitService(): SpecInitService {
     /**
      * Initialize spec directory and files from templates
      *
-     * 1. Check uniqueness - append -2, -3 if spec exists
-     * 2. Create directory .red64/specs/[feature-name]/
-     * 3. Read templates and replace placeholders
-     * 4. Write spec.json and requirements.md
+     * Uses the sanitized feature name consistently (same as worktree/branch naming).
+     * If spec already exists, returns success without overwriting (supports resume).
+     *
+     * 1. Sanitize feature name (consistent with worktree naming)
+     * 2. Check if spec already exists (skip if so)
+     * 3. Create directory .red64/specs/[feature-name]/
+     * 4. Read templates and replace placeholders
+     * 5. Write spec.json and requirements.md
      */
     async init(workDir: string, featureName: string, description: string): Promise<SpecInitResult> {
       const sanitizedName = sanitizeFeatureName(featureName);
+      const specDir = join(workDir, '.red64', 'specs', sanitizedName);
 
       try {
-        // Step 1: Find unique name
-        const uniqueName = await findUniqueName(workDir, sanitizedName);
-        const specDir = join(workDir, '.red64', 'specs', uniqueName);
+        // Check if spec already exists (resume scenario)
+        if (await specExists(workDir, sanitizedName)) {
+          return {
+            success: true,
+            specDir,
+            featureName: sanitizedName
+          };
+        }
 
-        // Step 2: Create spec directory
+        // Create spec directory
         await mkdir(specDir, { recursive: true });
 
-        // Step 3: Read templates (with fallback to defaults)
+        // Read templates (with fallback to defaults)
         const specJsonTemplate = await readTemplateOrDefault(
           workDir,
           '.red64/settings/templates/specs/init.json',
@@ -172,23 +159,23 @@ export function createSpecInitService(): SpecInitService {
           DEFAULT_REQUIREMENTS_TEMPLATE
         );
 
-        // Step 4: Replace placeholders
-        const specJsonContent = replacePlaceholders(specJsonTemplate, uniqueName, description);
-        const requirementsContent = replacePlaceholders(requirementsTemplate, uniqueName, description);
+        // Replace placeholders
+        const specJsonContent = replacePlaceholders(specJsonTemplate, sanitizedName, description);
+        const requirementsContent = replacePlaceholders(requirementsTemplate, sanitizedName, description);
 
-        // Step 5: Write files
+        // Write files
         await writeFile(join(specDir, 'spec.json'), specJsonContent, 'utf-8');
         await writeFile(join(specDir, 'requirements.md'), requirementsContent, 'utf-8');
 
         return {
           success: true,
           specDir,
-          featureName: uniqueName
+          featureName: sanitizedName
         };
       } catch (error) {
         return {
           success: false,
-          specDir: join(workDir, '.red64', 'specs', sanitizedName),
+          specDir,
           featureName: sanitizedName,
           error: error instanceof Error ? error.message : 'Unknown error'
         };
