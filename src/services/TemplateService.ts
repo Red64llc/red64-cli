@@ -254,20 +254,34 @@ export function createTemplateService(): TemplateService {
       const createdDirs: string[] = [];
       const createdFiles: string[] = [];
 
-      // Source: framework/.red64/
-      const frameworkSrc = join(sourceDir, '.red64');
-      // Destination: targetDir/.red64/
-      const frameworkDest = join(targetDir, '.red64');
+      // 1. Copy .claude/ directory (commands and agents for Claude Code)
+      const claudeSrc = join(sourceDir, '.claude');
+      const claudeDest = join(targetDir, '.claude');
+      if (await pathExists(claudeSrc)) {
+        await copyFrameworkDir(claudeSrc, claudeDest, variables, createdDirs, createdFiles);
+      }
 
-      if (!(await pathExists(frameworkSrc))) {
+      // 2. Copy .red64/ directory (settings, templates)
+      const red64Src = join(sourceDir, '.red64');
+      const red64Dest = join(targetDir, '.red64');
+      if (await pathExists(red64Src)) {
+        await copyFrameworkDir(red64Src, red64Dest, variables, createdDirs, createdFiles);
+      } else {
         // Fall back to creating empty structure if framework not found
         return this.createStructure(targetDir);
       }
 
-      // Recursively copy framework with variable replacement
-      await copyFrameworkDir(frameworkSrc, frameworkDest, variables, createdDirs, createdFiles);
+      // 3. Copy CLAUDE.md (project instructions for Claude Code)
+      const claudeMdSrc = join(sourceDir, 'CLAUDE.md');
+      const claudeMdDest = join(targetDir, 'CLAUDE.md');
+      if (await pathExists(claudeMdSrc)) {
+        let content = await readFile(claudeMdSrc, 'utf-8');
+        content = replaceVariables(content, variables);
+        await writeFile(claudeMdDest, content, 'utf-8');
+        createdFiles.push('CLAUDE.md');
+      }
 
-      // Ensure additional directories exist (specs, steering might not be in framework)
+      // 4. Ensure additional directories exist (specs, steering)
       const additionalDirs = ['.red64/specs', '.red64/steering'];
       for (const dir of additionalDirs) {
         const fullPath = join(targetDir, dir);
