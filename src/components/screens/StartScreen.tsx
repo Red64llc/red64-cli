@@ -435,7 +435,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating requirements...');
 
-    const result = await executeCommand(`/red64:spec-requirements ${effectiveName}`, workDir);
+    const result = await executeCommand(`/red64:spec-requirements ${effectiveName} -y`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Requirements generation failed' });
@@ -457,7 +457,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating technical design...');
 
-    const result = await executeCommand(`/red64:spec-design ${effectiveName}`, workDir);
+    const result = await executeCommand(`/red64:spec-design ${effectiveName} -y`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Design generation failed' });
@@ -479,7 +479,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating implementation tasks...');
 
-    const result = await executeCommand(`/red64:spec-tasks ${effectiveName}`, workDir);
+    const result = await executeCommand(`/red64:spec-tasks ${effectiveName} -y`, workDir);
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Tasks generation failed' });
@@ -535,7 +535,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       // Run spec-impl for this specific task - use effective name
       const result = await executeCommand(
-        `/red64:spec-impl ${effectiveName} ${task.id}`,
+        `/red64:spec-impl ${effectiveName} ${task.id} -y`,
         workDir
       );
 
@@ -591,12 +591,18 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           await runTasksPhase(workDir);
           break;
         case 'implementing':
+          // Update spec.json to mark tasks as approved before implementation
+          addOutput('Marking tasks as approved...');
+          const approvalResult = await services.specInitService.updateTaskApproval(workDir, effectiveName);
+          if (!approvalResult.success) {
+            addOutput(`Warning: Failed to update spec.json: ${approvalResult.error}`);
+          }
           await runImplementation(workDir);
           break;
         case 'gap-analysis':
           // Brownfield: run gap analysis
           addOutput('Running gap analysis...');
-          const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName}`, workDir);
+          const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
           }
@@ -605,7 +611,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         case 'design-validation':
           // Brownfield: run design validation
           addOutput('Validating design...');
-          const valResult = await executeCommand(`/red64:validate-design ${effectiveName}`, workDir);
+          const valResult = await executeCommand(`/red64:validate-design ${effectiveName} -y`, workDir);
           if (valResult.success) {
             await commitChanges(`design validation`, workDir);
           }

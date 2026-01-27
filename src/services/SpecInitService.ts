@@ -20,10 +20,19 @@ export interface SpecInitResult {
 }
 
 /**
+ * Spec update result
+ */
+export interface SpecUpdateResult {
+  readonly success: boolean;
+  readonly error?: string;
+}
+
+/**
  * Spec initialization service interface
  */
 export interface SpecInitService {
   init(workDir: string, featureName: string, description: string): Promise<SpecInitResult>;
+  updateTaskApproval(workDir: string, featureName: string): Promise<SpecUpdateResult>;
 }
 
 /**
@@ -178,6 +187,40 @@ export function createSpecInitService(): SpecInitService {
           specDir,
           featureName: sanitizedName,
           error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    },
+
+    /**
+     * Update spec.json when tasks are approved
+     * Sets tasks.approved = true and ready_for_implementation = true
+     * This is called by the orchestrator when transitioning from tasks-approval to implementing
+     */
+    async updateTaskApproval(workDir: string, featureName: string): Promise<SpecUpdateResult> {
+      const sanitizedName = sanitizeFeatureName(featureName);
+      const specJsonPath = join(workDir, '.red64', 'specs', sanitizedName, 'spec.json');
+
+      try {
+        // Read existing spec.json
+        const specJsonContent = await readFile(specJsonPath, 'utf-8');
+        const specJson = JSON.parse(specJsonContent);
+
+        // Update approval flags
+        specJson.approvals.tasks.approved = true;
+        specJson.approvals.tasks.approvedAt = new Date().toISOString();
+        specJson.approvals.tasks.approvedBy = 'orchestrator';
+        specJson.ready_for_implementation = true;
+        specJson.phase = 'ready-for-implementation';
+        specJson.updated_at = new Date().toISOString();
+
+        // Write back
+        await writeFile(specJsonPath, JSON.stringify(specJson, null, 2), 'utf-8');
+
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to update spec.json'
         };
       }
     }
