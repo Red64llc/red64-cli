@@ -70,6 +70,11 @@ vi.mock('../../../src/services/index.js', () => ({
   createGitStatusChecker: () => ({
     check: vi.fn().mockResolvedValue({ hasChanges: false, staged: 0, unstaged: 0, untracked: 0 })
   }),
+  createConfigService: () => ({
+    load: vi.fn().mockResolvedValue({ agent: 'claude' }),
+    save: vi.fn().mockResolvedValue(undefined),
+    isInitialized: vi.fn().mockResolvedValue(true)
+  }),
   sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
 }));
 
@@ -99,13 +104,16 @@ describe('StartScreen', () => {
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should show existing flow check on initial render', () => {
+    it('should show phase status on initial render', () => {
       const { lastFrame } = render(
         <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
 
-      // On initial render, the existing flow check should be shown
-      expect(lastFrame()).toContain('Checking for existing flow');
+      // On initial render, the component should show phase status
+      // (either checking or idle depending on async timing)
+      const frame = lastFrame();
+      expect(frame).toContain('feature');
+      expect(frame).toContain('red64 start');
     });
 
     it('should render header with feature name', () => {

@@ -34,6 +34,11 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
 }) => {
   const screenProps = { args, flags };
 
+  // If help flag is set, show help for the specific command
+  if (flags.help && command && command !== 'help') {
+    return <HelpScreen {...screenProps} helpCommand={command} />;
+  }
+
   switch (command) {
     case 'init':
       return <InitScreen {...screenProps} />;

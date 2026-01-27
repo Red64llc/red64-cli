@@ -127,7 +127,7 @@ describe('AgentInvoker', () => {
         expect.any(Array),
         expect.objectContaining({
           env: expect.objectContaining({
-            CLAUDE_CONFIG_DIR: 'premium'
+            CLAUDE_CONFIG_DIR: expect.stringContaining('.claude-premium')
           })
         })
       );
