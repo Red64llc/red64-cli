@@ -8,6 +8,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentInvokeOptions, AgentResult } from '../types/index.js';
+import { createClaudeErrorDetector } from './ClaudeErrorDetector.js';
 
 const SANDBOX_IMAGE = 'red64-sandbox:latest';
 
@@ -83,6 +84,7 @@ export interface AgentInvokerService {
 export function createAgentInvoker(): AgentInvokerService {
   let currentProcess: ChildProcess | null = null;
   let aborted = false;
+  const errorDetector = createClaudeErrorDetector();
 
   return {
     /**
@@ -95,7 +97,7 @@ export function createAgentInvoker(): AgentInvokerService {
 
       // Use Docker sandbox if enabled
       if (options.sandbox) {
-        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted);
+        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted, errorDetector);
       }
 
       return new Promise((resolve) => {
@@ -174,13 +176,17 @@ export function createAgentInvoker(): AgentInvokerService {
           const exitCode = code ?? -1;
           const success = exitCode === 0 && !timedOut && !aborted;
 
+          // Detect Claude-specific errors
+          const claudeError = !success ? errorDetector.detect(stdout, stderr) : undefined;
+
           // Requirements: 7.6 - Return typed result indicating success/failure
           resolve({
             success,
             exitCode,
             stdout,
             stderr,
-            timedOut
+            timedOut,
+            claudeError: claudeError ?? undefined
           });
 
           currentProcess = null;
@@ -224,7 +230,8 @@ function invokeInDocker(
   options: AgentInvokeOptions,
   getProcess: () => ChildProcess | null,
   setProcess: (p: ChildProcess | null) => void,
-  isAborted: () => boolean
+  isAborted: () => boolean,
+  errorDetector: ReturnType<typeof createClaudeErrorDetector>
 ): Promise<AgentResult> {
   return new Promise((resolve) => {
     // Build docker run command
@@ -298,12 +305,16 @@ function invokeInDocker(
       const exitCode = code ?? -1;
       const success = exitCode === 0 && !timedOut && !isAborted();
 
+      // Detect Claude-specific errors
+      const claudeError = !success ? errorDetector.detect(stdout, stderr) : undefined;
+
       resolve({
         success,
         exitCode,
         stdout,
         stderr,
-        timedOut
+        timedOut,
+        claudeError: claudeError ?? undefined
       });
 
       setProcess(null);

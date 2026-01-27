@@ -130,3 +130,17 @@ export {
   type SpecInitService,
   type SpecInitResult
 } from './SpecInitService.js';
+
+export {
+  createClaudeErrorDetector,
+  type ClaudeErrorDetectorService,
+  type ClaudeError,
+  type ClaudeErrorCode
+} from './ClaudeErrorDetector.js';
+
+export {
+  createClaudeHealthCheck,
+  type ClaudeHealthCheckService,
+  type HealthCheckResult,
+  type HealthCheckOptions
+} from './ClaudeHealthCheck.js';

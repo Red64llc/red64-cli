@@ -28,8 +28,10 @@ import {
   createCommitService,
   createTaskParser,
   createSpecInitService,
+  createClaudeHealthCheck,
   sanitizeFeatureName,
-  type Task
+  type Task,
+  type ClaudeError
 } from '../../services/index.js';
 import { join } from 'node:path';
 import { appendFile, mkdir } from 'node:fs/promises';
@@ -69,11 +71,30 @@ const APPROVAL_OPTIONS = [
   { value: 'pause', label: 'Pause flow' }
 ];
 
+/**
+ * Human-readable labels for Claude error codes
+ */
+function getClaudeErrorLabel(code: string): string {
+  const labels: Record<string, string> = {
+    CREDIT_EXHAUSTED: 'Insufficient Credits',
+    RATE_LIMITED: 'Rate Limited',
+    AUTH_FAILED: 'Authentication Failed',
+    MODEL_UNAVAILABLE: 'Service Unavailable',
+    CONTEXT_EXCEEDED: 'Context Too Large',
+    NETWORK_ERROR: 'Network Error',
+    PERMISSION_DENIED: 'Request Blocked',
+    UNKNOWN: 'Unknown Error'
+  };
+  return labels[code] ?? code;
+}
+
 interface FlowScreenState {
   phase: ExtendedFlowPhase;
   output: string[];
   error: string | null;
+  claudeError: ClaudeError | null;  // Specific Claude API error details
   isExecuting: boolean;
+  isHealthChecking: boolean;  // Health check in progress
   worktreePath: string | null;
   currentTask: number;
   totalTasks: number;
@@ -104,6 +125,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     commitService: ReturnType<typeof createCommitService>;
     taskParser: ReturnType<typeof createTaskParser>;
     specInitService: ReturnType<typeof createSpecInitService>;
+    healthCheck: ReturnType<typeof createClaudeHealthCheck>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -114,6 +136,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const commitService = createCommitService();
     const taskParser = createTaskParser();
     const specInitService = createSpecInitService();
+    const healthCheck = createClaudeHealthCheck();
 
     servicesRef.current = {
       stateStore,
@@ -122,7 +145,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       worktreeService,
       commitService,
       taskParser,
-      specInitService
+      specInitService,
+      healthCheck
     };
   }
 
@@ -158,7 +182,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     phase: { type: 'idle' },
     output: [],
     error: null,
+    claudeError: null,
     isExecuting: false,
+    isHealthChecking: true,  // Start with health check
     worktreePath: null,
     currentTask: 0,
     totalTasks: 0,
@@ -185,7 +211,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   }, [flowState.worktreePath, repoPath]);
 
   // Execute a Claude command
-  const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string }> => {
+  const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string; claudeError?: ClaudeError }> => {
     const dir = workDir ?? getWorkingDir();
 
     // Build tier config dir path
@@ -222,7 +248,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
     }
 
-    setFlowState(prev => ({ ...prev, isExecuting: true, error: null }));
+    setFlowState(prev => ({ ...prev, isExecuting: true, error: null, claudeError: null }));
 
     const result = await services.agentInvoker.invoke({
       prompt,
@@ -252,6 +278,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     if (result.timedOut) {
       await logToFile(`Timed out: true`);
     }
+    if (result.claudeError) {
+      await logToFile(`Claude Error: ${result.claudeError.code} - ${result.claudeError.message}`);
+      await logToFile(`Suggestion: ${result.claudeError.suggestion}`);
+    }
     if (result.stdout) {
       await logToFile(`--- stdout ---`);
       await logToFile(result.stdout);
@@ -269,10 +299,20 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       if (result.timedOut) {
         addOutput(`[verbose] Timed out: true`);
       }
+      if (result.claudeError) {
+        addOutput(`[verbose] Claude Error: ${result.claudeError.code}`);
+      }
     }
 
     if (!result.success) {
-      // Build detailed error message
+      // Use Claude error if detected, otherwise build generic error message
+      if (result.claudeError) {
+        const errorMsg = `${getClaudeErrorLabel(result.claudeError.code)}: ${result.claudeError.suggestion}`;
+        setFlowState(prev => ({ ...prev, error: errorMsg, claudeError: result.claudeError ?? null }));
+        return { success: false, output: result.stdout, error: errorMsg, claudeError: result.claudeError };
+      }
+
+      // Build generic error message
       let errorMsg = 'Command failed';
       if (result.timedOut) {
         errorMsg = 'Command timed out (10 min limit)';
@@ -295,7 +335,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
 
     return { success: true, output: result.stdout };
-  }, [services.agentInvoker, flags, verbose, getWorkingDir, addOutput]);
+  }, [services.agentInvoker, flags, verbose, getWorkingDir, addOutput, logToFile]);
 
   // Commit changes with formatted message
   const commitChanges = useCallback(async (message: string, workDir?: string): Promise<boolean> => {
@@ -354,6 +394,42 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // Initialize log file first (in repo, will move to worktree if created)
       const logPath = await initLogFile(repoPath);
       addOutput(`Log file: ${logPath}`);
+      addOutput('');
+
+      // Run health check before starting
+      addOutput('Checking Claude API status...');
+      setFlowState(prev => ({ ...prev, isHealthChecking: true }));
+
+      const healthResult = await services.healthCheck.check({
+        tier: flags.tier,
+        sandbox: flags.sandbox,
+        timeoutMs: 30000
+      });
+
+      setFlowState(prev => ({ ...prev, isHealthChecking: false }));
+
+      if (!healthResult.healthy) {
+        await logToFile(`Health check failed: ${healthResult.message}`);
+        if (healthResult.error) {
+          await logToFile(`Error code: ${healthResult.error.code}`);
+          await logToFile(`Suggestion: ${healthResult.error.suggestion}`);
+        }
+
+        // Set error state with Claude error details
+        const errorMsg = healthResult.error
+          ? `${getClaudeErrorLabel(healthResult.error.code)}: ${healthResult.error.suggestion}`
+          : healthResult.message;
+
+        setFlowState(prev => ({
+          ...prev,
+          error: errorMsg,
+          claudeError: healthResult.error ?? null,
+          phase: { type: 'error', feature: featureName, error: errorMsg }
+        }));
+        return;
+      }
+
+      addOutput(`API ready (${healthResult.durationMs}ms)`);
       addOutput('');
       addOutput(`Starting flow: ${featureName}`);
       addOutput(`Mode: ${mode}`);
@@ -696,25 +772,51 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   if (flowState.phase.type === 'error') {
     const logPath = logFileRef.current ?? join(repoPath, '.red64', 'flows', sanitizeFeatureName(featureName), 'flow.log');
+    const claudeError = flowState.claudeError;
+
     return (
       <Box flexDirection="column" padding={1}>
         <Box marginBottom={1}>
-          <Text bold color="red">Flow Error</Text>
+          <Text bold color="red">
+            {claudeError ? `API Error: ${getClaudeErrorLabel(claudeError.code)}` : 'Flow Error'}
+          </Text>
         </Box>
-        <Text color="red">{flowState.error ?? 'An unknown error occurred'}</Text>
+
+        {/* Claude-specific error display */}
+        {claudeError ? (
+          <Box flexDirection="column" marginBottom={1}>
+            <Text color="red">{claudeError.message}</Text>
+            <Box marginTop={1}>
+              <Text color="yellow" bold>Suggestion: </Text>
+              <Text color="yellow">{claudeError.suggestion}</Text>
+            </Box>
+            {!claudeError.recoverable && (
+              <Box marginTop={1}>
+                <Text color="red" dimColor>This error requires manual intervention before retrying.</Text>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Text color="red">{flowState.error ?? 'An unknown error occurred'}</Text>
+        )}
+
         <Box marginTop={1} flexDirection="column">
           <Text dimColor>Feature: {featureName}</Text>
           {flowState.worktreePath && (
             <Text dimColor>Worktree: {flowState.worktreePath}</Text>
           )}
-          <Text dimColor>Phase: {flowState.phase.type}</Text>
+          {!claudeError && (
+            <Text dimColor>Phase: {flowState.phase.type}</Text>
+          )}
           <Box marginTop={1} flexDirection="column">
             <Text bold>Log file:</Text>
             <Text color="yellow">{logPath}</Text>
           </Box>
-          <Box marginTop={1}>
-            <Text dimColor>Run "red64 resume {sanitizeFeatureName(featureName)}" to retry.</Text>
-          </Box>
+          {claudeError?.recoverable && (
+            <Box marginTop={1}>
+              <Text dimColor>Run "red64 resume {sanitizeFeatureName(featureName)}" to retry.</Text>
+            </Box>
+          )}
         </Box>
       </Box>
     );
@@ -756,8 +858,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         ))}
       </Box>
 
+      {/* Health check spinner */}
+      {flowState.isHealthChecking && (
+        <Box marginBottom={1}>
+          <Spinner label="Checking Claude API status..." />
+        </Box>
+      )}
+
       {/* Executing spinner */}
-      {flowState.isExecuting && (
+      {flowState.isExecuting && !flowState.isHealthChecking && (
         <Box marginBottom={1}>
           <Spinner label="Processing..." />
         </Box>

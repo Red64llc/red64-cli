@@ -10,8 +10,8 @@ import { render } from 'ink-testing-library';
 import { StartScreen } from '../../../src/components/screens/StartScreen.js';
 import type { GlobalFlags } from '../../../src/types/index.js';
 
-// Mock the services
-vi.mock('../../../src/services/FeatureValidator.js', () => ({
+// Mock the services index
+vi.mock('../../../src/services/index.js', () => ({
   createFeatureValidator: () => ({
     validate: vi.fn((name: string) => {
       if (name === 'valid-feature') {
@@ -31,16 +31,43 @@ vi.mock('../../../src/services/FeatureValidator.js', () => ({
       }
       return { valid: true, error: undefined };
     })
-  })
-}));
-
-vi.mock('../../../src/services/WorktreeService.js', () => ({
+  }),
   createWorktreeService: () => ({
     check: vi.fn().mockResolvedValue({ exists: false, path: '', branch: '' }),
     create: vi.fn().mockResolvedValue({ success: true, path: '/repo/worktrees/test', error: undefined }),
     remove: vi.fn(),
     list: vi.fn()
-  })
+  }),
+  createStateStore: () => ({
+    load: vi.fn().mockResolvedValue(null),
+    save: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined)
+  }),
+  createAgentInvoker: () => ({
+    invoke: vi.fn().mockResolvedValue({ success: true, exitCode: 0, stdout: '', stderr: '', timedOut: false }),
+    abort: vi.fn()
+  }),
+  createExtendedFlowMachine: () => ({
+    current: vi.fn().mockReturnValue({ type: 'idle' }),
+    send: vi.fn().mockReturnValue({ type: 'initializing', feature: 'test', description: 'test' }),
+    canSend: vi.fn().mockReturnValue(true)
+  }),
+  createCommitService: () => ({
+    stageAndCommit: vi.fn().mockResolvedValue({ success: true, commitHash: 'abc123' }),
+    formatTaskCommitMessage: vi.fn().mockReturnValue('test commit')
+  }),
+  createTaskParser: () => ({
+    parse: vi.fn().mockResolvedValue([]),
+    getPendingTasks: vi.fn().mockReturnValue([])
+  }),
+  createSpecInitService: () => ({
+    init: vi.fn().mockResolvedValue({ success: true, specDir: '/test/.red64/specs/test', featureName: 'test' }),
+    updateTaskApproval: vi.fn().mockResolvedValue({ success: true })
+  }),
+  createClaudeHealthCheck: () => ({
+    check: vi.fn().mockResolvedValue({ healthy: true, message: 'API is ready', durationMs: 100 })
+  }),
+  sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
 }));
 
 describe('StartScreen', () => {
@@ -50,7 +77,10 @@ describe('StartScreen', () => {
     greenfield: true,
     tier: undefined,
     help: false,
-    version: false
+    version: false,
+    verbose: false,
+    yes: false,
+    sandbox: false
   };
 
   beforeEach(() => {
@@ -66,31 +96,28 @@ describe('StartScreen', () => {
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should display greenfield mode by default', () => {
+    it('should show health check spinner on initial render', () => {
       const { lastFrame } = render(
         <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
 
-      expect(lastFrame()).toContain('greenfield');
+      // On initial render, the health check spinner should be shown
+      expect(lastFrame()).toContain('Checking Claude API status');
     });
 
-    it('should display brownfield mode when flag is set', () => {
-      const brownfieldFlags: GlobalFlags = {
-        ...defaultFlags,
-        brownfield: true,
-        greenfield: false
-      };
-
+    it('should render header with feature name', () => {
       const { lastFrame } = render(
-        <StartScreen args={['feature', 'desc']} flags={brownfieldFlags} />
+        <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
 
-      expect(lastFrame()).toContain('brownfield');
+      // Header should always be visible
+      expect(lastFrame()).toContain('red64 start');
+      expect(lastFrame()).toContain('feature');
     });
   });
 
   describe('validation display', () => {
-    it('should show feature name in output', () => {
+    it('should show feature name in header', () => {
       const { lastFrame } = render(
         <StartScreen args={['my-feature', 'Test']} flags={defaultFlags} />
       );
@@ -98,12 +125,13 @@ describe('StartScreen', () => {
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should display description', () => {
+    it('should show idle phase initially', () => {
       const { lastFrame } = render(
         <StartScreen args={['feature', 'My description']} flags={defaultFlags} />
       );
 
-      expect(lastFrame()).toContain('My description');
+      // Should show idle phase label
+      expect(lastFrame()).toContain('Idle');
     });
   });
 });

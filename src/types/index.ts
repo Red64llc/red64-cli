@@ -122,6 +122,30 @@ export interface AgentInvokeOptions {
 }
 
 /**
+ * Claude CLI error codes for specific failure types
+ */
+export type ClaudeErrorCode =
+  | 'CREDIT_EXHAUSTED'     // Account has no credits
+  | 'RATE_LIMITED'         // Rate limit exceeded
+  | 'AUTH_FAILED'          // Invalid API key or authentication error
+  | 'MODEL_UNAVAILABLE'    // Model not available or overloaded
+  | 'CONTEXT_EXCEEDED'     // Context length exceeded
+  | 'NETWORK_ERROR'        // Network connectivity issues
+  | 'PERMISSION_DENIED'    // Permission/safety refusal
+  | 'UNKNOWN';             // Unclassified error
+
+/**
+ * Parsed Claude error with actionable information
+ */
+export interface ClaudeError {
+  readonly code: ClaudeErrorCode;
+  readonly message: string;
+  readonly recoverable: boolean;
+  readonly suggestion: string;
+  readonly retryAfterMs?: number;
+}
+
+/**
  * Agent invocation result from Claude CLI
  * Requirements: 7.1, 7.2, 7.5, 7.6
  */
@@ -131,6 +155,7 @@ export interface AgentResult {
   readonly stdout: string;
   readonly stderr: string;
   readonly timedOut: boolean;
+  readonly claudeError?: ClaudeError;  // Detected Claude-specific error
 }
 
 // Re-export extended flow types
