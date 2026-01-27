@@ -64,7 +64,8 @@ describe('WorktreeService', () => {
 
   describe('check', () => {
     it('should return exists: true when worktree exists', async () => {
-      const porcelainOutput = `worktree /repo/worktrees/my-feature
+      // Worktrees are now in sibling directory: /repo.worktrees/
+      const porcelainOutput = `worktree /repo.worktrees/my-feature
 HEAD abc123
 branch refs/heads/feature/my-feature
 
@@ -77,7 +78,7 @@ branch refs/heads/main
       const result = await service.check('/repo', 'my-feature');
 
       expect(result.exists).toBe(true);
-      expect(result.path).toBe('/repo/worktrees/my-feature');
+      expect(result.path).toBe('/repo.worktrees/my-feature');
       expect(result.branch).toBe('feature/my-feature');
     });
 
@@ -113,7 +114,8 @@ branch refs/heads/main
       const result = await service.create('/repo', 'new-feature');
 
       expect(result.success).toBe(true);
-      expect(result.path).toContain('worktrees/new-feature');
+      // Worktrees are now in sibling directory: /repo.worktrees/
+      expect(result.path).toBe('/repo.worktrees/new-feature');
       expect(result.error).toBeUndefined();
     });
 
@@ -122,9 +124,10 @@ branch refs/heads/main
 
       await service.create('/repo', 'my-feature');
 
+      // Now uses absolute path to sibling directory
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'add', '-b', 'feature/my-feature', 'worktrees/my-feature'],
+        ['worktree', 'add', '-b', 'feature/my-feature', '/repo.worktrees/my-feature'],
         expect.objectContaining({ cwd: '/repo' })
       );
     });
@@ -154,9 +157,10 @@ branch refs/heads/main
 
       await service.remove('/repo', 'feature-to-remove');
 
+      // Now uses absolute path to sibling directory
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'remove', 'worktrees/feature-to-remove'],
+        ['worktree', 'remove', '/repo.worktrees/feature-to-remove'],
         expect.objectContaining({ cwd: '/repo' })
       );
     });
@@ -166,9 +170,10 @@ branch refs/heads/main
 
       await service.remove('/repo', 'dirty-feature', true);
 
+      // Now uses absolute path to sibling directory
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'remove', '--force', 'worktrees/dirty-feature'],
+        ['worktree', 'remove', '--force', '/repo.worktrees/dirty-feature'],
         expect.objectContaining({ cwd: '/repo' })
       );
     });
@@ -185,11 +190,12 @@ branch refs/heads/main
 
   describe('list', () => {
     it('should parse and return all worktrees', async () => {
-      const porcelainOutput = `worktree /repo/worktrees/feature-a
+      // Worktrees are now in sibling directory: /repo.worktrees/
+      const porcelainOutput = `worktree /repo.worktrees/feature-a
 HEAD abc123
 branch refs/heads/feature/feature-a
 
-worktree /repo/worktrees/feature-b
+worktree /repo.worktrees/feature-b
 HEAD def456
 branch refs/heads/feature/feature-b
 
@@ -202,9 +208,9 @@ branch refs/heads/main
       const result = await service.list('/repo');
 
       expect(result).toHaveLength(3);
-      expect(result[0].path).toBe('/repo/worktrees/feature-a');
+      expect(result[0].path).toBe('/repo.worktrees/feature-a');
       expect(result[0].branch).toBe('feature/feature-a');
-      expect(result[1].path).toBe('/repo/worktrees/feature-b');
+      expect(result[1].path).toBe('/repo.worktrees/feature-b');
       expect(result[2].path).toBe('/repo');
       expect(result[2].branch).toBe('main');
     });

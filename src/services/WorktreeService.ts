@@ -5,7 +5,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 
 /**
  * Worktree information
@@ -133,10 +133,21 @@ export function sanitizeFeatureName(feature: string): string {
 }
 
 /**
+ * Get the worktrees root directory (sibling to repo)
+ * Following GitLens/VSCode convention: ../repo-name.worktrees/
+ */
+export function getWorktreesRoot(repoPath: string): string {
+  const repoName = basename(repoPath);
+  const parentDir = dirname(repoPath);
+  return join(parentDir, `${repoName}.worktrees`);
+}
+
+/**
  * Get worktree path for a feature
+ * Places worktrees outside the repo: ../repo-name.worktrees/feature-name
  */
 function getWorktreePath(repoPath: string, feature: string): string {
-  return join(repoPath, 'worktrees', sanitizeFeatureName(feature));
+  return join(getWorktreesRoot(repoPath), sanitizeFeatureName(feature));
 }
 
 /**
@@ -192,11 +203,10 @@ export function createWorktreeService(): WorktreeServiceInterface {
 
     /**
      * Create a new worktree for a feature
-     * Requirements: 1.4 - Create worktree at worktrees/<feature> with branch feature/<feature>
+     * Requirements: 1.4 - Create worktree at ../repo.worktrees/<feature> with branch feature/<feature>
      */
     async create(repoPath: string, feature: string): Promise<WorktreeResult> {
-      const sanitized = sanitizeFeatureName(feature);
-      const worktreePath = `worktrees/${sanitized}`;
+      const worktreePath = getWorktreePath(repoPath, feature);
       const branchName = getBranchName(feature);
 
       const result = await execGit(
@@ -214,7 +224,7 @@ export function createWorktreeService(): WorktreeServiceInterface {
 
       return {
         success: true,
-        path: getWorktreePath(repoPath, feature),
+        path: worktreePath,
         error: undefined
       };
     },
@@ -228,7 +238,7 @@ export function createWorktreeService(): WorktreeServiceInterface {
       feature: string,
       force?: boolean
     ): Promise<WorktreeResult> {
-      const worktreePath = `worktrees/${sanitizeFeatureName(feature)}`;
+      const worktreePath = getWorktreePath(repoPath, feature);
       const args = force
         ? ['worktree', 'remove', '--force', worktreePath]
         : ['worktree', 'remove', worktreePath];
@@ -245,7 +255,7 @@ export function createWorktreeService(): WorktreeServiceInterface {
 
       return {
         success: true,
-        path: getWorktreePath(repoPath, feature),
+        path: worktreePath,
         error: undefined
       };
     },

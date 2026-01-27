@@ -16,9 +16,11 @@ import { validateFlags } from './cli/validateFlags.js';
  * Requirements: 3.2 - Display help menu when invoked without arguments
  */
 function main(): void {
-  // Use meow for --help and --version handling
+  // Use meow for --version handling only
+  // We handle --help ourselves to support command-specific help
   const cli = meow(HELP_TEXT, {
     importMeta: import.meta,
+    autoHelp: false, // Disable auto-help to handle command-specific help
     flags: {
       agent: {
         type: 'string',
@@ -71,9 +73,15 @@ function main(): void {
     process.exit(1);
   }
 
-  // Handle version/help from meow
-  if (cli.flags.help || cli.flags.version) {
-    // meow already handles these
+  // Handle version from meow
+  if (cli.flags.version) {
+    cli.showVersion();
+    return;
+  }
+
+  // Handle help - show general help if no command, otherwise let CommandRouter handle it
+  if (config.flags.help && !config.command) {
+    cli.showHelp();
     return;
   }
 

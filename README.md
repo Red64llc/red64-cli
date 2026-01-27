@@ -60,7 +60,7 @@ Requirements → Design → Tasks → Implementation
 |---------|-------------|
 | **Spec-Driven** | Every feature starts with formal requirements and design |
 | **Phase Gates** | Human review required between phases (or auto-approve with `-y`) |
-| **Git Isolation** | Each feature runs in its own worktree and branch |
+| **Git Isolation** | Each feature runs in its own worktree and branch (sibling directory) |
 | **Atomic Commits** | One commit per task for clean history |
 | **Sandboxed Execution** | Optional Docker isolation for safe agent execution |
 | **Resumable Flows** | `start` auto-detects in-progress flows and offers resume |
@@ -315,6 +315,35 @@ Flow completes with:
     ├── tech.md               # Technical standards
     └── structure.md          # Codebase structure
 ```
+
+### Git Worktree Layout
+
+Red64 creates git worktrees in a **sibling directory** following the [GitLens/VSCode convention](https://gist.github.com/ChristopherA/4643b2f5e024578606b9cd5d2e6815cc). This keeps the main repository clean and avoids nested git structures.
+
+```
+~/projects/
+├── my-project/                    # Main repository (unchanged)
+│   ├── .git/
+│   ├── .red64/
+│   ├── src/
+│   └── package.json
+└── my-project.worktrees/          # Worktrees directory (sibling)
+    ├── user-authentication/       # feature/user-authentication branch
+    │   ├── .red64/
+    │   ├── src/
+    │   └── package.json
+    └── shopping-cart/             # feature/shopping-cart branch
+        ├── .red64/
+        ├── src/
+        └── package.json
+```
+
+**Benefits of sibling worktrees:**
+- Main repository stays clean (no `.gitignore` needed for worktrees)
+- No nested `.git` references inside the working tree
+- Better IDE and tool compatibility
+- Clear separation between main work and feature isolation
+- Easy to see all active features at a glance
 
 ---
 
