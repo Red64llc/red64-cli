@@ -92,7 +92,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     stack: flags.stack,
     'skip-guided': flags['skip-guided'],
     'no-steering': flags['no-steering'],
-    'no-cache': flags['no-cache']
+    'no-cache': flags['no-cache'],
+    agent: flags.agent
   };
 
   // Services (created once)
@@ -354,7 +355,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
           projectName: currentSetupData.projectName ?? 'my-project',
           description: currentSetupData.description ?? '',
           initializedAt: new Date().toISOString(),
-          customValues: currentSetupData.customValues ?? {}
+          customValues: currentSetupData.customValues ?? {},
+          agent: initFlags.agent ?? 'claude'
         });
 
         // Transition to git setup

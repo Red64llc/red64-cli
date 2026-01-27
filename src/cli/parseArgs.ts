@@ -3,7 +3,9 @@
  * Requirements: 3.2, 3.4, 4.7, 5.1-5.5, 8.1, 8.4, 8.5
  */
 
-import type { CLIConfig, Command, GlobalFlags } from '../types/index.js';
+import type { CLIConfig, Command, GlobalFlags, CodingAgent } from '../types/index.js';
+
+const VALID_AGENTS: readonly CodingAgent[] = ['claude', 'gemini', 'codex'] as const;
 
 const VALID_COMMANDS: readonly Command[] = [
   'init',
@@ -34,7 +36,8 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     stack: undefined,
     'skip-guided': undefined,
     'no-steering': undefined,
-    'no-cache': undefined
+    'no-cache': undefined,
+    agent: undefined
   };
 
   const positionalArgs: string[] = [];
@@ -95,6 +98,12 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { 'no-steering': boolean })['no-steering'] = true;
     } else if (arg === '--no-cache') {
       (flags as { 'no-cache': boolean })['no-cache'] = true;
+    } else if (arg === '--agent' || arg === '-a') {
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-') && VALID_AGENTS.includes(value as CodingAgent)) {
+        (flags as { agent: CodingAgent }).agent = value as CodingAgent;
+        if (!argValue) i++;
+      }
     } else if (!arg.startsWith('-')) {
       positionalArgs.push(arg);
     }
@@ -130,6 +139,9 @@ Usage:
   red64 list                           List all active flows
   red64 abort <feature>                Abort and cleanup flow
   red64 help                           Show this help
+
+Init Options:
+  -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)
 
 Global Options:
   -s, --skip-permissions    Pass skip-permissions to Claude CLI

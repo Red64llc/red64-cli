@@ -25,6 +25,11 @@ export type Command =
  * GlobalFlags interface for CLI options
  * Requirements: 5.1-5.5
  */
+/**
+ * Supported coding agents
+ */
+export type CodingAgent = 'claude' | 'gemini' | 'codex';
+
 export interface GlobalFlags {
   readonly skipPermissions: boolean;
   readonly brownfield: boolean;
@@ -41,6 +46,7 @@ export interface GlobalFlags {
   readonly 'skip-guided'?: boolean;
   readonly 'no-steering'?: boolean;
   readonly 'no-cache'?: boolean;
+  readonly agent?: CodingAgent;
 }
 
 /**

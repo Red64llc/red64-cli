@@ -5,6 +5,7 @@
 
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { CodingAgent } from '../types/index.js';
 
 /**
  * Project type options
@@ -24,6 +25,7 @@ export interface InitConfig {
   readonly description: string;
   readonly initializedAt: string;
   readonly customValues: Record<string, string>;
+  readonly agent: CodingAgent;
 }
 
 /**

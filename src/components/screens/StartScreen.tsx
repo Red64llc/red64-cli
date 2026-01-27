@@ -19,7 +19,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent } from '../../types/index.js';
 import {
   createStateStore,
   createAgentInvoker,
@@ -30,6 +30,7 @@ import {
   createSpecInitService,
   createClaudeHealthCheck,
   createGitStatusChecker,
+  createConfigService,
   sanitizeFeatureName,
   type Task,
   type ClaudeError,
@@ -136,6 +137,7 @@ interface FlowScreenState {
   completedTasks: string[];  // Orchestrator-tracked completed task IDs
   phaseMetrics: Record<string, PhaseMetric>;  // Phase timing metrics
   commitCount: number;  // Number of commits for this feature
+  agent: CodingAgent;  // Coding agent from config
 }
 
 /**
@@ -163,6 +165,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     specInitService: ReturnType<typeof createSpecInitService>;
     healthCheck: ReturnType<typeof createClaudeHealthCheck>;
     gitStatusChecker: ReturnType<typeof createGitStatusChecker>;
+    configService: ReturnType<typeof createConfigService>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -175,6 +178,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const specInitService = createSpecInitService();
     const healthCheck = createClaudeHealthCheck();
     const gitStatusChecker = createGitStatusChecker();
+    const configService = createConfigService();
 
     servicesRef.current = {
       stateStore,
@@ -185,7 +189,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       taskParser,
       specInitService,
       healthCheck,
-      gitStatusChecker
+      gitStatusChecker,
+      configService
     };
   }
 
@@ -233,7 +238,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     existingFlowState: null,
     completedTasks: [],  // Orchestrator-tracked completed task IDs
     phaseMetrics: {},  // Phase timing metrics
-    commitCount: 0  // Number of commits for this feature
+    commitCount: 0,  // Number of commits for this feature
+    agent: 'claude'  // Default, will be loaded from config
   });
 
   // Track if flow has been started
@@ -457,6 +463,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     flowStartedRef.current = true;
 
     const checkExistingFlow = async () => {
+      // Load config to get the agent setting
+      const config = await services.configService.load(repoPath);
+      if (config?.agent) {
+        setFlowState(prev => ({ ...prev, agent: config.agent }));
+      }
+
       addOutput('Checking for existing flow...');
 
       // Check if there's an existing flow state for this feature
@@ -1348,7 +1360,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           currentTask={flowState.currentTask}
           totalTasks={flowState.totalTasks}
           commitCount={flowState.commitCount}
-          agent="claude"
+          agent={flowState.agent}
         />
       )}
     </Box>

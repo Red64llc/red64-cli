@@ -61,15 +61,20 @@ describe('CLI Configuration Types', () => {
   });
 
   describe('GlobalFlags', () => {
+    const baseFlags: GlobalFlags = {
+      skipPermissions: false,
+      brownfield: false,
+      greenfield: true,
+      tier: undefined,
+      help: false,
+      version: false,
+      verbose: false,
+      yes: false,
+      sandbox: false
+    };
+
     it('should have all required flag fields', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: false,
-        version: false
-      };
+      const flags: GlobalFlags = { ...baseFlags };
 
       expect(flags.skipPermissions).toBe(false);
       expect(flags.brownfield).toBe(false);
@@ -77,113 +82,77 @@ describe('CLI Configuration Types', () => {
       expect(flags.tier).toBeUndefined();
       expect(flags.help).toBe(false);
       expect(flags.version).toBe(false);
+      expect(flags.verbose).toBe(false);
+      expect(flags.yes).toBe(false);
+      expect(flags.sandbox).toBe(false);
     });
 
     it('should support skipPermissions flag', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: true,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: false,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, skipPermissions: true };
       expect(flags.skipPermissions).toBe(true);
     });
 
     it('should support brownfield mode flag', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: true,
-        greenfield: false,
-        tier: undefined,
-        help: false,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, brownfield: true, greenfield: false };
       expect(flags.brownfield).toBe(true);
     });
 
     it('should support greenfield mode flag', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: false,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, greenfield: true };
       expect(flags.greenfield).toBe(true);
     });
 
     it('should support tier option with string value', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: 'custom-tier',
-        help: false,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, tier: 'custom-tier' };
       expect(flags.tier).toBe('custom-tier');
     });
 
     it('should support tier as undefined', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: false,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, tier: undefined };
       expect(flags.tier).toBeUndefined();
     });
 
     it('should support help flag', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: true,
-        version: false
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, help: true };
       expect(flags.help).toBe(true);
     });
 
     it('should support version flag', () => {
-      const flags: GlobalFlags = {
-        skipPermissions: false,
-        brownfield: false,
-        greenfield: true,
-        tier: undefined,
-        help: false,
-        version: true
-      };
-
+      const flags: GlobalFlags = { ...baseFlags, version: true };
       expect(flags.version).toBe(true);
+    });
+
+    it('should support optional agent flag for init command', () => {
+      const defaultFlags: GlobalFlags = { ...baseFlags };
+      const claudeFlags: GlobalFlags = { ...baseFlags, agent: 'claude' };
+      const geminiFlags: GlobalFlags = { ...baseFlags, agent: 'gemini' };
+      const codexFlags: GlobalFlags = { ...baseFlags, agent: 'codex' };
+
+      expect(defaultFlags.agent).toBeUndefined();
+      expect(claudeFlags.agent).toBe('claude');
+      expect(geminiFlags.agent).toBe('gemini');
+      expect(codexFlags.agent).toBe('codex');
     });
   });
 
   describe('CLIConfig', () => {
+    const baseFlags: GlobalFlags = {
+      skipPermissions: false,
+      brownfield: false,
+      greenfield: true,
+      tier: undefined,
+      help: false,
+      version: false,
+      verbose: false,
+      yes: false,
+      sandbox: false
+    };
+
     it('should combine command, args, and flags', () => {
       const config: CLIConfig = {
         command: 'start',
         args: ['feature-name', 'Feature description'],
-        flags: {
-          skipPermissions: false,
-          brownfield: false,
-          greenfield: true,
-          tier: undefined,
-          help: false,
-          version: false
-        }
+        flags: { ...baseFlags }
       };
 
       expect(config.command).toBe('start');
@@ -195,14 +164,7 @@ describe('CLI Configuration Types', () => {
       const config: CLIConfig = {
         command: 'status',
         args: [],
-        flags: {
-          skipPermissions: false,
-          brownfield: false,
-          greenfield: true,
-          tier: undefined,
-          help: false,
-          version: false
-        }
+        flags: { ...baseFlags }
       };
 
       expect(Array.isArray(config.args)).toBe(true);
@@ -213,14 +175,7 @@ describe('CLI Configuration Types', () => {
       const config: CLIConfig = {
         command: undefined,
         args: [],
-        flags: {
-          skipPermissions: false,
-          brownfield: false,
-          greenfield: true,
-          tier: undefined,
-          help: false,
-          version: false
-        }
+        flags: { ...baseFlags }
       };
 
       expect(config.command).toBeUndefined();

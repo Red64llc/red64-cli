@@ -5,13 +5,10 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { ExtendedFlowPhase, WorkflowMode } from '../../types/index.js';
+import type { ExtendedFlowPhase, WorkflowMode, CodingAgent } from '../../types/index.js';
 import { GREENFIELD_PHASES, BROWNFIELD_PHASES } from '../../types/index.js';
 
-/**
- * Supported coding agents
- */
-export type CodingAgent = 'claude' | 'gemini' | 'codex' | 'opencode';
+export type { CodingAgent };
 
 /**
  * Agent display info
@@ -29,7 +26,6 @@ const AGENT_INFO: Record<CodingAgent, AgentInfo> = {
   claude: { icon: '\uD83E\uDD16', name: 'Claude', color: '#D97706' },    // 🤖
   gemini: { icon: '\u2728', name: 'Gemini', color: '#4285F4' },          // ✨
   codex: { icon: '\uD83D\uDFE2', name: 'Codex', color: '#10A37F' },      // 🟢
-  opencode: { icon: '\uD83D\uDCBB', name: 'OpenCode', color: 'white' },  // 💻
 };
 
 /**

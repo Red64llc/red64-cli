@@ -31,6 +31,7 @@ describe('ConfigService', () => {
     description: 'A test project',
     initializedAt: new Date().toISOString(),
     customValues: {},
+    agent: 'claude',
     ...overrides
   });
 
@@ -93,7 +94,8 @@ describe('ConfigService', () => {
         projectName: 'MyAPI',
         description: 'API service',
         initializedAt: '2026-01-26T12:00:00Z',
-        customValues: { key: 'value' }
+        customValues: { key: 'value' },
+        agent: 'gemini'
       };
       await writeFile(configPath, JSON.stringify(testConfig));
 

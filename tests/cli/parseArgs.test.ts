@@ -123,6 +123,31 @@ describe('parseArgs', () => {
       const result = parseArgs(['-v']);
       expect(result.flags.version).toBe(true);
     });
+
+    it('should parse --agent option with value (init flag)', () => {
+      const result = parseArgs(['init', '--agent', 'gemini']);
+      expect(result.flags.agent).toBe('gemini');
+    });
+
+    it('should parse -a shorthand for agent (init flag)', () => {
+      const result = parseArgs(['init', '-a', 'codex']);
+      expect(result.flags.agent).toBe('codex');
+    });
+
+    it('should have agent undefined by default (set at init time)', () => {
+      const result = parseArgs(['start', 'feature', 'desc']);
+      expect(result.flags.agent).toBeUndefined();
+    });
+
+    it('should ignore invalid agent values', () => {
+      const result = parseArgs(['init', '--agent', 'invalid']);
+      expect(result.flags.agent).toBeUndefined();
+    });
+
+    it('should parse --agent=value syntax (init flag)', () => {
+      const result = parseArgs(['init', '--agent=gemini']);
+      expect(result.flags.agent).toBe('gemini');
+    });
   });
 
   describe('CLIConfig structure', () => {

@@ -5,6 +5,7 @@
 
 import type { ProjectType } from '../../services/ConfigService.js';
 import type { FetchProgress } from '../../services/GitHubService.js';
+import type { CodingAgent } from '../../types/index.js';
 
 /**
  * Base step props interface
@@ -88,4 +89,5 @@ export interface InitFlags {
   readonly 'skip-guided'?: boolean;
   readonly 'no-steering'?: boolean;
   readonly 'no-cache'?: boolean;
+  readonly agent?: CodingAgent;
 }

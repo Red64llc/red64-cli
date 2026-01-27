@@ -20,6 +20,11 @@ function main(): void {
   const cli = meow(HELP_TEXT, {
     importMeta: import.meta,
     flags: {
+      agent: {
+        type: 'string',
+        shortFlag: 'a',
+        default: 'claude'
+      },
       skipPermissions: {
         type: 'boolean',
         shortFlag: 's',
