@@ -11,7 +11,6 @@ describe('CLI Configuration Types', () => {
       const commands: Command[] = [
         'init',
         'start',
-        'resume',
         'status',
         'list',
         'abort',
@@ -33,11 +32,6 @@ describe('CLI Configuration Types', () => {
     it('should support start command', () => {
       const command: Command = 'start';
       expect(command).toBe('start');
-    });
-
-    it('should support resume command', () => {
-      const command: Command = 'resume';
-      expect(command).toBe('resume');
     });
 
     it('should support status command', () => {

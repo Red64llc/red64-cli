@@ -15,7 +15,6 @@ export type Status = 'pending' | 'running' | 'success' | 'error' | 'warning';
 export type Command =
   | 'init'
   | 'start'
-  | 'resume'
   | 'status'
   | 'list'
   | 'abort'
@@ -86,6 +85,23 @@ export type FlowEvent =
   | { type: 'ERROR'; error: string };
 
 /**
+ * Phase completion metrics for tracking timing per phase
+ */
+export interface PhaseMetric {
+  readonly startedAt: string;
+  readonly completedAt?: string;
+  readonly elapsedMs?: number;
+}
+
+/**
+ * Task progress tracking for implementation phase
+ */
+export interface TaskProgress {
+  readonly completedTasks: readonly string[];  // ["1.1", "1.2", "2.1"]
+  readonly totalTasks: number;
+}
+
+/**
  * FlowState interface with feature, phase, timestamps, history, and metadata
  * Requirement: 1.5 - State persistence
  */
@@ -103,6 +119,12 @@ export interface FlowState {
     readonly prUrl?: string;
     readonly prNumber?: number;
     readonly resolvedFeatureName?: string; // The actual spec directory name after spec-init
+  };
+  // Task progress tracking (orchestrator-controlled)
+  readonly taskProgress?: TaskProgress;
+  // Phase completion metrics with timing
+  readonly phaseMetrics?: {
+    readonly [phaseType: string]: PhaseMetric;
   };
 }
 

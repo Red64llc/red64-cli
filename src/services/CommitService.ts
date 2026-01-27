@@ -26,6 +26,11 @@ export interface CommitServiceInterface {
   stageAndCommit(workingDir: string, message: string): Promise<CommitResult>;
   formatTaskCommitMessage(feature: string, taskIndex: number, taskTitle: string): string;
   formatPhaseCommitMessage(feature: string, phase: string): string;
+  /**
+   * Count commits on current branch since branching from base
+   * Returns 0 if unable to determine
+   */
+  countFeatureCommits(workingDir: string, baseBranch?: string): Promise<number>;
 }
 
 /**
@@ -174,6 +179,34 @@ export function createCommitService(): CommitServiceInterface {
      */
     formatPhaseCommitMessage(_feature: string, phase: string): string {
       return phase;
+    },
+
+    /**
+     * Count commits on current branch since branching from base
+     * Uses git rev-list to count commits not in base branch
+     */
+    async countFeatureCommits(workingDir: string, baseBranch?: string): Promise<number> {
+      // Try to determine base branch if not specified
+      const base = baseBranch ?? 'main';
+
+      // First check if base branch exists
+      const checkResult = await execGit(['rev-parse', '--verify', base], workingDir);
+      if (checkResult.exitCode !== 0) {
+        // Try 'master' as fallback
+        const masterCheck = await execGit(['rev-parse', '--verify', 'master'], workingDir);
+        if (masterCheck.exitCode !== 0) {
+          // Can't determine base, return total commits on current branch
+          const totalResult = await execGit(['rev-list', '--count', 'HEAD'], workingDir);
+          return totalResult.exitCode === 0 ? parseInt(totalResult.stdout.trim(), 10) || 0 : 0;
+        }
+        // Use master as base
+        const result = await execGit(['rev-list', '--count', 'HEAD', '^master'], workingDir);
+        return result.exitCode === 0 ? parseInt(result.stdout.trim(), 10) || 0 : 0;
+      }
+
+      // Count commits not in base branch
+      const result = await execGit(['rev-list', '--count', 'HEAD', `^${base}`], workingDir);
+      return result.exitCode === 0 ? parseInt(result.stdout.trim(), 10) || 0 : 0;
     }
   };
 }

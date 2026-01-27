@@ -4,8 +4,9 @@
  * Requirements: 5.1
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 
 /**
  * Task interface
@@ -21,6 +22,14 @@ export interface Task {
 }
 
 /**
+ * Result of marking a task complete
+ */
+export interface MarkTaskCompleteResult {
+  readonly success: boolean;
+  readonly error?: string;
+}
+
+/**
  * Task parser service interface
  * Requirements: 5.1
  */
@@ -28,6 +37,11 @@ export interface TaskParserService {
   parse(specDir: string): Promise<readonly Task[]>;
   getPendingTasks(tasks: readonly Task[]): readonly Task[];
   getTaskById(tasks: readonly Task[], id: string): Task | undefined;
+  /**
+   * Mark a task as complete in tasks.md (orchestrator-controlled)
+   * Updates checkbox from [ ] to [x]
+   */
+  markTaskComplete(specDir: string, taskId: string): Promise<MarkTaskCompleteResult>;
 }
 
 /**
@@ -153,6 +167,66 @@ export function createTaskParser(): TaskParserService {
      */
     getTaskById(tasks: readonly Task[], id: string): Task | undefined {
       return tasks.find(task => task.id === id);
+    },
+
+    /**
+     * Mark a task as complete in tasks.md
+     * Orchestrator-controlled: updates checkbox from [ ] to [x]
+     * Uses atomic write pattern (temp file + rename)
+     */
+    async markTaskComplete(specDir: string, taskId: string): Promise<MarkTaskCompleteResult> {
+      const tasksPath = join(specDir, 'tasks.md');
+
+      let content: string;
+      try {
+        content = await readFile(tasksPath, 'utf-8');
+      } catch {
+        return { success: false, error: `Cannot read tasks.md at ${tasksPath}` };
+      }
+
+      const lines = content.split('\n');
+      let found = false;
+
+      // Find and update the task line
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Match: - [ ] taskId or - [ ]* taskId (with optional asterisk)
+        // Pattern: starts with "- [ ]" optionally followed by "*", then the task ID
+        const taskPattern = new RegExp(`^(-\\s+\\[) (\\]\\*?\\s+${taskId.replace('.', '\\.')}\\s)`);
+        const match = line.match(taskPattern);
+
+        if (match) {
+          // Replace [ ] with [x]
+          lines[i] = line.replace(taskPattern, '$1x$2');
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return { success: false, error: `Task ${taskId} not found in tasks.md` };
+      }
+
+      // Atomic write: temp file + rename
+      const tempPath = join(specDir, `tasks.${randomBytes(8).toString('hex')}.tmp`);
+      const newContent = lines.join('\n');
+
+      try {
+        await writeFile(tempPath, newContent, 'utf-8');
+        await rename(tempPath, tasksPath);
+        return { success: true };
+      } catch (error) {
+        // Clean up temp file on error
+        try {
+          await rm(tempPath, { force: true });
+        } catch {
+          // Ignore cleanup errors
+        }
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to write tasks.md'
+        };
+      }
     }
   };
 }

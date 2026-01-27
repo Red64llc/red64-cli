@@ -51,14 +51,6 @@ describe('CommandRouter', () => {
       expect(lastFrame()).toContain('start');
     });
 
-    it('should route to ResumeScreen for resume command', () => {
-      const { lastFrame } = render(
-        <CommandRouter command="resume" args={['my-feature']} flags={defaultFlags} />
-      );
-
-      expect(lastFrame()).toContain('resume');
-    });
-
     it('should route to StatusScreen for status command', () => {
       const { lastFrame } = render(
         <CommandRouter command="status" args={[]} flags={defaultFlags} />

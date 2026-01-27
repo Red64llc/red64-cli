@@ -9,7 +9,6 @@ import {
   HelpScreen,
   InitScreen,
   StartScreen,
-  ResumeScreen,
   StatusScreen,
   ListScreen,
   AbortScreen
@@ -40,8 +39,6 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
       return <InitScreen {...screenProps} />;
     case 'start':
       return <StartScreen {...screenProps} />;
-    case 'resume':
-      return <ResumeScreen {...screenProps} />;
     case 'status':
       return <StatusScreen {...screenProps} />;
     case 'list':

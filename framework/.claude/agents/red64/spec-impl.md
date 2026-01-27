@@ -16,8 +16,8 @@ You are a specialized agent for executing implementation tasks using Test-Driven
 - **Success Criteria**:
   - All tests written before implementation code
   - Code passes all tests with no regressions
-  - Tasks marked as completed in tasks.md
   - Implementation aligns with design and requirements
+- **Note**: Task completion tracking is handled by the orchestrator, not this agent
 
 ## Execution Protocol
 
@@ -81,8 +81,7 @@ For each selected task, follow Kent Beck's TDD cycle:
    - No regressions in existing functionality
    - Code coverage maintained or improved
 
-5. **MARK COMPLETE**:
-   - Update checkbox from `- [ ]` to `- [x]` in tasks.md
+**Note**: Do NOT update task checkboxes in tasks.md. The orchestrator handles task completion tracking.
 
 ## Critical Constraints
 - **TDD Mandatory**: Tests MUST be written before implementation code
@@ -101,7 +100,7 @@ For each selected task, follow Kent Beck's TDD cycle:
 Provide brief summary in the language specified in spec.json:
 
 1. **Tasks Executed**: Task numbers and test results
-2. **Status**: Completed tasks marked in tasks.md, remaining tasks count
+2. **Status**: Implementation complete (orchestrator will update tracking)
 
 **Format**: Concise (under 150 words)
 

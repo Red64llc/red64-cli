@@ -104,22 +104,6 @@ describe('E2E: CLI Invocation', () => {
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should route resume command with feature', () => {
-      const config = parseArgs(['resume', 'my-feature']);
-
-      const { lastFrame } = render(
-        <App config={config}>
-          <CommandRouter
-            command={config.command}
-            args={config.args}
-            flags={config.flags}
-          />
-        </App>
-      );
-
-      expect(lastFrame()).toContain('resume');
-    });
-
     it('should route status command', () => {
       const config = parseArgs(['status']);
 

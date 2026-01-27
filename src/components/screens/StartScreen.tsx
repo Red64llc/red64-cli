@@ -19,7 +19,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, ExtendedFlowPhase, WorkflowMode } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric } from '../../types/index.js';
 import {
   createStateStore,
   createAgentInvoker,
@@ -29,10 +29,13 @@ import {
   createTaskParser,
   createSpecInitService,
   createClaudeHealthCheck,
+  createGitStatusChecker,
   sanitizeFeatureName,
   type Task,
-  type ClaudeError
+  type ClaudeError,
+  type GitStatus
 } from '../../services/index.js';
+import { FeatureSidebar } from '../ui/index.js';
 import { join } from 'node:path';
 import { appendFile, mkdir } from 'node:fs/promises';
 
@@ -72,6 +75,24 @@ const APPROVAL_OPTIONS = [
 ];
 
 /**
+ * Options when existing flow is detected
+ */
+const EXISTING_FLOW_OPTIONS = [
+  { value: 'resume', label: 'Resume from where you left off' },
+  { value: 'restart', label: 'Start fresh (discard previous progress)' },
+  { value: 'abort', label: 'Cancel' }
+];
+
+/**
+ * Options when uncommitted changes are detected
+ */
+const UNCOMMITTED_CHANGES_OPTIONS = [
+  { value: 'commit', label: 'Commit changes (WIP) and continue' },
+  { value: 'discard', label: 'Discard changes and continue' },
+  { value: 'abort', label: 'Cancel' }
+];
+
+/**
  * Human-readable labels for Claude error codes
  */
 function getClaudeErrorLabel(code: string): string {
@@ -88,6 +109,16 @@ function getClaudeErrorLabel(code: string): string {
   return labels[code] ?? code;
 }
 
+/**
+ * Pre-start check step for existing flow detection
+ */
+type PreStartStep =
+  | { type: 'checking' }  // Checking for existing flow
+  | { type: 'existing-flow-detected'; existingState: FlowState; gitStatus: GitStatus }
+  | { type: 'uncommitted-changes'; existingState: FlowState; gitStatus: GitStatus }
+  | { type: 'ready' }  // Ready to start/resume
+  | { type: 'resuming'; fromPhase: string };  // Resuming from existing state
+
 interface FlowScreenState {
   phase: ExtendedFlowPhase;
   output: string[];
@@ -95,11 +126,16 @@ interface FlowScreenState {
   claudeError: ClaudeError | null;  // Specific Claude API error details
   isExecuting: boolean;
   isHealthChecking: boolean;  // Health check in progress
+  preStartStep: PreStartStep;  // Pre-start check state
   worktreePath: string | null;
   currentTask: number;
   totalTasks: number;
   tasks: readonly Task[];
   resolvedFeatureName: string | null; // The actual feature name after spec-init
+  existingFlowState: FlowState | null;  // Existing flow state if detected
+  completedTasks: string[];  // Orchestrator-tracked completed task IDs
+  phaseMetrics: Record<string, PhaseMetric>;  // Phase timing metrics
+  commitCount: number;  // Number of commits for this feature
 }
 
 /**
@@ -126,6 +162,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     taskParser: ReturnType<typeof createTaskParser>;
     specInitService: ReturnType<typeof createSpecInitService>;
     healthCheck: ReturnType<typeof createClaudeHealthCheck>;
+    gitStatusChecker: ReturnType<typeof createGitStatusChecker>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -137,6 +174,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const taskParser = createTaskParser();
     const specInitService = createSpecInitService();
     const healthCheck = createClaudeHealthCheck();
+    const gitStatusChecker = createGitStatusChecker();
 
     servicesRef.current = {
       stateStore,
@@ -146,7 +184,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       commitService,
       taskParser,
       specInitService,
-      healthCheck
+      healthCheck,
+      gitStatusChecker
     };
   }
 
@@ -184,12 +223,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     error: null,
     claudeError: null,
     isExecuting: false,
-    isHealthChecking: true,  // Start with health check
+    isHealthChecking: false,
+    preStartStep: { type: 'checking' },  // Start by checking for existing flow
     worktreePath: null,
     currentTask: 0,
     totalTasks: 0,
     tasks: [],
-    resolvedFeatureName: null
+    resolvedFeatureName: null,
+    existingFlowState: null,
+    completedTasks: [],  // Orchestrator-tracked completed task IDs
+    phaseMetrics: {},  // Phase timing metrics
+    commitCount: 0  // Number of commits for this feature
   });
 
   // Track if flow has been started
@@ -351,32 +395,54 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     if (result.commitHash) {
       addOutput(`Committed: ${result.commitHash.substring(0, 7)}`);
+      // Increment commit count
+      setFlowState(prev => ({ ...prev, commitCount: prev.commitCount + 1 }));
     }
 
     return true;
   }, [services.commitService, getWorkingDir, addOutput]);
 
-  // Save flow state
-  const saveFlowState = useCallback(async (phase: ExtendedFlowPhase, workDir?: string) => {
+  // Save flow state with task progress and phase metrics
+  const saveFlowState = useCallback(async (
+    phase: ExtendedFlowPhase,
+    workDir?: string,
+    completedTasksOverride?: string[]
+  ) => {
+    const dir = workDir ?? getWorkingDir();
+    const stateStore = createStateStore(dir);
+
+    // Load existing state to preserve createdAt and merge data
+    const existingState = await stateStore.load(featureName);
+
+    // Use override if provided, otherwise use current state, otherwise preserve existing
+    const completedTasks = completedTasksOverride ?? flowState.completedTasks;
+
     const state: FlowState = {
       feature: featureName,
       phase: convertToFlowPhase(phase),
-      createdAt: new Date().toISOString(),
+      createdAt: existingState?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      history: [],
+      history: existingState?.history ?? [],
       metadata: {
         description,
         mode,
         tier: flags.tier,
         worktreePath: flowState.worktreePath ?? undefined,
         resolvedFeatureName: flowState.resolvedFeatureName ?? undefined
-      }
+      },
+      // Orchestrator-controlled task progress
+      taskProgress: completedTasks.length > 0 || flowState.totalTasks > 0 ? {
+        completedTasks,
+        totalTasks: flowState.totalTasks
+      } : existingState?.taskProgress,
+      // Phase timing metrics
+      phaseMetrics: Object.keys(flowState.phaseMetrics).length > 0
+        ? { ...existingState?.phaseMetrics, ...flowState.phaseMetrics }
+        : existingState?.phaseMetrics
     };
 
-    // Save to worktree if available
-    const stateStore = createStateStore(workDir ?? getWorkingDir());
     await stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, getWorkingDir]);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.phaseMetrics, getWorkingDir]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -385,123 +451,438 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     return nextPhase;
   }, [services.flowMachine]);
 
-  // Start flow
+  // Check for existing flow on mount
   useEffect(() => {
     if (flowStartedRef.current) return;
     flowStartedRef.current = true;
 
-    const startFlow = async () => {
-      // Initialize log file first (in repo, will move to worktree if created)
-      const logPath = await initLogFile(repoPath);
-      addOutput(`Log file: ${logPath}`);
-      addOutput('');
+    const checkExistingFlow = async () => {
+      addOutput('Checking for existing flow...');
 
-      // Run health check before starting
-      addOutput('Checking Claude API status...');
-      setFlowState(prev => ({ ...prev, isHealthChecking: true }));
+      // Check if there's an existing flow state for this feature
+      // First check main repo, then check worktree if exists
+      let existingState = await services.stateStore.load(featureName);
 
-      const healthResult = await services.healthCheck.check({
-        tier: flags.tier,
-        sandbox: flags.sandbox,
-        timeoutMs: 30000
-      });
+      // If not found in main repo, check if worktree exists and has state
+      if (!existingState) {
+        const worktreeCheck = await services.worktreeService.check(repoPath, featureName);
+        if (worktreeCheck.exists && worktreeCheck.path) {
+          const worktreeStateStore = createStateStore(worktreeCheck.path);
+          existingState = await worktreeStateStore.load(featureName);
+          if (existingState) {
+            addOutput(`Found state in worktree: ${worktreeCheck.path}`);
+          }
+        }
+      }
 
-      setFlowState(prev => ({ ...prev, isHealthChecking: false }));
+      if (existingState && existingState.phase.type !== 'complete' && existingState.phase.type !== 'aborted') {
+        // Found an in-progress flow - check for uncommitted changes
+        const worktreePath = existingState.metadata.worktreePath ?? repoPath;
+        const gitStatus = await services.gitStatusChecker.check(worktreePath);
 
-      if (!healthResult.healthy) {
-        await logToFile(`Health check failed: ${healthResult.message}`);
-        if (healthResult.error) {
-          await logToFile(`Error code: ${healthResult.error.code}`);
-          await logToFile(`Suggestion: ${healthResult.error.suggestion}`);
+        // Load task progress from state (source of truth)
+        const completedTasks = existingState.taskProgress?.completedTasks ?? [];
+        const totalTasks = existingState.taskProgress?.totalTasks ?? 0;
+
+        if (gitStatus.hasChanges) {
+          // Has uncommitted changes - prompt user first
+          setFlowState(prev => ({
+            ...prev,
+            preStartStep: { type: 'uncommitted-changes', existingState, gitStatus },
+            existingFlowState: existingState,
+            worktreePath: existingState.metadata.worktreePath ?? null,
+            resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
+            completedTasks: [...completedTasks],
+            totalTasks
+          }));
+          addOutput(`Found existing flow at phase: ${existingState.phase.type}`);
+          if (completedTasks.length > 0) {
+            addOutput(`Completed tasks: ${completedTasks.join(', ')}`);
+          }
+          addOutput(`Uncommitted changes detected: ${gitStatus.staged} staged, ${gitStatus.unstaged} unstaged, ${gitStatus.untracked} untracked`);
+          return;
         }
 
-        // Set error state with Claude error details
-        const errorMsg = healthResult.error
-          ? `${getClaudeErrorLabel(healthResult.error.code)}: ${healthResult.error.suggestion}`
-          : healthResult.message;
-
+        // No uncommitted changes - prompt resume vs restart
         setFlowState(prev => ({
           ...prev,
-          error: errorMsg,
-          claudeError: healthResult.error ?? null,
-          phase: { type: 'error', feature: featureName, error: errorMsg }
+          preStartStep: { type: 'existing-flow-detected', existingState, gitStatus },
+          existingFlowState: existingState,
+          worktreePath: existingState.metadata.worktreePath ?? null,
+          resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
+          completedTasks: [...completedTasks],
+          totalTasks
         }));
-        return;
-      }
-
-      addOutput(`API ready (${healthResult.durationMs}ms)`);
-      addOutput('');
-      addOutput(`Starting flow: ${featureName}`);
-      addOutput(`Mode: ${mode}`);
-      addOutput('');
-
-      // Step 1: Create or reuse git worktree for isolation
-      addOutput('Setting up git worktree for feature isolation...');
-
-      // Check if worktree already exists
-      const existingWorktree = await services.worktreeService.check(repoPath, featureName);
-      let workDir = repoPath;
-
-      if (existingWorktree.exists) {
-        // Reuse existing worktree
-        workDir = existingWorktree.path;
-        setFlowState(prev => ({ ...prev, worktreePath: existingWorktree.path }));
-        addOutput(`Using existing worktree: ${existingWorktree.path}`);
-        addOutput(`Branch: ${existingWorktree.branch}`);
-      } else {
-        // Create new worktree
-        const worktreeResult = await services.worktreeService.create(repoPath, featureName);
-
-        if (!worktreeResult.success) {
-          addOutput(`Worktree error: ${worktreeResult.error}`);
-          addOutput('Continuing without worktree isolation...');
-          // Continue without worktree
-        } else {
-          workDir = worktreeResult.path!;
-          setFlowState(prev => ({ ...prev, worktreePath: worktreeResult.path! }));
-          addOutput(`Worktree created: ${worktreeResult.path}`);
-          addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
+        addOutput(`Found existing flow at phase: ${existingState.phase.type}`);
+        if (completedTasks.length > 0) {
+          addOutput(`Completed tasks: ${completedTasks.join(', ')}`);
         }
-      }
-
-      // Step 2: Transition to initializing
-      const initPhase = transitionPhase({
-        type: 'START',
-        feature: featureName,
-        description,
-        mode
-      });
-
-      await saveFlowState(initPhase, workDir);
-
-      // Initialize spec directory directly (no agent call needed)
-      addOutput('');
-      addOutput('Initializing spec directory...');
-      addOutput(`Working directory: ${workDir}`);
-      const initResult = await services.specInitService.init(workDir, featureName, description);
-
-      if (!initResult.success) {
-        transitionPhase({ type: 'ERROR', error: initResult.error ?? 'Initialization failed' });
         return;
       }
 
-      // IMPORTANT: Update the resolved feature name from spec-init result
-      // This ensures all subsequent commands use the correct feature name
-      setFlowState(prev => ({ ...prev, resolvedFeatureName: initResult.featureName }));
-      addOutput(`Spec directory: ${initResult.specDir}`);
-      addOutput(`Feature name: ${initResult.featureName}`);
-
-      // Commit init
-      await commitChanges(`initialize spec directory`, workDir);
-
-      // Step 3: Generate requirements - pass the resolved feature name
-      const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-      await saveFlowState(reqPhase, workDir);
-      await runRequirementsPhase(workDir, initResult.featureName);
+      // No existing flow or flow is complete/aborted - proceed with fresh start
+      setFlowState(prev => ({ ...prev, preStartStep: { type: 'ready' } }));
+      await startFreshFlow();
     };
 
-    startFlow();
+    checkExistingFlow();
   }, []);
+
+  // Handle existing flow decision (resume vs restart)
+  const handleExistingFlowDecision = useCallback(async (decision: string) => {
+    if (decision === 'resume') {
+      await resumeExistingFlow();
+    } else if (decision === 'restart') {
+      setFlowState(prev => ({ ...prev, preStartStep: { type: 'ready' }, existingFlowState: null }));
+      addOutput('Starting fresh flow...');
+      await startFreshFlow();
+    } else if (decision === 'abort') {
+      exit();
+    }
+  }, [exit]);
+
+  // Handle uncommitted changes decision
+  const handleUncommittedChangesDecision = useCallback(async (decision: string) => {
+    const existingState = flowState.existingFlowState;
+    if (!existingState) return;
+
+    const worktreePath = existingState.metadata.worktreePath ?? repoPath;
+
+    if (decision === 'commit') {
+      // Commit changes with WIP message
+      addOutput('Committing changes...');
+      const commitResult = await services.commitService.stageAndCommit(
+        worktreePath,
+        `WIP: ${featureName} - auto-commit before resume`
+      );
+      if (commitResult.success) {
+        addOutput(`Committed: ${commitResult.commitHash?.substring(0, 7) ?? 'done'}`);
+      } else {
+        addOutput(`Commit warning: ${commitResult.error ?? 'No changes to commit'}`);
+      }
+      // Now show resume vs restart choice
+      const gitStatus = await services.gitStatusChecker.check(worktreePath);
+      setFlowState(prev => ({
+        ...prev,
+        preStartStep: { type: 'existing-flow-detected', existingState, gitStatus }
+      }));
+    } else if (decision === 'discard') {
+      // Discard changes using git checkout
+      addOutput('Discarding changes...');
+      const { spawn } = await import('node:child_process');
+      await new Promise<void>((resolve) => {
+        const proc = spawn('git', ['checkout', '--', '.'], { cwd: worktreePath });
+        proc.on('close', () => {
+          // Also clean untracked files
+          const cleanProc = spawn('git', ['clean', '-fd'], { cwd: worktreePath });
+          cleanProc.on('close', () => resolve());
+        });
+      });
+      addOutput('Changes discarded');
+      // Now show resume vs restart choice
+      const gitStatus = await services.gitStatusChecker.check(worktreePath);
+      setFlowState(prev => ({
+        ...prev,
+        preStartStep: { type: 'existing-flow-detected', existingState, gitStatus }
+      }));
+    } else if (decision === 'abort') {
+      exit();
+    }
+  }, [flowState.existingFlowState, services.commitService, services.gitStatusChecker, featureName, repoPath, exit, addOutput]);
+
+  // Resume from existing flow state
+  const resumeExistingFlow = useCallback(async () => {
+    const existingState = flowState.existingFlowState;
+    if (!existingState) {
+      addOutput('Error: No existing flow state to resume');
+      return;
+    }
+
+    const phaseType = existingState.phase.type;
+    addOutput(`Resuming from phase: ${phaseType}`);
+
+    // Initialize log file
+    const workDir = existingState.metadata.worktreePath ?? repoPath;
+
+    // Load initial commit count
+    const initialCommitCount = await services.commitService.countFeatureCommits(workDir);
+
+    setFlowState(prev => ({
+      ...prev,
+      preStartStep: { type: 'resuming', fromPhase: phaseType },
+      isHealthChecking: true,
+      commitCount: initialCommitCount
+    }));
+
+    await initLogFile(workDir);
+
+    // Run health check
+    addOutput('Checking Claude API status...');
+    const healthResult = await services.healthCheck.check({
+      tier: flags.tier,
+      sandbox: flags.sandbox,
+      timeoutMs: 30000
+    });
+
+    setFlowState(prev => ({ ...prev, isHealthChecking: false }));
+
+    if (!healthResult.healthy) {
+      const errorMsg = healthResult.error
+        ? `${getClaudeErrorLabel(healthResult.error.code)}: ${healthResult.error.suggestion}`
+        : healthResult.message;
+      setFlowState(prev => ({
+        ...prev,
+        error: errorMsg,
+        claudeError: healthResult.error ?? null,
+        phase: { type: 'error', feature: featureName, error: errorMsg }
+      }));
+      return;
+    }
+
+    addOutput(`API ready (${healthResult.durationMs}ms)`);
+
+    // Set up flow machine to the current phase
+    const effectiveName = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+
+    // Update state with existing flow info
+    setFlowState(prev => ({
+      ...prev,
+      worktreePath: existingState.metadata.worktreePath ?? null,
+      resolvedFeatureName: effectiveName
+    }));
+
+    // Resume based on current phase
+    await resumeFromPhase(existingState.phase.type, workDir, effectiveName);
+  }, [flowState.existingFlowState, services.healthCheck, flags, featureName, repoPath, initLogFile, addOutput]);
+
+  // Resume from a specific phase
+  const resumeFromPhase = async (phaseType: string, workDir: string, effectiveName: string) => {
+    addOutput(`Continuing from ${phaseType}...`);
+
+    switch (phaseType) {
+      case 'requirements-review':
+      case 'requirements-approval':
+        // Waiting for approval - show approval UI
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' }); // to requirements-generating
+        transitionPhase({ type: 'PHASE_COMPLETE' }); // to requirements-approval
+        break;
+
+      case 'design-generating':
+        // Resume design generation
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        await runDesignPhase(workDir);
+        break;
+
+      case 'design-review':
+      case 'design-approval':
+        // Waiting for design approval
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        break;
+
+      case 'tasks-generating':
+        // Resume tasks generation
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        await runTasksPhase(workDir);
+        break;
+
+      case 'tasks-review':
+      case 'tasks-approval':
+        // Waiting for tasks approval - load ALL tasks
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        {
+          // Load ALL tasks (not just pending by file checkbox)
+          const specDir = join(workDir, '.red64', 'specs', effectiveName);
+          const tasks = await services.taskParser.parse(specDir);
+          setFlowState(prev => ({
+            ...prev,
+            tasks,
+            totalTasks: tasks.length
+          }));
+        }
+        break;
+
+      case 'implementing':
+        // Resume implementation - use state.json.completedTasks as source of truth
+        transitionPhase({ type: 'START', feature: featureName, description, mode });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        transitionPhase({ type: 'PHASE_COMPLETE' });
+        transitionPhase({ type: 'APPROVE' });
+        {
+          // Load ALL tasks from file
+          const implSpecDir = join(workDir, '.red64', 'specs', effectiveName);
+          const implTasks = await services.taskParser.parse(implSpecDir);
+
+          // Use state.json.completedTasks as source of truth (already loaded)
+          const completedTaskIds = flowState.completedTasks;
+
+          // Sync tasks.md checkboxes if out of sync with state.json
+          for (const taskId of completedTaskIds) {
+            const task = implTasks.find(t => t.id === taskId);
+            if (task && !task.completed) {
+              addOutput(`Syncing task ${taskId} checkbox in tasks.md`);
+              await services.taskParser.markTaskComplete(implSpecDir, taskId);
+            }
+          }
+
+          // Filter pending using state.json (source of truth)
+          const implPendingTasks = implTasks.filter(t => !completedTaskIds.includes(t.id));
+
+          setFlowState(prev => ({
+            ...prev,
+            tasks: implTasks,
+            totalTasks: implTasks.length
+          }));
+
+          if (implPendingTasks.length > 0) {
+            addOutput(`Resuming implementation: ${completedTaskIds.length} completed, ${implPendingTasks.length} pending`);
+            await runImplementation(workDir);
+          } else {
+            addOutput('All tasks already completed!');
+            await completeFlow(workDir);
+          }
+        }
+        break;
+
+      default:
+        // For other phases, start fresh
+        addOutput(`Cannot resume from phase ${phaseType}, starting fresh...`);
+        await startFreshFlow();
+    }
+  };
+
+  // Start a fresh flow (original startFlow logic)
+  const startFreshFlow = async () => {
+    // Initialize log file first (in repo, will move to worktree if created)
+    const logPath = await initLogFile(repoPath);
+    addOutput(`Log file: ${logPath}`);
+    addOutput('');
+
+    // Run health check before starting
+    addOutput('Checking Claude API status...');
+    setFlowState(prev => ({ ...prev, isHealthChecking: true }));
+
+    const healthResult = await services.healthCheck.check({
+      tier: flags.tier,
+      sandbox: flags.sandbox,
+      timeoutMs: 30000
+    });
+
+    setFlowState(prev => ({ ...prev, isHealthChecking: false }));
+
+    if (!healthResult.healthy) {
+      await logToFile(`Health check failed: ${healthResult.message}`);
+      if (healthResult.error) {
+        await logToFile(`Error code: ${healthResult.error.code}`);
+        await logToFile(`Suggestion: ${healthResult.error.suggestion}`);
+      }
+
+      // Set error state with Claude error details
+      const errorMsg = healthResult.error
+        ? `${getClaudeErrorLabel(healthResult.error.code)}: ${healthResult.error.suggestion}`
+        : healthResult.message;
+
+      setFlowState(prev => ({
+        ...prev,
+        error: errorMsg,
+        claudeError: healthResult.error ?? null,
+        phase: { type: 'error', feature: featureName, error: errorMsg }
+      }));
+      return;
+    }
+
+    addOutput(`API ready (${healthResult.durationMs}ms)`);
+    addOutput('');
+    addOutput(`Starting flow: ${featureName}`);
+    addOutput(`Mode: ${mode}`);
+    addOutput('');
+
+    // Step 1: Create or reuse git worktree for isolation
+    addOutput('Setting up git worktree for feature isolation...');
+
+    // Check if worktree already exists
+    const existingWorktree = await services.worktreeService.check(repoPath, featureName);
+    let workDir = repoPath;
+
+    if (existingWorktree.exists) {
+      // Reuse existing worktree
+      workDir = existingWorktree.path;
+      setFlowState(prev => ({ ...prev, worktreePath: existingWorktree.path }));
+      addOutput(`Using existing worktree: ${existingWorktree.path}`);
+      addOutput(`Branch: ${existingWorktree.branch}`);
+    } else {
+      // Create new worktree
+      const worktreeResult = await services.worktreeService.create(repoPath, featureName);
+
+      if (!worktreeResult.success) {
+        addOutput(`Worktree error: ${worktreeResult.error}`);
+        addOutput('Continuing without worktree isolation...');
+        // Continue without worktree
+      } else {
+        workDir = worktreeResult.path!;
+        setFlowState(prev => ({ ...prev, worktreePath: worktreeResult.path! }));
+        addOutput(`Worktree created: ${worktreeResult.path}`);
+        addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
+      }
+    }
+
+    // Step 2: Transition to initializing
+    const initPhase = transitionPhase({
+      type: 'START',
+      feature: featureName,
+      description,
+      mode
+    });
+
+    await saveFlowState(initPhase, workDir);
+
+    // Initialize spec directory directly (no agent call needed)
+    addOutput('');
+    addOutput('Initializing spec directory...');
+    addOutput(`Working directory: ${workDir}`);
+    const initResult = await services.specInitService.init(workDir, featureName, description);
+
+    if (!initResult.success) {
+      transitionPhase({ type: 'ERROR', error: initResult.error ?? 'Initialization failed' });
+      return;
+    }
+
+    // IMPORTANT: Update the resolved feature name from spec-init result
+    // This ensures all subsequent commands use the correct feature name
+    setFlowState(prev => ({ ...prev, resolvedFeatureName: initResult.featureName }));
+    addOutput(`Spec directory: ${initResult.specDir}`);
+    addOutput(`Feature name: ${initResult.featureName}`);
+
+    // Commit init
+    await commitChanges(`initialize spec directory`, workDir);
+
+    // Step 3: Generate requirements - pass the resolved feature name
+    const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+    await saveFlowState(reqPhase, workDir);
+    await runRequirementsPhase(workDir, initResult.featureName);
+  };
 
   // Run requirements phase
   const runRequirementsPhase = async (workDir: string, resolvedName?: string) => {
@@ -584,11 +965,16 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   };
 
   // Run implementation - one task at a time with commits
+  // ORCHESTRATOR-CONTROLLED: Marks tasks complete in both tasks.md and state.json
   const runImplementation = async (workDir: string) => {
-    const { tasks } = flowState;
+    const { tasks, completedTasks: alreadyCompleted } = flowState;
     const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+    const specDir = join(workDir, '.red64', 'specs', effectiveName);
 
-    if (tasks.length === 0) {
+    // Filter out already completed tasks (from state.json, source of truth)
+    const pendingTasks = tasks.filter(t => !alreadyCompleted.includes(t.id));
+
+    if (pendingTasks.length === 0) {
       addOutput('No tasks to implement');
       transitionPhase({ type: 'PHASE_COMPLETE' });
       await completeFlow(workDir);
@@ -597,17 +983,24 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     addOutput('');
     addOutput('Starting implementation...');
-    addOutput(`Total tasks: ${tasks.length}`);
+    addOutput(`Total tasks: ${tasks.length}, Pending: ${pendingTasks.length}`);
+    if (alreadyCompleted.length > 0) {
+      addOutput(`Already completed: ${alreadyCompleted.join(', ')}`);
+    }
     addOutput('');
 
-    // Execute each task one at a time
-    for (let i = 0; i < tasks.length; i++) {
-      const task = tasks[i];
-      const taskNum = i + 1;
+    // Track completed tasks in this run
+    let currentCompleted = [...alreadyCompleted];
+
+    // Execute each pending task one at a time
+    for (let i = 0; i < pendingTasks.length; i++) {
+      const task = pendingTasks[i];
+      const overallIndex = tasks.findIndex(t => t.id === task.id);
+      const taskNum = overallIndex + 1;
 
       setFlowState(prev => ({ ...prev, currentTask: taskNum }));
 
-      addOutput(`[${taskNum}/${tasks.length}] Task ${task.id}: ${task.title}`);
+      addOutput(`[${currentCompleted.length + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
 
       // Run spec-impl for this specific task - use effective name
       const result = await executeCommand(
@@ -617,11 +1010,27 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       if (!result.success) {
         addOutput(`Task ${task.id} failed: ${result.error}`);
+        // Save progress so far before continuing
+        await saveFlowState(flowState.phase, workDir, currentCompleted);
         // Continue to next task instead of failing entirely
         continue;
       }
 
-      // Commit after each task - use effective name
+      // ORCHESTRATOR-CONTROLLED TASK COMPLETION:
+      // 1. Mark task complete in tasks.md
+      const markResult = await services.taskParser.markTaskComplete(specDir, task.id);
+      if (!markResult.success) {
+        addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
+      }
+
+      // 2. Update state with completed task
+      currentCompleted = [...currentCompleted, task.id];
+      setFlowState(prev => ({ ...prev, completedTasks: currentCompleted }));
+
+      // 3. Save state immediately (before commit, for crash recovery)
+      await saveFlowState(flowState.phase, workDir, currentCompleted);
+
+      // 4. Commit both tasks.md and state.json together
       await commitChanges(
         services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
         workDir
@@ -717,7 +1126,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           break;
       }
     } else if (decision === 'pause') {
-      addOutput('Flow paused. Use "red64 resume" to continue.');
+      addOutput('Flow paused. Run the same start command to resume.');
       addOutput(`Worktree: ${flowState.worktreePath ?? repoPath}`);
       exit();
     }
@@ -751,8 +1160,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Render terminal phases
   if (flowState.phase.type === 'complete') {
     return (
-      <Box flexDirection="column" padding={1}>
-        <Box marginBottom={1}>
+      <Box flexDirection="column" paddingX={1}>
+        <Box>
           <Text bold color="green">Flow Complete</Text>
         </Box>
         <Text>Feature "{featureName}" has been implemented.</Text>
@@ -775,8 +1184,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const claudeError = flowState.claudeError;
 
     return (
-      <Box flexDirection="column" padding={1}>
-        <Box marginBottom={1}>
+      <Box flexDirection="column" paddingX={1}>
+        <Box>
           <Text bold color="red">
             {claudeError ? `API Error: ${getClaudeErrorLabel(claudeError.code)}` : 'Flow Error'}
           </Text>
@@ -814,7 +1223,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           </Box>
           {claudeError?.recoverable && (
             <Box marginTop={1}>
-              <Text dimColor>Run "red64 resume {sanitizeFeatureName(featureName)}" to retry.</Text>
+              <Text dimColor>Run "red64 start {sanitizeFeatureName(featureName)}" to retry.</Text>
             </Box>
           )}
         </Box>
@@ -824,8 +1233,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   if (flowState.phase.type === 'aborted') {
     return (
-      <Box flexDirection="column" padding={1}>
-        <Box marginBottom={1}>
+      <Box flexDirection="column" paddingX={1}>
+        <Box>
           <Text bold color="yellow">Flow Aborted</Text>
         </Box>
         <Text>Feature flow "{featureName}" was aborted.</Text>
@@ -833,64 +1242,114 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     );
   }
 
+  // Should sidebar be shown?
+  const showSidebar = flowState.worktreePath !== null || flowState.phase.type !== 'idle';
+
   return (
-    <Box flexDirection="column" padding={1}>
-      {/* Header */}
-      <Box marginBottom={1}>
-        <Text bold color="cyan">red64 start</Text>
-        <Text dimColor> - {featureName}</Text>
-      </Box>
-
-      {/* Worktree info */}
-      {flowState.worktreePath && (
-        <Box marginBottom={1}>
-          <Text dimColor>Worktree: {flowState.worktreePath}</Text>
+    <Box flexDirection="row" paddingX={1}>
+      {/* Main content area */}
+      <Box flexDirection="column" flexGrow={1}>
+        {/* Header */}
+        <Box>
+          <Text bold color="cyan">red64 start</Text>
+          <Text dimColor> - {featureName}</Text>
         </Box>
-      )}
 
-      {/* Phase indicator */}
-      {renderPhaseIndicator()}
-
-      {/* Output log */}
-      <Box flexDirection="column" marginBottom={1}>
-        {flowState.output.slice(-10).map((line, i) => (
-          <Text key={i} dimColor={i < flowState.output.length - 1}>{line}</Text>
-        ))}
-      </Box>
-
-      {/* Health check spinner */}
-      {flowState.isHealthChecking && (
-        <Box marginBottom={1}>
-          <Spinner label="Checking Claude API status..." />
-        </Box>
-      )}
-
-      {/* Executing spinner */}
-      {flowState.isExecuting && !flowState.isHealthChecking && (
-        <Box marginBottom={1}>
-          <Spinner label="Processing..." />
-        </Box>
-      )}
-
-      {/* Error display */}
-      {flowState.error && !flowState.isExecuting && (
-        <Box marginBottom={1}>
-          <Text color="red">{flowState.error}</Text>
-        </Box>
-      )}
-
-      {/* Approval UI */}
-      {isApprovalPhase && !flowState.isExecuting && (
-        <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
-          <Text bold>Review Required</Text>
-          <Text dimColor>Review output in .red64/specs/{sanitizeFeatureName(featureName)}/</Text>
-          <Box marginTop={1}>
-            <Select
-              options={APPROVAL_OPTIONS}
-              onChange={handleApproval}
-            />
+        {/* Worktree info */}
+        {flowState.worktreePath && (
+          <Box marginBottom={1}>
+            <Text dimColor>Worktree: {flowState.worktreePath}</Text>
           </Box>
+        )}
+
+        {/* Phase indicator */}
+        {renderPhaseIndicator()}
+
+        {/* Output log */}
+        <Box flexDirection="column" marginBottom={1}>
+          {flowState.output.slice(-10).map((line, i) => (
+            <Text key={i} dimColor={i < flowState.output.length - 1}>{line}</Text>
+          ))}
         </Box>
+
+        {/* Health check spinner */}
+        {flowState.isHealthChecking && (
+          <Box marginBottom={1}>
+            <Spinner label="Checking Claude API status..." />
+          </Box>
+        )}
+
+        {/* Executing spinner */}
+        {flowState.isExecuting && !flowState.isHealthChecking && (
+          <Box marginBottom={1}>
+            <Spinner label="Processing..." />
+          </Box>
+        )}
+
+        {/* Error display */}
+        {flowState.error && !flowState.isExecuting && (
+          <Box marginBottom={1}>
+            <Text color="red">{flowState.error}</Text>
+          </Box>
+        )}
+
+        {/* Existing flow detected - prompt resume vs restart */}
+        {flowState.preStartStep.type === 'existing-flow-detected' && (
+          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+            <Text bold color="yellow">Existing Flow Detected</Text>
+            <Text dimColor>Phase: {flowState.preStartStep.existingState.phase.type}</Text>
+            <Box marginTop={1}>
+              <Select
+                options={EXISTING_FLOW_OPTIONS}
+                onChange={handleExistingFlowDecision}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* Uncommitted changes - prompt commit/discard/abort */}
+        {flowState.preStartStep.type === 'uncommitted-changes' && (
+          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+            <Text bold color="yellow">Uncommitted Changes Detected</Text>
+            <Text dimColor>
+              {flowState.preStartStep.gitStatus.staged} staged, {flowState.preStartStep.gitStatus.unstaged} unstaged, {flowState.preStartStep.gitStatus.untracked} untracked
+            </Text>
+            <Box marginTop={1}>
+              <Select
+                options={UNCOMMITTED_CHANGES_OPTIONS}
+                onChange={handleUncommittedChangesDecision}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* Approval UI */}
+        {isApprovalPhase && !flowState.isExecuting && (
+          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+            <Text bold>Review Required</Text>
+            <Text dimColor>Review output in .red64/specs/{sanitizeFeatureName(featureName)}/</Text>
+            <Box marginTop={1}>
+              <Select
+                options={APPROVAL_OPTIONS}
+                onChange={handleApproval}
+              />
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      {/* Feature info sidebar */}
+      {showSidebar && (
+        <FeatureSidebar
+          featureName={flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}
+          sandboxMode={flags.sandbox ?? false}
+          currentPhase={flowState.phase.type}
+          mode={mode}
+          currentTask={flowState.currentTask}
+          totalTasks={flowState.totalTasks}
+          commitCount={flowState.commitCount}
+          agent="claude"
+        />
       )}
     </Box>
   );

@@ -68,6 +68,9 @@ function main(): void {
     return;
   }
 
+  // Clear the screen for a fresh start
+  console.clear();
+
   // Render the Ink application
   // Requirements: 3.3 - Use Ink framework for rendering terminal UI components
   render(

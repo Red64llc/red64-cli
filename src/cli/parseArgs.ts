@@ -8,7 +8,6 @@ import type { CLIConfig, Command, GlobalFlags } from '../types/index.js';
 const VALID_COMMANDS: readonly Command[] = [
   'init',
   'start',
-  'resume',
   'status',
   'list',
   'abort',
@@ -126,8 +125,7 @@ Red64 Flow Orchestrator
 
 Usage:
   red64 init                           Bootstrap project for red64 flows
-  red64 start <feature> "<desc>"       Start new feature flow
-  red64 resume <feature>               Resume paused/interrupted flow
+  red64 start <feature> "<desc>"       Start new feature flow (auto-resumes if exists)
   red64 status [feature]               Show flow status
   red64 list                           List all active flows
   red64 abort <feature>                Abort and cleanup flow

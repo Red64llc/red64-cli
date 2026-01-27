@@ -67,6 +67,9 @@ vi.mock('../../../src/services/index.js', () => ({
   createClaudeHealthCheck: () => ({
     check: vi.fn().mockResolvedValue({ healthy: true, message: 'API is ready', durationMs: 100 })
   }),
+  createGitStatusChecker: () => ({
+    check: vi.fn().mockResolvedValue({ hasChanges: false, staged: 0, unstaged: 0, untracked: 0 })
+  }),
   sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
 }));
 
@@ -96,13 +99,13 @@ describe('StartScreen', () => {
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should show health check spinner on initial render', () => {
+    it('should show existing flow check on initial render', () => {
       const { lastFrame } = render(
         <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
 
-      // On initial render, the health check spinner should be shown
-      expect(lastFrame()).toContain('Checking Claude API status');
+      // On initial render, the existing flow check should be shown
+      expect(lastFrame()).toContain('Checking for existing flow');
     });
 
     it('should render header with feature name', () => {

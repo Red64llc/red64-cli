@@ -20,8 +20,7 @@ export const HelpScreen: React.FC<ScreenProps> = () => {
       <Text></Text>
       <Text bold>Usage:</Text>
       <Text>  red64 init                           Bootstrap project for red64 flows</Text>
-      <Text>  red64 start {'<feature>'} {"\"<desc>\""}       Start new feature flow</Text>
-      <Text>  red64 resume {'<feature>'}               Resume paused/interrupted flow</Text>
+      <Text>  red64 start {'<feature>'} {"\"<desc>\""}       Start or resume feature flow</Text>
       <Text>  red64 status [feature]               Show flow status</Text>
       <Text>  red64 list                           List all active flows</Text>
       <Text>  red64 abort {'<feature>'}                Abort and cleanup flow</Text>

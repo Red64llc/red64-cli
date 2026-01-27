@@ -63,7 +63,7 @@ Requirements → Design → Tasks → Implementation
 | **Git Isolation** | Each feature runs in its own worktree and branch |
 | **Atomic Commits** | One commit per task for clean history |
 | **Sandboxed Execution** | Optional Docker isolation for safe agent execution |
-| **Resumable Flows** | Pause and resume at any point |
+| **Resumable Flows** | `start` auto-detects in-progress flows and offers resume |
 | **API Health Checks** | Validates Claude API before starting (credits, auth, network) |
 
 ### Goals
@@ -120,11 +120,27 @@ red64 init --repo owner/repo --stack nextjs
 
 ### `red64 start <feature> <description>`
 
-Start a new feature development flow.
+Start a new feature development flow, or resume an existing one.
 
 ```bash
 red64 start "shopping-cart" "Add shopping cart with add/remove items and checkout"
 ```
+
+**Smart Resume Detection:**
+
+When you run `start` for a feature that's already in progress (at any phase: requirements, design, tasks, or implementation), Red64 will:
+
+1. **Detect uncommitted changes** — If the worktree has uncommitted changes, prompts:
+   - Commit changes (WIP commit)
+   - Discard changes
+   - Cancel
+
+2. **Offer resume or restart** — If an in-progress flow is found, prompts:
+   - Resume from current phase
+   - Start fresh (discard previous progress)
+   - Cancel
+
+This means you can always use `red64 start <feature>` to continue working—no separate resume command needed.
 
 **Flags:**
 - `-y, --yes` — Auto-approve all phases (skip review gates)
@@ -156,14 +172,6 @@ List all active flows in the repository.
 
 ```bash
 red64 list
-```
-
-### `red64 resume <feature>`
-
-Resume a paused or interrupted flow.
-
-```bash
-red64 resume shopping-cart
 ```
 
 ### `red64 abort <feature>`

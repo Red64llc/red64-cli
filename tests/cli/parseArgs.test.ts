@@ -15,12 +15,6 @@ describe('parseArgs', () => {
       expect(result.args).toEqual(['my-feature', 'Feature description']);
     });
 
-    it('should parse resume command with feature', () => {
-      const result = parseArgs(['resume', 'my-feature']);
-      expect(result.command).toBe('resume');
-      expect(result.args).toEqual(['my-feature']);
-    });
-
     it('should parse status command with optional feature', () => {
       const result = parseArgs(['status']);
       expect(result.command).toBe('status');
