@@ -84,8 +84,6 @@ const STRUCTURE_DIRS = [
   '.red64',
   '.red64/steering',
   '.red64/specs',
-  '.red64/commands',
-  '.red64/agents',
   '.red64/templates',
   '.red64/settings',
   '.red64/settings/rules',
