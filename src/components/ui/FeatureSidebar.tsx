@@ -40,6 +40,7 @@ export interface FeatureSidebarProps {
   readonly totalTasks: number;
   readonly commitCount: number;
   readonly agent?: CodingAgent;
+  readonly model?: string;
 }
 
 /**
@@ -162,6 +163,25 @@ function truncate(str: string, maxLen: number): string {
 }
 
 /**
+ * Get short model name for display
+ */
+function getShortModelName(model: string): string {
+  // Extract key part of model name
+  if (model.includes('haiku')) return 'haiku';
+  if (model.includes('sonnet')) return 'sonnet';
+  if (model.includes('opus')) return 'opus';
+  if (model.includes('flash-lite')) return 'flash-lite';
+  if (model.includes('flash')) return 'flash';
+  if (model.includes('pro')) return 'pro';
+  if (model.includes('o3-mini')) return 'o3-mini';
+  if (model.includes('o1-mini')) return 'o1-mini';
+  if (model.includes('4o-mini')) return '4o-mini';
+  if (model.includes('4o')) return '4o';
+  if (model.includes('o1')) return 'o1';
+  return truncate(model, 10);
+}
+
+/**
  * FeatureSidebar Component
  * Displays feature info in a compact right-side panel
  */
@@ -174,11 +194,14 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
   totalTasks,
   commitCount,
   agent = 'claude',
+  model,
 }) => {
   const displayName = truncate(featureName, 10);
   const allPhases = mode === 'greenfield' ? GREENFIELD_PHASES : BROWNFIELD_PHASES;
   const sidebarPhases = getSidebarPhases(mode);
   const agentInfo = AGENT_INFO[agent];
+  // Extract short model name (e.g., "claude-3-5-haiku-latest" -> "haiku")
+  const shortModel = model ? getShortModelName(model) : undefined;
 
   return (
     <Box
@@ -198,6 +221,9 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
           <Text color="blue">{'\uD83D\uDC33'} sandbox</Text>
         )}
         <Text>{agentInfo.icon} {agentInfo.name}</Text>
+        {shortModel && (
+          <Text dimColor>  └ {shortModel}</Text>
+        )}
       </Box>
 
       {/* Phase checklist */}

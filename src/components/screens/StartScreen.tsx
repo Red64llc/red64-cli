@@ -282,6 +282,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     if (flags.sandbox) {
       await logToFile(`Sandbox: Docker isolated mode`);
     }
+    if (flags.model) {
+      await logToFile(`Model: ${flags.model}`);
+    }
 
     // Verbose mode: also show on screen
     if (verbose) {
@@ -296,6 +299,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       if (flags.sandbox) {
         addOutput(`[verbose] Sandbox: Docker isolated mode`);
       }
+      if (flags.model) {
+        addOutput(`[verbose] Model: ${flags.model}`);
+      }
     }
 
     setFlowState(prev => ({ ...prev, isExecuting: true, error: null, claudeError: null }));
@@ -305,6 +311,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       workingDirectory: dir,
       skipPermissions: flags.skipPermissions ?? false,
       tier: flags.tier,
+      model: flags.model,
       sandbox: flags.sandbox ?? false,
       onOutput: (chunk) => {
         // Stream output in real-time
@@ -1361,6 +1368,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           totalTasks={flowState.totalTasks}
           commitCount={flowState.commitCount}
           agent={flowState.agent}
+          model={flags.model}
         />
       )}
     </Box>

@@ -148,6 +148,26 @@ describe('parseArgs', () => {
       const result = parseArgs(['init', '--agent=gemini']);
       expect(result.flags.agent).toBe('gemini');
     });
+
+    it('should parse --model option with value', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--model', 'claude-3-5-haiku-latest']);
+      expect(result.flags.model).toBe('claude-3-5-haiku-latest');
+    });
+
+    it('should parse -m shorthand for model', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '-m', 'gpt-4o-mini']);
+      expect(result.flags.model).toBe('gpt-4o-mini');
+    });
+
+    it('should have model undefined by default', () => {
+      const result = parseArgs(['start', 'feature', 'desc']);
+      expect(result.flags.model).toBeUndefined();
+    });
+
+    it('should parse --model=value syntax', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--model=gemini-2.0-flash']);
+      expect(result.flags.model).toBe('gemini-2.0-flash');
+    });
   });
 
   describe('CLIConfig structure', () => {

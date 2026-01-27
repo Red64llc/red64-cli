@@ -30,6 +30,28 @@ export type Command =
  */
 export type CodingAgent = 'claude' | 'gemini' | 'codex';
 
+/**
+ * Model options per agent
+ * Cheap models for development, expensive for production
+ */
+export const AGENT_MODELS: Record<CodingAgent, { cheap: string; best: string; all: readonly string[] }> = {
+  claude: {
+    cheap: 'claude-3-5-haiku-latest',
+    best: 'claude-sonnet-4-20250514',
+    all: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest', 'claude-sonnet-4-20250514', 'claude-opus-4-20250514']
+  },
+  gemini: {
+    cheap: 'gemini-2.0-flash',
+    best: 'gemini-2.5-pro',
+    all: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-pro', 'gemini-2.5-flash']
+  },
+  codex: {
+    cheap: 'gpt-4o-mini',
+    best: 'o1',
+    all: ['gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1', 'o3-mini']
+  }
+};
+
 export interface GlobalFlags {
   readonly skipPermissions: boolean;
   readonly brownfield: boolean;
@@ -40,6 +62,7 @@ export interface GlobalFlags {
   readonly verbose: boolean;
   readonly yes: boolean;
   readonly sandbox: boolean;
+  readonly model?: string;  // Model override (validated against agent)
   // Init command specific flags
   readonly repo?: string;
   readonly stack?: string;
@@ -143,6 +166,7 @@ export interface AgentInvokeOptions {
   readonly workingDirectory: string;
   readonly skipPermissions: boolean;
   readonly tier: string | undefined;
+  readonly model?: string;  // Model override (e.g., claude-3-5-haiku-latest)
   readonly sandbox?: boolean;  // Run in Docker sandbox
   readonly onOutput?: (chunk: string) => void;
   readonly onError?: (chunk: string) => void;

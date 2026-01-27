@@ -31,6 +31,7 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     verbose: false,
     yes: false,
     sandbox: false,
+    model: undefined,
     // Init-specific flags
     repo: undefined,
     stack: undefined,
@@ -80,6 +81,12 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { yes: boolean }).yes = true;
     } else if (arg === '--sandbox') {
       (flags as { sandbox: boolean }).sandbox = true;
+    } else if (arg === '--model' || arg === '-m') {
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { model: string | undefined }).model = value;
+        if (!argValue) i++;
+      }
     } else if (arg === '--repo') {
       const value = argValue ?? argv[i + 1];
       if (value && !value.startsWith('-')) {
@@ -144,6 +151,7 @@ Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)
 
 Global Options:
+  -m, --model <name>        Model to use (must match agent, e.g. claude-3-5-haiku-latest)
   -s, --skip-permissions    Pass skip-permissions to Claude CLI
   -b, --brownfield          Enable brownfield mode (gap analysis)
   -g, --greenfield          Greenfield mode (default)

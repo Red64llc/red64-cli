@@ -104,6 +104,11 @@ export function createAgentInvoker(): AgentInvokerService {
         // Build command arguments
         const args: string[] = ['-p', options.prompt];
 
+        // Add model flag if specified
+        if (options.model) {
+          args.push('--model', options.model);
+        }
+
         // Add skip-permissions flag if configured
         // Requirements: 7.3 - Pass --skip-permissions flag to Claude CLI when configured
         if (options.skipPermissions) {
@@ -257,6 +262,11 @@ function invokeInDocker(
     // Add claude command with args
     // In sandbox, always use --dangerously-skip-permissions since it's isolated
     dockerArgs.push('claude', '-p', options.prompt, '--dangerously-skip-permissions');
+
+    // Add model flag if specified
+    if (options.model) {
+      dockerArgs.push('--model', options.model);
+    }
 
     const proc = spawn('docker', dockerArgs, {
       stdio: ['pipe', 'pipe', 'pipe']

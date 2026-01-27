@@ -113,7 +113,11 @@ Initialize Red64 in your project. Creates `.red64/` directory with steering docu
 ```bash
 red64 init
 red64 init --repo owner/repo --stack nextjs
+red64 init --agent gemini  # Use Gemini as coding agent
 ```
+
+**Flags:**
+- `-a, --agent <name>` — Coding agent: `claude`, `gemini`, `codex` (default: `claude`)
 
 ![red64 init](docs/assets/init.png)
 <!-- TODO: Add screenshot -->
@@ -143,6 +147,7 @@ When you run `start` for a feature that's already in progress (at any phase: req
 This means you can always use `red64 start <feature>` to continue working—no separate resume command needed.
 
 **Flags:**
+- `-m, --model <name>` — Model to use (e.g., `claude-3-5-haiku-latest` for dev, `claude-sonnet-4-20250514` for prod)
 - `-y, --yes` — Auto-approve all phases (skip review gates)
 - `-b, --brownfield` — Enable gap analysis for existing codebases
 - `-g, --greenfield` — New feature mode (default)
@@ -273,9 +278,8 @@ Flow completes with:
 
 1. **No IDE integration** — Red64 is CLI-only; no VS Code or JetBrains plugins yet
 2. **Sequential execution** — Tasks run one at a time, no parallelization
-3. **Claude-only** — Currently requires Claude CLI; no OpenAI/other LLM support
-4. **No incremental changes** — Regenerating a phase replaces previous output entirely
-5. **English-centric** — Prompts and templates are English-only (configurable per spec)
+3. **No incremental changes** — Regenerating a phase replaces previous output entirely
+4. **English-centric** — Prompts and templates are English-only (configurable per spec)
 
 ### Known Issues
 
@@ -287,7 +291,6 @@ Flow completes with:
 
 - [ ] VS Code extension
 - [ ] Parallel task execution
-- [ ] Multi-LLM support (OpenAI, local models)
 - [ ] Incremental phase editing
 - [ ] Web dashboard for flow monitoring
 
@@ -324,6 +327,40 @@ Customize AI behavior by editing `.red64/steering/`:
 - **product.md** — Product vision, user personas, business rules
 - **tech.md** — Tech stack, coding standards, patterns to use/avoid
 - **structure.md** — Codebase organization, file naming conventions
+
+### Coding Agents
+
+Red64 supports multiple coding agents. Set the agent at init time:
+
+```bash
+red64 init --agent claude   # Default - Anthropic Claude
+red64 init --agent gemini   # Google Gemini
+red64 init --agent codex    # OpenAI Codex
+```
+
+The agent is stored in `.red64/config.json` and used for all subsequent commands.
+
+### Model Selection
+
+Override the model per command for cost optimization:
+
+```bash
+# Development (cheap, fast models)
+red64 start "feature" "desc" --model claude-3-5-haiku-latest
+red64 start "feature" "desc" --model gemini-2.0-flash
+red64 start "feature" "desc" --model gpt-4o-mini
+
+# Production (best quality models)
+red64 start "feature" "desc" --model claude-sonnet-4-20250514
+red64 start "feature" "desc" --model gemini-2.5-pro
+red64 start "feature" "desc" --model o1
+```
+
+| Agent | Cheap (Dev) | Best (Prod) |
+|-------|-------------|-------------|
+| Claude | `claude-3-5-haiku-latest` | `claude-sonnet-4-20250514` |
+| Gemini | `gemini-2.0-flash` | `gemini-2.5-pro` |
+| Codex | `gpt-4o-mini` | `o1` |
 
 ### Claude Tiers
 

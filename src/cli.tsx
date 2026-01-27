@@ -25,6 +25,10 @@ function main(): void {
         shortFlag: 'a',
         default: 'claude'
       },
+      model: {
+        type: 'string',
+        shortFlag: 'm'
+      },
       skipPermissions: {
         type: 'boolean',
         shortFlag: 's',
