@@ -297,7 +297,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         await services.templateService.installFramework({
           sourceDir: frameworkPath,
           targetDir: cwd,
-          variables: {}
+          variables: {},
+          agent: initFlags.agent ?? 'claude'
         });
 
         setStep({

@@ -31,8 +31,6 @@ describe('TemplateService', () => {
         '.red64',
         '.red64/steering',
         '.red64/specs',
-        '.red64/commands',
-        '.red64/agents',
         '.red64/templates',
         '.red64/settings'
       ];
@@ -49,8 +47,6 @@ describe('TemplateService', () => {
       expect(result.createdDirs).toContain('.red64');
       expect(result.createdDirs).toContain('.red64/steering');
       expect(result.createdDirs).toContain('.red64/specs');
-      expect(result.createdDirs).toContain('.red64/commands');
-      expect(result.createdDirs).toContain('.red64/agents');
       expect(result.createdDirs).toContain('.red64/templates');
       expect(result.createdDirs).toContain('.red64/settings');
     });

@@ -5,6 +5,33 @@
 
 import { mkdir, readFile, writeFile, readdir, access, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { CodingAgent } from '../types/index.js';
+
+/**
+ * Agent-specific configuration for framework installation
+ */
+interface AgentConfig {
+  readonly configDir: string;       // e.g., '.claude', '.codex', or '' for none
+  readonly instructionFile: string; // e.g., 'CLAUDE.md', 'GEMINI.md', 'AGENTS.md'
+}
+
+/**
+ * Configuration for each supported coding agent
+ */
+const AGENT_CONFIGS: Record<CodingAgent, AgentConfig> = {
+  claude: {
+    configDir: '.claude',
+    instructionFile: 'CLAUDE.md'
+  },
+  gemini: {
+    configDir: '',  // Gemini doesn't use a hidden config directory
+    instructionFile: 'GEMINI.md'
+  },
+  codex: {
+    configDir: '.codex',
+    instructionFile: 'AGENTS.md'
+  }
+};
 
 /**
  * Structure creation result
@@ -40,6 +67,7 @@ export interface InstallFrameworkOptions {
   readonly sourceDir: string;  // Path to framework directory
   readonly targetDir: string;  // User's project directory
   readonly variables?: Record<string, string>;
+  readonly agent?: CodingAgent;  // Selected coding agent (default: 'claude')
 }
 
 /**
@@ -248,18 +276,23 @@ export function createTemplateService(): TemplateService {
     },
 
     async installFramework(options: InstallFrameworkOptions): Promise<StructureResult> {
-      const { sourceDir, targetDir, variables = {} } = options;
+      const { sourceDir, targetDir, variables = {}, agent = 'claude' } = options;
       const createdDirs: string[] = [];
       const createdFiles: string[] = [];
 
-      // 1. Copy .claude/ directory (commands and agents for Claude Code)
-      const claudeSrc = join(sourceDir, '.claude');
-      const claudeDest = join(targetDir, '.claude');
-      if (await pathExists(claudeSrc)) {
-        await copyFrameworkDir(claudeSrc, claudeDest, variables, createdDirs, createdFiles);
+      const agentConfig = AGENT_CONFIGS[agent];
+      const agentSourceDir = join(sourceDir, 'agents', agent);
+
+      // 1. Copy agent-specific config directory (e.g., .claude/, .codex/)
+      if (agentConfig.configDir) {
+        const configSrc = join(agentSourceDir, agentConfig.configDir);
+        const configDest = join(targetDir, agentConfig.configDir);
+        if (await pathExists(configSrc)) {
+          await copyFrameworkDir(configSrc, configDest, variables, createdDirs, createdFiles);
+        }
       }
 
-      // 2. Copy .red64/ directory (settings, templates)
+      // 2. Copy shared .red64/ directory (settings, templates)
       const red64Src = join(sourceDir, '.red64');
       const red64Dest = join(targetDir, '.red64');
       if (await pathExists(red64Src)) {
@@ -269,17 +302,29 @@ export function createTemplateService(): TemplateService {
         return this.createStructure(targetDir);
       }
 
-      // 3. Copy CLAUDE.md (project instructions for Claude Code)
-      const claudeMdSrc = join(sourceDir, 'CLAUDE.md');
-      const claudeMdDest = join(targetDir, 'CLAUDE.md');
-      if (await pathExists(claudeMdSrc)) {
-        let content = await readFile(claudeMdSrc, 'utf-8');
+      // 3. Copy agent-specific instruction file (e.g., CLAUDE.md, GEMINI.md, AGENTS.md)
+      const instructionSrc = join(agentSourceDir, 'docs', agentConfig.instructionFile);
+      const instructionDest = join(targetDir, agentConfig.instructionFile);
+      if (await pathExists(instructionSrc)) {
+        let content = await readFile(instructionSrc, 'utf-8');
         content = replaceVariables(content, variables);
-        await writeFile(claudeMdDest, content, 'utf-8');
-        createdFiles.push('CLAUDE.md');
+        await writeFile(instructionDest, content, 'utf-8');
+        createdFiles.push(agentConfig.instructionFile);
       }
 
-      // 4. Ensure additional directories exist (specs, steering)
+      // 4. For Gemini: Copy commands.toml if present
+      if (agent === 'gemini') {
+        const tomlSrc = join(agentSourceDir, 'commands.toml');
+        const tomlDest = join(targetDir, 'commands.toml');
+        if (await pathExists(tomlSrc)) {
+          let content = await readFile(tomlSrc, 'utf-8');
+          content = replaceVariables(content, variables);
+          await writeFile(tomlDest, content, 'utf-8');
+          createdFiles.push('commands.toml');
+        }
+      }
+
+      // 5. Ensure additional directories exist (specs, steering)
       const additionalDirs = ['.red64/specs', '.red64/steering'];
       for (const dir of additionalDirs) {
         const fullPath = join(targetDir, dir);

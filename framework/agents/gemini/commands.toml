@@ -1,0 +1,607 @@
+# Red64 Spec-Driven Development Commands for Gemini CLI
+# These commands match the Claude Code implementation with adaptations for Gemini
+
+[spec-init]
+description = "Initialize a new specification with detailed project description"
+prompt = """
+# Spec Initialization
+
+<background_information>
+- **Mission**: Initialize the first phase of spec-driven development by creating directory structure and metadata for a new specification
+- **Success Criteria**:
+  - Generate appropriate feature name from project description
+  - Create unique spec structure without conflicts
+  - Provide clear path to next phase (requirements generation)
+</background_information>
+
+<instructions>
+## Core Task
+Generate a unique feature name from the project description ($ARGUMENTS) and initialize the specification structure.
+
+## Execution Steps
+1. **Check Uniqueness**: Verify `.red64/specs/` for naming conflicts (append number suffix if needed)
+2. **Create Directory**: `.red64/specs/[feature-name]/`
+3. **Initialize Files Using Templates**:
+   - Read `.red64/settings/templates/specs/init.json`
+   - Read `.red64/settings/templates/specs/requirements-init.md`
+   - Replace placeholders:
+     - `{{FEATURE_NAME}}` → generated feature name
+     - `{{TIMESTAMP}}` → current ISO 8601 timestamp
+     - `{{PROJECT_DESCRIPTION}}` → $ARGUMENTS
+   - Write `spec.json` and `requirements.md` to spec directory
+
+## Important Constraints
+- DO NOT generate requirements/design/tasks at this stage
+- Follow stage-by-stage development principles
+- Maintain strict phase separation
+- Only initialization is performed in this phase
+</instructions>
+
+## Tool Guidance
+- Use file listing to check existing spec directories for name uniqueness
+- Read templates: `init.json` and `requirements-init.md`
+- Write spec.json and requirements.md after placeholder replacement
+- Perform validation before any file write operation
+
+## Output Description
+Provide output in the language specified in `spec.json` with the following structure:
+
+1. **Generated Feature Name**: `feature-name` format with 1-2 sentence rationale
+2. **Project Summary**: Brief summary (1 sentence)
+3. **Created Files**: Bullet list with full paths
+4. **Next Step**: Command showing `spec-requirements <feature-name>`
+5. **Notes**: Explain why only initialization was performed (2-3 sentences on phase separation)
+
+**Format Requirements**:
+- Use Markdown headings (##, ###)
+- Wrap commands in code blocks
+- Keep total output concise (under 250 words)
+- Use clear, professional language per `spec.json.language`
+
+## Safety & Fallback
+- **Ambiguous Feature Name**: If feature name generation is unclear, propose 2-3 options and ask user to select
+- **Template Missing**: If template files don't exist in `.red64/settings/templates/specs/`, report error with specific missing file path and suggest checking repository setup
+- **Directory Conflict**: If feature name already exists, append numeric suffix (e.g., `feature-name-2`) and notify user of automatic conflict resolution
+- **Write Failure**: Report error with specific path and suggest checking permissions or disk space
+"""
+
+[spec-requirements]
+description = "Generate comprehensive requirements for a specification"
+prompt = """
+# Requirements Generation
+
+## Parse Arguments
+- Feature name: `$1`
+
+## Validate
+Check that spec has been initialized:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/spec.json` exists
+
+If validation fails, inform user to run `spec-init` first.
+
+## Core Task
+Generate EARS-format requirements for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/$1/spec.json`
+- `.red64/specs/$1/requirements.md`
+- `.red64/steering/*.md`
+- `.red64/settings/rules/ears-format.md`
+- `.red64/settings/templates/specs/requirements.md`
+
+## EARS Format Categories
+- **Ubiquitous**: "The [system] shall [action]"
+- **Event-Driven**: "When [trigger], the [system] shall [action]"
+- **State-Driven**: "While [state], the [system] shall [action]"
+- **Optional**: "Where [feature] is supported, the [system] shall [action]"
+- **Unwanted**: "If [condition], then the [system] shall [action]"
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Phase: Design Generation
+
+**If Requirements Approved**:
+- Review generated requirements at `.red64/specs/$1/requirements.md`
+- **Optional Gap Analysis** (for existing codebases):
+  - Run `validate-gap $1` to analyze implementation gap with current code
+  - Identifies existing components, integration points, and implementation strategy
+  - Recommended for brownfield projects; skip for greenfield
+- Then `spec-design $1` to proceed to design phase
+
+**If Modifications Needed**:
+- Provide feedback and re-run `spec-requirements $1`
+
+**Note**: Approval is mandatory before proceeding to design phase.
+"""
+
+[spec-design]
+description = "Create comprehensive technical design for a specification"
+prompt = """
+# Technical Design Generator
+
+## Parse Arguments
+- Feature name: `$1`
+- Auto-approve flag: `$2` (optional, "-y")
+
+## Validate
+Check that requirements have been completed:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/requirements.md` exists
+
+If validation fails, inform user to complete requirements phase first.
+
+## Core Task
+Generate technical design for feature **$1** and update research log.
+
+## File Patterns to Read
+- `.red64/specs/$1/*.{json,md}`
+- `.red64/steering/*.md`
+- `.red64/settings/rules/design-*.md`
+- `.red64/settings/templates/specs/design.md`
+- `.red64/settings/templates/specs/research.md`
+
+## Execution
+- Discovery: auto-detect based on requirements
+- Mode: generate or merge based on design.md existence
+- Language: respect spec.json language for design.md/research.md outputs
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Phase: Task Generation
+
+**If Design Approved**:
+- Review generated design at `.red64/specs/$1/design.md`
+- **Optional**: Run `validate-design $1` for interactive quality review
+- Then `spec-tasks $1` to generate implementation tasks
+
+**If Modifications Needed**:
+- Provide feedback and re-run `spec-design $1`
+- Existing design used as reference (merge mode)
+
+**Note**: Design approval is mandatory before proceeding to task generation.
+"""
+
+[spec-tasks]
+description = "Generate implementation tasks for a specification"
+prompt = """
+# Implementation Tasks Generator
+
+## Parse Arguments
+- Feature name: `$1`
+- Auto-approve flag: `$2` (optional, "-y")
+- Sequential mode flag: `$3` (optional, "--sequential")
+
+## Validate
+Check that design has been completed:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/design.md` exists
+
+If validation fails, inform user to complete design phase first.
+
+## Core Task
+Generate implementation tasks for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/$1/*.{json,md}`
+- `.red64/steering/*.md`
+- `.red64/settings/rules/tasks-generation.md`
+- `.red64/settings/rules/tasks-parallel-analysis.md` (include only when sequential mode is false)
+- `.red64/settings/templates/specs/tasks.md`
+
+## Execution
+- Mode: generate or merge based on tasks.md existence
+- Instruction highlights:
+  - Map all requirements to tasks and list requirement IDs only (comma-separated) without extra narration
+  - Promote single actionable sub-tasks to major tasks and keep container summaries concise
+  - Apply `(P)` markers only when parallel criteria met (omit in sequential mode)
+  - Mark optional acceptance-criteria-focused test coverage subtasks with `- [ ]*` only when deferrable post-MVP
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Phase: Implementation
+
+**Before Starting Implementation**:
+- **IMPORTANT**: Clear conversation history and free up context before running `spec-impl`
+- This applies when starting first task OR switching between tasks
+- Fresh context ensures clean state and proper task focus
+
+**If Tasks Approved**:
+- Execute specific task: `spec-impl $1 1.1` (recommended: clear context between each task)
+- Execute multiple tasks: `spec-impl $1 1.1,1.2` (use cautiously, clear context between tasks)
+- Without arguments: `spec-impl $1` (executes all pending tasks - NOT recommended due to context bloat)
+
+**If Modifications Needed**:
+- Provide feedback and re-run `spec-tasks $1`
+- Existing tasks used as reference (merge mode)
+
+**Note**: The implementation phase will guide you through executing tasks with appropriate context and validation.
+"""
+
+[spec-impl]
+description = "Execute spec tasks using TDD methodology"
+prompt = """
+# Implementation Task Executor
+
+## Parse Arguments
+- Feature name: `$1`
+- Task numbers: `$2` (optional)
+  - Format: "1.1" (single task) or "1,2,3" (multiple tasks)
+  - If not provided: Execute all pending tasks
+
+## Validate
+Check that tasks have been generated:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/tasks.md` exists
+
+If validation fails, inform user to complete tasks generation first.
+
+## Task Selection Logic
+
+**Parse task numbers from `$2`**:
+- If `$2` provided: Parse task numbers (e.g., "1.1", "1,2,3")
+- Otherwise: Read `.red64/specs/$1/tasks.md` and find all unchecked tasks (`- [ ]`)
+
+## Core Task
+Execute TDD implementation for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/$1/*.{json,md}`
+- `.red64/steering/*.md`
+
+## TDD Mode
+- strict (test-first)
+- RED: Write failing tests
+- GREEN: Write minimal code to pass
+- REFACTOR: Improve code quality
+- VERIFY: Run full test suite
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Task Execution
+
+**Execute specific task(s)**:
+- `spec-impl $1 1.1` - Single task
+- `spec-impl $1 1,2,3` - Multiple tasks
+
+**Execute all pending**:
+- `spec-impl $1` - All unchecked tasks
+
+**Before Starting Implementation**:
+- **IMPORTANT**: Clear conversation history and free up context before running `spec-impl`
+- This applies when starting first task OR switching between tasks
+- Fresh context ensures clean state and proper task focus
+"""
+
+[spec-status]
+description = "Show specification status and progress"
+prompt = """
+# Specification Status
+
+<background_information>
+- **Mission**: Display comprehensive status and progress for a specification
+- **Success Criteria**:
+  - Show current phase and completion status
+  - Identify next actions and blockers
+  - Provide clear visibility into progress
+</background_information>
+
+<instructions>
+## Core Task
+Generate status report for feature **$1** showing progress across all phases.
+
+## Execution Steps
+
+### Step 1: Load Spec Context
+- Read `.red64/specs/$1/spec.json` for metadata and phase status
+- Read existing files: `requirements.md`, `design.md`, `tasks.md` (if they exist)
+- Check `.red64/specs/$1/` directory for available files
+
+### Step 2: Analyze Status
+
+**Parse each phase**:
+- **Requirements**: Count requirements and acceptance criteria
+- **Design**: Check for architecture, components, diagrams
+- **Tasks**: Count completed vs total tasks (parse `- [x]` vs `- [ ]`)
+- **Approvals**: Check approval status in spec.json
+
+### Step 3: Generate Report
+
+Create report in the language specified in spec.json covering:
+1. **Current Phase & Progress**: Where the spec is in the workflow
+2. **Completion Status**: Percentage complete for each phase
+3. **Task Breakdown**: If tasks exist, show completed/remaining counts
+4. **Next Actions**: What needs to be done next
+5. **Blockers**: Any issues preventing progress
+
+## Critical Constraints
+- Use language from spec.json
+- Calculate accurate completion percentages
+- Identify specific next action commands
+</instructions>
+
+## Output Description
+
+Provide status report in the language specified in spec.json:
+
+**Report Structure**:
+1. **Feature Overview**: Name, phase, last updated
+2. **Phase Status**: Requirements, Design, Tasks with completion %
+3. **Task Progress**: If tasks exist, show X/Y completed
+4. **Next Action**: Specific command to run next
+5. **Issues**: Any blockers or missing elements
+
+**Format**: Clear, scannable format with status indicators for status
+
+## Safety & Fallback
+
+### Error Scenarios
+
+**Spec Not Found**:
+- **Message**: "No spec found for `$1`. Check available specs in `.red64/specs/`"
+- **Action**: List available spec directories
+
+**Incomplete Spec**:
+- **Warning**: Identify which files are missing
+- **Suggested Action**: Point to next phase command
+"""
+
+[steering]
+description = "Manage .red64/steering/ as persistent project knowledge"
+prompt = """
+# Red64 Steering Management
+
+## Mode Detection
+
+**Perform detection before proceeding**:
+
+Check `.red64/steering/` status:
+- **Bootstrap Mode**: Empty OR missing core files (product.md, tech.md, structure.md)
+- **Sync Mode**: All core files exist
+
+## Core Task
+Manage steering files for project.
+
+## File Patterns to Read
+- `.red64/steering/*.md` (if sync mode)
+- `.red64/settings/templates/steering/*.md`
+- `.red64/settings/rules/steering-principles.md`
+
+## Execution
+- JIT Strategy: Fetch codebase files when needed, not upfront
+
+## Display Result
+
+Show summary to user:
+
+### Bootstrap:
+- Generated steering files: product.md, tech.md, structure.md
+- Review and approve as Source of Truth
+
+### Sync:
+- Updated steering files
+- Code drift warnings
+- Recommendations for custom steering
+
+## Notes
+
+- All `.red64/steering/*.md` loaded as project memory
+- Templates and principles are external for customization
+- Focus on patterns, not catalogs
+- "Golden Rule": New code following patterns shouldn't require steering updates
+- Avoid documenting agent-specific tooling directories (e.g. `.cursor/`, `.gemini/`, `.claude/`)
+- `.red64/settings/` content should NOT be documented in steering files (settings are metadata, not project knowledge)
+- Light references to `.red64/specs/` and `.red64/steering/` are acceptable; avoid other `.red64/` directories
+"""
+
+[steering-custom]
+description = "Create custom steering documents for specialized project contexts"
+prompt = """
+# Red64 Custom Steering Creation
+
+## Interactive Workflow
+
+This command starts an interactive process:
+1. Ask user for domain/topic
+2. Check for available templates
+3. Analyze codebase for relevant patterns
+4. Generate custom steering file
+
+## Core Task
+Create custom steering file for project.
+
+## File Patterns to Read
+- `.red64/settings/templates/steering-custom/*.md`
+- `.red64/settings/rules/steering-principles.md`
+
+## Execution
+- Interactive Mode: Ask user for domain/topic
+- JIT Strategy: Analyze codebase for relevant patterns as needed
+
+## Display Result
+
+Show summary to user:
+- Custom steering file created
+- Template used (if any)
+- Codebase patterns analyzed
+- Content overview
+
+## Available Templates
+
+Available templates in `.red64/settings/templates/steering-custom/`:
+- api-standards.md, testing.md, security.md, database.md
+- error-handling.md, authentication.md, deployment.md
+
+## Notes
+
+- Interact with user to understand needs
+- Templates are starting points, customized for project
+- All steering files loaded as project memory
+- Avoid documenting agent-specific tooling directories (e.g. `.cursor/`, `.gemini/`, `.claude/`)
+- `.red64/settings/` content should NOT be documented (it's metadata, not project knowledge)
+- Light references to `.red64/specs/` and `.red64/steering/` are acceptable; avoid other `.red64/` directories
+"""
+
+[validate-gap]
+description = "Analyze implementation gap between requirements and existing codebase"
+prompt = """
+# Implementation Gap Validation
+
+## Parse Arguments
+- Feature name: `$1`
+
+## Validate
+Check that requirements have been completed:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/requirements.md` exists
+
+If validation fails, inform user to complete requirements phase first.
+
+## Core Task
+Analyze implementation gap for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/$1/spec.json`
+- `.red64/specs/$1/requirements.md`
+- `.red64/steering/*.md`
+- `.red64/settings/rules/gap-analysis.md`
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Phase: Design Generation
+
+**If Gap Analysis Complete**:
+- Review gap analysis insights
+- Run `spec-design $1` to create technical design document
+
+**Note**: Gap analysis is optional but recommended for brownfield projects to inform design decisions.
+"""
+
+[validate-design]
+description = "Interactive technical design quality review and validation"
+prompt = """
+# Technical Design Validation
+
+## Parse Arguments
+- Feature name: `$1`
+
+## Validate
+Check that design has been completed:
+- Verify `.red64/specs/$1/` exists
+- Verify `.red64/specs/$1/design.md` exists
+
+If validation fails, inform user to complete design phase first.
+
+## Core Task
+Perform interactive design review for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/$1/spec.json`
+- `.red64/specs/$1/requirements.md`
+- `.red64/specs/$1/design.md`
+- `.red64/steering/*.md`
+- `.red64/settings/rules/design-review.md`
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Phase: Task Generation
+
+**If Design Passes Validation (GO Decision)**:
+- Review feedback and apply changes if needed
+- Run `spec-tasks $1` to generate implementation tasks
+
+**If Design Needs Revision (NO-GO Decision)**:
+- Address critical issues identified
+- Re-run `spec-design $1` with improvements
+- Re-validate with `validate-design $1`
+
+**Note**: Design validation is recommended but optional. Quality review helps catch issues early.
+"""
+
+[validate-impl]
+description = "Validate implementation against requirements, design, and tasks"
+prompt = """
+# Implementation Validation
+
+## Parse Arguments
+- Feature name: `$1` (optional)
+- Task numbers: `$2` (optional)
+
+## Auto-Detection Logic
+
+**If no arguments** (`$1` empty):
+- Parse conversation history for `spec-impl <feature> [tasks]` patterns
+- OR scan `.red64/specs/*/tasks.md` for `[x]` checkboxes
+- Pass detected features and tasks
+
+**If feature only** (`$1` present, `$2` empty):
+- Read `.red64/specs/$1/tasks.md` and find all `[x]` checkboxes
+- Pass feature and detected tasks
+
+**If both provided** (`$1` and `$2` present):
+- Pass directly without detection
+
+## Core Task
+Validate implementation for feature **$1**.
+
+## File Patterns to Read
+- `.red64/specs/{feature}/*.{json,md}`
+- `.red64/steering/*.md`
+
+## Display Result
+
+Show summary to user, then provide next step guidance:
+
+### Next Steps Guidance
+
+**If GO Decision**:
+- Implementation validated and ready
+- Proceed to deployment or next feature
+
+**If NO-GO Decision**:
+- Address critical issues listed
+- Re-run `spec-impl <feature> [tasks]` for fixes
+- Re-validate with `validate-impl [feature] [tasks]`
+
+**Note**: Validation is recommended after implementation to ensure spec alignment and quality.
+"""
+
+[spec-quick]
+description = "Quick spec generation with interactive or automatic mode"
+prompt = """
+# Quick Spec Generation
+
+## Core Task
+Generate a complete specification quickly with minimal interaction.
+
+## Modes
+- **Interactive**: Ask for confirmation at each phase
+- **Automatic**: Run all phases with auto-approval
+
+## Workflow
+1. Initialize spec (spec-init)
+2. Generate requirements (spec-requirements)
+3. Create design (spec-design)
+4. Generate tasks (spec-tasks)
+
+## Usage
+- `spec-quick "description"` - Interactive mode
+- `spec-quick "description" -y` - Automatic mode (auto-approve all phases)
+
+## Notes
+- Use for rapid prototyping or well-understood features
+- For complex features, prefer the step-by-step workflow
+- Review outputs even in automatic mode
+"""
