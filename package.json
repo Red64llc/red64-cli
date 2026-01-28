@@ -25,7 +25,7 @@
     "workflow",
     "orchestration"
   ],
-  "author": "",
+  "author": "Yacin Bahi <yacin@red64.io>",
   "license": "MIT",
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
