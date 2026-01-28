@@ -11,8 +11,7 @@
     "framework"
   ],
   "scripts": {
-    "build": "npm run build:framework && tsc",
-    "build:framework": "node scripts/build-framework.mjs",
+    "build": "tsc",
     "build:ts": "tsc",
     "dev": "tsx src/cli.tsx",
     "test": "vitest",
