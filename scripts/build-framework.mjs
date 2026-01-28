@@ -154,10 +154,20 @@ This project uses Red64 for AI-assisted spec-driven development.
   console.log(`Output: ${frameworkDir}`);
   console.log('\nStructure:');
   console.log('  framework/');
-  console.log('  ├── .claude/commands/red64/     (slash commands)');
-  console.log('  ├── .claude/commands/red64-flow/ (flow commands)');
-  console.log('  ├── .claude/agents/red64/       (agents)');
+  console.log('  ├── .claude/                    (root Claude Code config)');
   console.log('  ├── .red64/settings/            (rules & templates)');
+  console.log('  ├── agents/                     (multi-agent support)');
+  console.log('  │   ├── claude/                 (Claude Code)');
+  console.log('  │   │   ├── .claude/commands/red64/');
+  console.log('  │   │   ├── .claude/agents/red64/');
+  console.log('  │   │   └── docs/CLAUDE.md');
+  console.log('  │   ├── codex/                  (OpenAI Codex)');
+  console.log('  │   │   ├── .codex/commands/red64/');
+  console.log('  │   │   ├── .codex/agents/red64/');
+  console.log('  │   │   └── docs/AGENTS.md');
+  console.log('  │   └── gemini/                 (Google Gemini)');
+  console.log('  │       ├── commands.toml');
+  console.log('  │       └── docs/GEMINI.md');
   console.log('  ├── stacks/                     (steering templates)');
   console.log('  └── CLAUDE.md                   (project instructions)');
 }
