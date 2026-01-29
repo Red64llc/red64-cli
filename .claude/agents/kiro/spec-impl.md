@@ -46,6 +46,16 @@ Execute implementation tasks for feature using Test-Driven Development.
 **Read all necessary context**:
 - `.kiro/specs/{feature}/spec.json`, `requirements.md`, `design.md`, `tasks.md`
 - **Entire `.kiro/steering/` directory** for complete project memory
+- **`.kiro/steering/feedback.md`** - CRITICAL: Contains project-specific test, lint, and dev server commands
+
+**Parse feedback.md for commands**:
+Extract these values from the YAML blocks in `feedback.md`:
+- `test`: Primary test command (e.g., `pnpm test:run`, `uv run pytest`)
+- `lint`: Primary lint command (e.g., `pnpm lint`, `uv run ruff check .`)
+- `dev_server`: Dev server command (e.g., `pnpm dev`, `bin/rails server`)
+- `dev_port`: Dev server port (e.g., `3000`, `5173`, `8000`)
+- `dev_url`: Dev server base URL (e.g., `http://localhost:3000`)
+- `ui_verification_enabled`: Whether to use agent-browser for UI tasks
 
 **Validate approvals**:
 - Verify tasks are approved in spec.json (stop if not, see Safety & Fallback)
@@ -81,7 +91,123 @@ For each selected task, follow Kent Beck's TDD cycle:
    - No regressions in existing functionality
    - Code coverage maintained or improved
 
+5. **FEEDBACK LOOP - Self-Correction**:
+   After each implementation change, run the feedback loop using commands from `feedback.md`:
+
+   **Testing Feedback** (MANDATORY):
+   ```bash
+   # Use the 'test' command from .kiro/steering/feedback.md
+   # Examples by stack:
+   #   - React/Next.js: pnpm test:run
+   #   - Python: uv run pytest
+   #   - Rails: bin/rails test
+   {test_command_from_feedback_md}
+   ```
+   - Parse test output for failures
+   - If tests fail: Fix issues before proceeding
+   - Never mark implementation complete with failing tests
+
+   **Linting Feedback** (when available):
+   ```bash
+   # Use the 'lint' command from .kiro/steering/feedback.md
+   # Examples by stack:
+   #   - React/Next.js: pnpm lint
+   #   - Python: uv run ruff check .
+   #   - Rails: bundle exec rubocop
+   {lint_command_from_feedback_md}
+   ```
+   - Fix critical/error-level issues
+   - Warnings are advisory (log but proceed)
+
+   **UI Verification** (for UI-related tasks - see UI Verification Protocol below):
+   - Check `ui_verification_enabled` in feedback.md (skip if false)
+   - Required when task involves: components, pages, layouts, styles, visual elements
+   - Use agent-browser for screenshot capture and accessibility analysis
+
 **Note**: Do NOT update task checkboxes in tasks.md. The orchestrator handles task completion tracking.
+
+## UI Verification Protocol
+
+When implementing UI-related tasks (components, pages, layouts, styles, visual elements), use **agent-browser** for verification:
+
+### When to Use UI Verification
+- Task creates or modifies React/Vue/Angular components
+- Task involves styling changes (CSS, Tailwind, styled-components)
+- Task mentions visual elements, layouts, or design specs
+- Design.md includes mockups, wireframes, or visual references
+
+### UI Verification Steps
+
+1. **Start Development Server** (if not running):
+   ```bash
+   # Use 'dev_server' command from .kiro/steering/feedback.md
+   # Examples by stack:
+   #   - React: pnpm dev (port 5173)
+   #   - Next.js: pnpm dev (port 3000)
+   #   - Python/FastAPI: uv run uvicorn src.app.main:app --reload (port 8000)
+   #   - Rails: bin/rails server (port 3000)
+   {dev_server_command_from_feedback_md} &>/dev/null &
+   # Wait for server to be ready
+   sleep 5
+   ```
+
+2. **Navigate to Feature**:
+   ```bash
+   # Use 'dev_url' from .kiro/steering/feedback.md as base URL
+   agent-browser goto {dev_url_from_feedback_md}/path/to/feature
+   ```
+
+3. **Capture Screenshot**:
+   ```bash
+   agent-browser screenshot --full-page /tmp/ui-capture-$(date +%s).png
+   ```
+
+4. **Get Accessibility Tree** (for structural verification):
+   ```bash
+   agent-browser snapshot > /tmp/accessibility-tree.json
+   ```
+
+5. **Analyze and Compare**:
+   - Read the captured screenshot
+   - Compare against design specifications in design.md
+   - Check accessibility tree for proper element structure
+   - Verify interactive elements are accessible
+
+6. **Fix Visual Discrepancies**:
+   - If UI doesn't match design spec: fix code and repeat steps 2-5
+   - If accessibility issues found: add proper ARIA labels, semantic HTML
+   - Continue until UI matches specification
+
+### Agent-Browser Commands Reference
+
+| Command | Purpose |
+|---------|---------|
+| `agent-browser goto <url>` | Navigate to URL |
+| `agent-browser screenshot [--full-page] <path>` | Capture screenshot |
+| `agent-browser snapshot` | Get AI-optimized accessibility tree |
+| `agent-browser click <element-ref>` | Click on element |
+| `agent-browser type <element-ref> <text>` | Type into input |
+| `agent-browser scroll <direction>` | Scroll page |
+
+### UI Verification Loop
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  1. Implement UI code changes                           │
+│  2. Start dev server (if not running)                   │
+│  3. Navigate: agent-browser goto <url>                  │
+│  4. Capture: agent-browser screenshot /tmp/ui.png       │
+│  5. Analyze screenshot vs. design spec                  │
+│  6. If visual mismatch:                                 │
+│     - Identify discrepancies                            │
+│     - Fix code                                          │
+│     - Goto step 3                                       │
+│  7. Capture accessibility tree for structure check      │
+│  8. Fix accessibility issues if found                   │
+│  9. Run tests to ensure no regressions                  │
+│  10. Mark implementation complete                       │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Critical Constraints
 - **TDD Mandatory**: Tests MUST be written before implementation code
@@ -89,9 +215,12 @@ For each selected task, follow Kent Beck's TDD cycle:
 - **Test Coverage**: All new code must have tests
 - **No Regressions**: Existing tests must continue to pass
 - **Design Alignment**: Implementation must follow design.md specifications
+- **Feedback Loop**: Run tests after EVERY implementation change; fix failures before proceeding
+- **UI Verification**: For UI-related tasks, use agent-browser to capture and verify visual output
 
 ## Tool Guidance
-- **Read first**: Load all context before implementation
+- **Read feedback.md first**: Parse `.kiro/steering/feedback.md` to get project-specific test, lint, and dev server commands
+- **Read all context**: Load specs and steering before implementation
 - **Test first**: Write tests before code
 - Use **WebSearch/WebFetch** for library documentation when needed
 

@@ -25,6 +25,19 @@ If validation fails, inform user to complete tasks generation first.
 - If `$2` provided: Parse task numbers (e.g., "1.1", "1,2,3")
 - Otherwise: Read `.red64/specs/$1/tasks.md` and find all unchecked tasks (`- [ ]`)
 
+## Detect UI-Related Tasks
+
+Before invoking the subagent, analyze the tasks to determine if they involve UI work:
+
+**UI Detection Keywords** (in task description or design.md):
+- Component, page, layout, view, screen
+- Style, CSS, Tailwind, styled-components
+- Button, form, input, modal, dialog
+- Visual, UI, UX, design, mockup
+- Frontend, client-side, browser
+
+If UI-related keywords detected, set `UI Mode: enabled` in the prompt.
+
 ## Invoke Subagent
 
 Delegate TDD implementation to spec-tdd-impl-agent:
@@ -45,6 +58,17 @@ File patterns to read:
 - .red64/steering/*.md
 
 TDD Mode: strict (test-first)
+UI Mode: {enabled if UI-related, disabled otherwise}
+
+## Feedback Requirements
+After EVERY implementation change:
+1. Run project tests: Use command from .red64/steering/feedback.md
+2. Fix any test failures before proceeding
+3. If UI Mode enabled: Use agent-browser for visual verification
+   - Start dev server if not running
+   - Capture screenshots of implemented UI
+   - Compare against design specifications
+   - Fix visual discrepancies before marking complete
 """
 )
 ```
