@@ -26,6 +26,7 @@ export interface InitConfig {
   readonly initializedAt: string;
   readonly customValues: Record<string, string>;
   readonly agent: CodingAgent;
+  readonly testCommand?: string;
 }
 
 /**

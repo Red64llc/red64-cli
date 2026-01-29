@@ -144,3 +144,16 @@ export {
   type HealthCheckResult,
   type HealthCheckOptions
 } from './ClaudeHealthCheck.js';
+
+export {
+  createProjectDetector,
+  type ProjectDetectorService,
+  type DetectionResult
+} from './ProjectDetector.js';
+
+export {
+  createTestRunner,
+  type TestRunnerService,
+  type TestResult,
+  type TestRunnerOptions
+} from './TestRunner.js';

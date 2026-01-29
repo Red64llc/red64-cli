@@ -78,6 +78,13 @@ vi.mock('../../../src/services/index.js', () => ({
     save: vi.fn().mockResolvedValue(undefined),
     isInitialized: vi.fn().mockResolvedValue(true)
   }),
+  createProjectDetector: () => ({
+    detect: vi.fn().mockResolvedValue({ detected: false, testCommand: null, source: null, confidence: 'low' })
+  }),
+  createTestRunner: () => ({
+    run: vi.fn().mockResolvedValue({ success: true, exitCode: 0, stdout: '', stderr: '', durationMs: 100, timedOut: false }),
+    parseCommand: vi.fn().mockReturnValue({ cmd: 'npm', args: ['test'] })
+  }),
   sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
 }));
 

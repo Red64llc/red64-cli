@@ -70,6 +70,8 @@ export interface GlobalFlags {
   readonly 'no-steering'?: boolean;
   readonly 'no-cache'?: boolean;
   readonly agent?: CodingAgent;
+  // Test check flags
+  readonly 'skip-tests'?: boolean;
 }
 
 /**

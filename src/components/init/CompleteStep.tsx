@@ -12,7 +12,7 @@ export interface CompleteStepProps {
 }
 
 export const CompleteStep: React.FC<CompleteStepProps> = ({ summary }) => {
-  const { createdDirs, appliedStack, steeringFiles, gitInitialized, gitCommitted } = summary;
+  const { createdDirs, appliedStack, steeringFiles, gitInitialized, gitCommitted, testCommand, testsPassed } = summary;
 
   // Format created items compactly
   const createdItems = [
@@ -50,6 +50,25 @@ export const CompleteStep: React.FC<CompleteStepProps> = ({ summary }) => {
             <Text>{gitCommitted ? 'initialized & committed' : 'initialized'}</Text>
           </Box>
         )}
+        <Box>
+          <Text dimColor>Tests:     </Text>
+          {testCommand ? (
+            <Text>
+              {testsPassed !== undefined ? (
+                testsPassed ? (
+                  <Text color="green">{'\u2713'} passed</Text>
+                ) : (
+                  <Text color="red">{'\u2717'} failed</Text>
+                )
+              ) : (
+                <Text dimColor>skipped</Text>
+              )}
+              <Text dimColor> ({testCommand})</Text>
+            </Text>
+          ) : (
+            <Text dimColor>not configured</Text>
+          )}
+        </Box>
       </Box>
 
       {/* Next steps - compact format */}

@@ -5,6 +5,7 @@
 
 import type { ProjectType } from '../../services/ConfigService.js';
 import type { FetchProgress } from '../../services/GitHubService.js';
+import type { DetectionResult } from '../../services/ProjectDetector.js';
 import type { CodingAgent } from '../../types/index.js';
 
 /**
@@ -26,6 +27,8 @@ export type InitStep =
   | { type: 'fetching'; progress: FetchProgress }
   | { type: 'extracting' }
   | { type: 'guided-setup'; data: Partial<SetupData> }
+  | { type: 'detecting-tests' }
+  | { type: 'test-check'; detection: DetectionResult }
   | { type: 'applying-templates' }
   | { type: 'git-setup' }
   | { type: 'steering-prompt' }
@@ -53,6 +56,8 @@ export interface InitSummary {
   readonly steeringFiles: readonly string[];
   readonly gitInitialized?: boolean;
   readonly gitCommitted?: boolean;
+  readonly testCommand?: string;
+  readonly testsPassed?: boolean;
 }
 
 /**
@@ -89,5 +94,6 @@ export interface InitFlags {
   readonly 'skip-guided'?: boolean;
   readonly 'no-steering'?: boolean;
   readonly 'no-cache'?: boolean;
+  readonly 'skip-tests'?: boolean;
   readonly agent?: CodingAgent;
 }

@@ -12,6 +12,7 @@ import {
   WelcomeStep,
   FetchStep,
   SetupStep,
+  TestCheckStep,
   SteeringStep,
   CompleteStep,
   ErrorStep,
@@ -27,7 +28,11 @@ import {
   createTemplateService,
   createConfigService,
   createCommitService,
+  createProjectDetector,
+  createTestRunner,
   type FetchProgress,
+  type DetectionResult,
+  type TestResult,
   GitHubFetchError
 } from '../../services/index.js';
 import { spawn } from 'node:child_process';
@@ -84,6 +89,9 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   const [gitInitialized, setGitInitialized] = useState(false);
   const [gitCommitted, setGitCommitted] = useState(false);
   const [conflictResolution, setConflictResolution] = useState<'overwrite' | 'merge' | null>(null);
+  const [, setDetectionResult] = useState<DetectionResult | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testCommand, setTestCommand] = useState<string | null>(null);
 
   // Extract init-specific flags
   const initFlags: InitFlags = {
@@ -93,6 +101,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     'skip-guided': flags['skip-guided'],
     'no-steering': flags['no-steering'],
     'no-cache': flags['no-cache'],
+    'skip-tests': flags['skip-tests'],
     agent: flags.agent
   };
 
@@ -107,8 +116,10 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     const templateService = createTemplateService();
     const configService = createConfigService();
     const commitService = createCommitService();
+    const projectDetector = createProjectDetector();
+    const testRunner = createTestRunner();
 
-    return { cacheService, githubService, templateService, configService, commitService };
+    return { cacheService, githubService, templateService, configService, commitService, projectDetector, testRunner };
   });
 
   // Check for existing directory
@@ -139,6 +150,14 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         });
         break;
       case 'guided-setup':
+        // Detect tests before applying templates
+        if (initFlags['skip-tests']) {
+          setStep({ type: 'applying-templates' });
+        } else {
+          setStep({ type: 'detecting-tests' });
+        }
+        break;
+      case 'test-check':
         setStep({ type: 'applying-templates' });
         break;
       case 'applying-templates':
@@ -192,9 +211,17 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
       configPath: '.red64/config.json',
       steeringFiles,
       gitInitialized,
-      gitCommitted
+      gitCommitted,
+      testCommand: testCommand ?? undefined,
+      testsPassed: testResult?.success
     };
-  }, [setupData.stack, steeringFiles, gitInitialized, gitCommitted]);
+  }, [setupData.stack, steeringFiles, gitInitialized, gitCommitted, testCommand, testResult]);
+
+  // Handle test completion from TestCheckStep
+  const handleTestComplete = useCallback((result: TestResult | null, command: string | null) => {
+    setTestResult(result);
+    setTestCommand(command);
+  }, []);
 
   // Use refs to avoid callback dependency issues
   const stepRef = useRef(step);
@@ -203,9 +230,13 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   const setupDataRef = useRef(setupData);
   setupDataRef.current = setupData;
 
+  const testCommandRef = useRef(testCommand);
+  testCommandRef.current = testCommand;
+
   // Track if fetch has been attempted to prevent re-runs
   const fetchAttemptedRef = useRef(false);
   const extractAttemptedRef = useRef(false);
+  const detectingTestsAttemptedRef = useRef(false);
   const templateAttemptedRef = useRef(false);
 
   // Fetch framework files when in fetching state
@@ -320,6 +351,33 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
     installFramework();
   }, [step.type, services.templateService, conflictResolution]);
 
+  // Detect tests when in detecting-tests state
+  useEffect(() => {
+    if (step.type !== 'detecting-tests') return;
+    if (detectingTestsAttemptedRef.current) return;
+    detectingTestsAttemptedRef.current = true;
+
+    const detectTests = async () => {
+      try {
+        const detection = await services.projectDetector.detect(process.cwd());
+        setDetectionResult(detection);
+        setStep({ type: 'test-check', detection });
+      } catch {
+        // If detection fails, proceed with empty detection
+        const emptyDetection: DetectionResult = {
+          detected: false,
+          testCommand: null,
+          source: null,
+          confidence: 'low'
+        };
+        setDetectionResult(emptyDetection);
+        setStep({ type: 'test-check', detection: emptyDetection });
+      }
+    };
+
+    detectTests();
+  }, [step.type, services.projectDetector]);
+
   // Apply templates when in applying-templates state
   useEffect(() => {
     if (step.type !== 'applying-templates') return;
@@ -357,7 +415,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
           description: currentSetupData.description ?? '',
           initializedAt: new Date().toISOString(),
           customValues: currentSetupData.customValues ?? {},
-          agent: initFlags.agent ?? 'claude'
+          agent: initFlags.agent ?? 'claude',
+          testCommand: testCommandRef.current ?? undefined
         });
 
         // Transition to git setup
@@ -490,6 +549,31 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
             onNext={handleNext}
             onError={handleError}
             onComplete={handleSetupComplete}
+          />
+        );
+
+      case 'detecting-tests':
+        return (
+          <Box flexDirection="column" padding={1}>
+            <Spinner label="Detecting project tests..." />
+          </Box>
+        );
+
+      case 'test-check':
+        return (
+          <TestCheckStep
+            detection={step.detection}
+            skipTests={initFlags['skip-tests']}
+            onNext={handleNext}
+            onError={handleError}
+            onTestComplete={handleTestComplete}
+            runTests={async (cmd) => {
+              return services.testRunner.run({
+                testCommand: cmd,
+                workingDir: process.cwd(),
+                timeoutMs: 300000
+              });
+            }}
           />
         );
 

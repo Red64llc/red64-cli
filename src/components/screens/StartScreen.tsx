@@ -31,6 +31,8 @@ import {
   createClaudeHealthCheck,
   createGitStatusChecker,
   createConfigService,
+  createProjectDetector,
+  createTestRunner,
   sanitizeFeatureName,
   type Task,
   type ClaudeError,
@@ -166,6 +168,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     healthCheck: ReturnType<typeof createClaudeHealthCheck>;
     gitStatusChecker: ReturnType<typeof createGitStatusChecker>;
     configService: ReturnType<typeof createConfigService>;
+    projectDetector: ReturnType<typeof createProjectDetector>;
+    testRunner: ReturnType<typeof createTestRunner>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -179,6 +183,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const healthCheck = createClaudeHealthCheck();
     const gitStatusChecker = createGitStatusChecker();
     const configService = createConfigService();
+    const projectDetector = createProjectDetector();
+    const testRunner = createTestRunner();
 
     servicesRef.current = {
       stateStore,
@@ -190,7 +196,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       specInitService,
       healthCheck,
       gitStatusChecker,
-      configService
+      configService,
+      projectDetector,
+      testRunner
     };
   }
 
@@ -665,6 +673,49 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     addOutput(`API ready (${healthResult.durationMs}ms)`);
 
+    // Run project tests (unless skipped)
+    if (!flags['skip-tests']) {
+      addOutput('');
+      addOutput('Checking project tests...');
+
+      // Load config to get test command
+      const config = await services.configService.load(workDir);
+      let testCommand = config?.testCommand;
+
+      // If no stored command, try to detect
+      if (!testCommand) {
+        const detection = await services.projectDetector.detect(workDir);
+        testCommand = detection.testCommand ?? undefined;
+      }
+
+      if (testCommand) {
+        addOutput(`Running: ${testCommand}`);
+        const testResult = await services.testRunner.run({
+          testCommand,
+          workingDir: workDir,
+          timeoutMs: 300000
+        });
+
+        if (!testResult.success) {
+          const errorMsg = testResult.timedOut
+            ? 'Tests timed out'
+            : `Tests failed (exit code: ${testResult.exitCode})`;
+          await logToFile(`Test check failed: ${errorMsg}`);
+
+          setFlowState(prev => ({
+            ...prev,
+            error: errorMsg,
+            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Use --skip-tests to bypass.` }
+          }));
+          return;
+        }
+
+        addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+      } else {
+        addOutput('No test command configured, skipping tests');
+      }
+    }
+
     // Set up flow machine to the current phase
     const effectiveName = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
 
@@ -677,7 +728,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     // Resume based on current phase
     await resumeFromPhase(existingState.phase.type, workDir, effectiveName);
-  }, [flowState.existingFlowState, services.healthCheck, flags, featureName, repoPath, initLogFile, addOutput]);
+  }, [flowState.existingFlowState, services.healthCheck, services.configService, services.projectDetector, services.testRunner, flags, featureName, repoPath, initLogFile, addOutput]);
 
   // Resume from a specific phase
   const resumeFromPhase = async (phaseType: string, workDir: string, effectiveName: string) => {
@@ -843,6 +894,50 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
 
     addOutput(`API ready (${healthResult.durationMs}ms)`);
+
+    // Run project tests (unless skipped)
+    if (!flags['skip-tests']) {
+      addOutput('');
+      addOutput('Checking project tests...');
+
+      // Load config to get test command
+      const config = await services.configService.load(repoPath);
+      let testCommand = config?.testCommand;
+
+      // If no stored command, try to detect
+      if (!testCommand) {
+        const detection = await services.projectDetector.detect(repoPath);
+        testCommand = detection.testCommand ?? undefined;
+      }
+
+      if (testCommand) {
+        addOutput(`Running: ${testCommand}`);
+        const testResult = await services.testRunner.run({
+          testCommand,
+          workingDir: repoPath,
+          timeoutMs: 300000
+        });
+
+        if (!testResult.success) {
+          const errorMsg = testResult.timedOut
+            ? 'Tests timed out'
+            : `Tests failed (exit code: ${testResult.exitCode})`;
+          await logToFile(`Test check failed: ${errorMsg}`);
+
+          setFlowState(prev => ({
+            ...prev,
+            error: errorMsg,
+            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Use --skip-tests to bypass.` }
+          }));
+          return;
+        }
+
+        addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+      } else {
+        addOutput('No test command configured, skipping tests');
+      }
+    }
+
     addOutput('');
     addOutput(`Starting flow: ${featureName}`);
     addOutput(`Mode: ${mode}`);
