@@ -645,6 +645,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));
 
+    // Guard against undefined result (can happen if component unmounts during check)
+    if (!healthResult) {
+      return;
+    }
+
     if (!healthResult.healthy) {
       const errorMsg = healthResult.error
         ? `${getClaudeErrorLabel(healthResult.error.code)}: ${healthResult.error.suggestion}`
@@ -810,6 +815,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     });
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));
+
+    // Guard against undefined result (can happen if component unmounts during check)
+    if (!healthResult) {
+      return;
+    }
 
     if (!healthResult.healthy) {
       await logToFile(`Health check failed: ${healthResult.message}`);

@@ -5,10 +5,13 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import { StartScreen } from '../../../src/components/screens/StartScreen.js';
 import type { GlobalFlags } from '../../../src/types/index.js';
+
+// Helper to flush all pending promises
+const flushPromises = () => new Promise(resolve => setImmediate(resolve));
 
 // Mock the services index
 vi.mock('../../../src/services/index.js', () => ({
@@ -91,23 +94,38 @@ describe('StartScreen', () => {
     sandbox: false
   };
 
+  // Track unmount function for cleanup
+  let cleanup: (() => void) | null = null;
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(async () => {
+    // Unmount the component to stop async operations
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+    // Wait for any pending promises to settle
+    await flushPromises();
+  });
+
   describe('rendering', () => {
-    it('should render start screen with feature name', () => {
-      const { lastFrame } = render(
+    it('should render start screen with feature name', async () => {
+      const { lastFrame, unmount } = render(
         <StartScreen args={['my-feature', 'Feature description']} flags={defaultFlags} />
       );
+      cleanup = unmount;
 
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should show phase status on initial render', () => {
-      const { lastFrame } = render(
+    it('should show phase status on initial render', async () => {
+      const { lastFrame, unmount } = render(
         <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
+      cleanup = unmount;
 
       // On initial render, the component should show phase status
       // (either checking or idle depending on async timing)
@@ -116,10 +134,11 @@ describe('StartScreen', () => {
       expect(frame).toContain('red64 start');
     });
 
-    it('should render header with feature name', () => {
-      const { lastFrame } = render(
+    it('should render header with feature name', async () => {
+      const { lastFrame, unmount } = render(
         <StartScreen args={['feature', 'desc']} flags={defaultFlags} />
       );
+      cleanup = unmount;
 
       // Header should always be visible
       expect(lastFrame()).toContain('red64 start');
@@ -128,18 +147,20 @@ describe('StartScreen', () => {
   });
 
   describe('validation display', () => {
-    it('should show feature name in header', () => {
-      const { lastFrame } = render(
+    it('should show feature name in header', async () => {
+      const { lastFrame, unmount } = render(
         <StartScreen args={['my-feature', 'Test']} flags={defaultFlags} />
       );
+      cleanup = unmount;
 
       expect(lastFrame()).toContain('my-feature');
     });
 
-    it('should show idle phase initially', () => {
-      const { lastFrame } = render(
+    it('should show idle phase initially', async () => {
+      const { lastFrame, unmount } = render(
         <StartScreen args={['feature', 'My description']} flags={defaultFlags} />
       );
+      cleanup = unmount;
 
       // Should show idle phase label
       expect(lastFrame()).toContain('Idle');
