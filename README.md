@@ -156,8 +156,7 @@ This means you can always use `red64 start <feature>` to continue working—no s
 - `--sandbox` — Run in Docker isolation
 - `--verbose` — Show detailed execution logs
 
-![red64 start](docs/assets/start.png)
-<!-- TODO: Add screenshot -->
+<img width="1134" height="567" alt="Screenshot 2026-01-29 at 6 35 01 PM" src="https://github.com/user-attachments/assets/91ea478f-53de-4964-a0b2-b0f05d2bfb2b" />
 
 ### `red64 status [feature]`
 
