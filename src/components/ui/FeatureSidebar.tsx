@@ -209,7 +209,6 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
       borderStyle="single"
       borderColor="gray"
       paddingX={1}
-      marginLeft={1}
       width={16}
     >
       {/* Feature name header */}

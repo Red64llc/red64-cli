@@ -133,6 +133,18 @@ export interface TaskProgress {
 }
 
 /**
+ * Artifact generated during spec-driven development
+ * Tracks files created by the framework for easy reference
+ */
+export interface Artifact {
+  readonly name: string;        // Display name (e.g., "Requirements", "Design")
+  readonly filename: string;    // File name (e.g., "requirements.md")
+  readonly path: string;        // Full path from worktree root
+  readonly phase: string;       // Phase that generated it
+  readonly createdAt: string;   // ISO timestamp
+}
+
+/**
  * FlowState interface with feature, phase, timestamps, history, and metadata
  * Requirement: 1.5 - State persistence
  */
@@ -157,6 +169,8 @@ export interface FlowState {
   readonly phaseMetrics?: {
     readonly [phaseType: string]: PhaseMetric;
   };
+  // Artifacts generated during the flow
+  readonly artifacts?: readonly Artifact[];
 }
 
 /**

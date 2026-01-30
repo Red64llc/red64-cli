@@ -38,7 +38,8 @@ import {
   type ClaudeError,
   type GitStatus
 } from '../../services/index.js';
-import { FeatureSidebar } from '../ui/index.js';
+import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
+import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
 import { appendFile, mkdir } from 'node:fs/promises';
 
@@ -152,6 +153,7 @@ interface FlowScreenState {
   phaseMetrics: Record<string, PhaseMetric>;  // Phase timing metrics
   commitCount: number;  // Number of commits for this feature
   agent: CodingAgent;  // Coding agent from config
+  artifacts: Artifact[];  // Generated artifacts for display
 }
 
 /**
@@ -259,7 +261,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     completedTasks: [],  // Orchestrator-tracked completed task IDs
     phaseMetrics: {},  // Phase timing metrics
     commitCount: 0,  // Number of commits for this feature
-    agent: 'claude'  // Default, will be loaded from config
+    agent: 'claude',  // Default, will be loaded from config
+    artifacts: []  // Generated artifacts
   });
 
   // Track if flow has been started
@@ -280,6 +283,20 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Also log to file
     logToFile(line);
   }, [logToFile]);
+
+  // Add artifact to the list
+  const addArtifact = useCallback((artifact: Artifact) => {
+    setFlowState(prev => {
+      // Avoid duplicates
+      if (prev.artifacts.some(a => a.path === artifact.path)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        artifacts: [...prev.artifacts, artifact]
+      };
+    });
+  }, []);
 
   // Get working directory (worktree or repo)
   const getWorkingDir = useCallback(() => {
@@ -1018,6 +1035,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput(`Spec directory: ${initResult.specDir}`);
     addOutput(`Feature name: ${initResult.featureName}`);
 
+    // Track spec.json artifact
+    addArtifact({
+      name: 'Spec Config',
+      filename: 'spec.json',
+      path: `.red64/specs/${initResult.featureName}/spec.json`,
+      phase: 'initializing',
+      createdAt: new Date().toISOString()
+    });
+
     // Commit init
     await commitChanges(`initialize spec directory`, workDir);
 
@@ -1045,6 +1071,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Commit requirements
     await commitChanges(`generate requirements`, workDir);
 
+    // Track requirements artifact
+    addArtifact({
+      name: 'Requirements',
+      filename: 'requirements.md',
+      path: `.red64/specs/${effectiveName}/requirements.md`,
+      phase: 'requirements-generating',
+      createdAt: new Date().toISOString()
+    });
+
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
     await saveFlowState(approvalPhase, workDir);
@@ -1067,6 +1102,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Commit design
     await commitChanges(`generate technical design`, workDir);
 
+    // Track design artifact
+    addArtifact({
+      name: 'Design',
+      filename: 'design.md',
+      path: `.red64/specs/${effectiveName}/design.md`,
+      phase: 'design-generating',
+      createdAt: new Date().toISOString()
+    });
+
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
     await saveFlowState(approvalPhase, workDir);
@@ -1088,6 +1132,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     // Commit tasks
     await commitChanges(`generate implementation tasks`, workDir);
+
+    // Track tasks artifact
+    addArtifact({
+      name: 'Tasks',
+      filename: 'tasks.md',
+      path: `.red64/specs/${effectiveName}/tasks.md`,
+      phase: 'tasks-generating',
+      createdAt: new Date().toISOString()
+    });
 
     // Parse tasks for implementation phase - use effective name for spec directory
     const specDir = join(workDir, '.red64', 'specs', effectiveName);
@@ -1233,6 +1286,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
+            // Track gap analysis artifact
+            addArtifact({
+              name: 'Gap Analysis',
+              filename: 'gap-analysis.md',
+              path: `.red64/specs/${effectiveName}/gap-analysis.md`,
+              phase: 'gap-analysis',
+              createdAt: new Date().toISOString()
+            });
           }
           transitionPhase({ type: 'PHASE_COMPLETE' });
           break;
@@ -1390,8 +1451,23 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   return (
     <Box flexDirection="row" paddingX={1}>
+      {/* Left sidebar - Feature status */}
+      {showSidebar && (
+        <FeatureSidebar
+          featureName={flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}
+          sandboxMode={flags.sandbox ?? false}
+          currentPhase={flowState.phase.type}
+          mode={mode}
+          currentTask={flowState.currentTask}
+          totalTasks={flowState.totalTasks}
+          commitCount={flowState.commitCount}
+          agent={flowState.agent}
+          model={flags.model}
+        />
+      )}
+
       {/* Main content area */}
-      <Box flexDirection="column" flexGrow={1}>
+      <Box flexDirection="column" flexGrow={1} marginLeft={showSidebar ? 1 : 0}>
         {/* Header */}
         <Box>
           <Text bold color="cyan">red64 start</Text>
@@ -1484,18 +1560,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         )}
       </Box>
 
-      {/* Feature info sidebar */}
+      {/* Right sidebar - Artifacts */}
       {showSidebar && (
-        <FeatureSidebar
-          featureName={flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}
-          sandboxMode={flags.sandbox ?? false}
-          currentPhase={flowState.phase.type}
-          mode={mode}
-          currentTask={flowState.currentTask}
-          totalTasks={flowState.totalTasks}
-          commitCount={flowState.commitCount}
-          agent={flowState.agent}
-          model={flags.model}
+        <ArtifactsSidebar
+          artifacts={flowState.artifacts}
+          worktreePath={flowState.worktreePath}
         />
       )}
     </Box>

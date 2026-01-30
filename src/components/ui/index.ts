@@ -10,6 +10,7 @@ export { ProgressBar } from './ProgressBar.js';
 export { SelectMenu, type SelectMenuItem } from './SelectMenu.js';
 export { PhaseProgressView, type PhaseProgressViewProps } from './PhaseProgressView.js';
 export { FeatureSidebar, type FeatureSidebarProps, type CodingAgent } from './FeatureSidebar.js';
+export { ArtifactsSidebar, type ArtifactsSidebarProps } from './ArtifactsSidebar.js';
 export { FlowTable, type FlowTableProps } from './FlowTable.js';
 export { ErrorDisplay, type ErrorDisplayProps } from './ErrorDisplay.js';
 export {
