@@ -41,7 +41,7 @@ import {
 import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
-import { appendFile, mkdir } from 'node:fs/promises';
+import { appendFile, mkdir, stat } from 'node:fs/promises';
 
 /**
  * Phase display information
@@ -473,6 +473,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Use override if provided, otherwise use current state, otherwise preserve existing
     const completedTasks = completedTasksOverride ?? flowState.completedTasks;
 
+    // Use dir (resolved workDir) as worktreePath if it's different from repoPath
+    // This fixes the race condition where flowState.worktreePath is still null due to async setFlowState
+    // Also preserve worktreePath from existing state on resume to prevent losing it
+    const effectiveWorktreePath = dir !== repoPath ? dir : (flowState.worktreePath ?? existingState?.metadata.worktreePath ?? undefined);
+
     const state: FlowState = {
       feature: featureName,
       phase: convertToFlowPhase(phase),
@@ -483,7 +488,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         description,
         mode,
         tier: flags.tier,
-        worktreePath: flowState.worktreePath ?? undefined,
+        worktreePath: effectiveWorktreePath,
         resolvedFeatureName: flowState.resolvedFeatureName ?? undefined
       },
       // Orchestrator-controlled task progress
@@ -494,11 +499,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // Phase timing metrics
       phaseMetrics: Object.keys(flowState.phaseMetrics).length > 0
         ? { ...existingState?.phaseMetrics, ...flowState.phaseMetrics }
-        : existingState?.phaseMetrics
+        : existingState?.phaseMetrics,
+      // Persist artifacts to disk so they survive resume
+      artifacts: flowState.artifacts.length > 0
+        ? flowState.artifacts
+        : existingState?.artifacts
     };
 
     await stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.phaseMetrics, getWorkingDir]);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.phaseMetrics, getWorkingDir, repoPath]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -554,6 +563,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             existingFlowState: existingState,
             worktreePath: existingState.metadata.worktreePath ?? null,
             resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
+            artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts,
             completedTasks: [...completedTasks],
             totalTasks
           }));
@@ -572,6 +582,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           existingFlowState: existingState,
           worktreePath: existingState.metadata.worktreePath ?? null,
           resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
+          artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts,
           completedTasks: [...completedTasks],
           totalTasks
         }));
@@ -755,11 +766,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     // Set up flow machine to the current phase
     const effectiveName = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
 
-    // Update state with existing flow info
+    // Update state with existing flow info, restoring persisted artifacts
     setFlowState(prev => ({
       ...prev,
       worktreePath: existingState.metadata.worktreePath ?? null,
-      resolvedFeatureName: effectiveName
+      resolvedFeatureName: effectiveName,
+      artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts
     }));
 
     // Resume based on current phase
@@ -1068,6 +1080,20 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       return;
     }
 
+    // Validate that requirements were actually written (not just template)
+    const reqPath = join(workDir, `.red64/specs/${effectiveName}/requirements.md`);
+    try {
+      const reqStat = await stat(reqPath);
+      if (reqStat.size < 500) {
+        // Template is ~160 bytes; real requirements are much larger
+        transitionPhase({ type: 'ERROR', error: 'Requirements agent did not generate content. Ensure a project description is provided.' });
+        return;
+      }
+    } catch {
+      transitionPhase({ type: 'ERROR', error: 'Requirements file was not created by agent.' });
+      return;
+    }
+
     // Commit requirements
     await commitChanges(`generate requirements`, workDir);
 
@@ -1099,6 +1125,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       return;
     }
 
+    // Validate that design.md was actually created
+    const designPath = join(workDir, `.red64/specs/${effectiveName}/design.md`);
+    try {
+      await stat(designPath);
+    } catch {
+      transitionPhase({ type: 'ERROR', error: 'Design file was not created by agent. Check that requirements were properly generated.' });
+      return;
+    }
+
     // Commit design
     await commitChanges(`generate technical design`, workDir);
 
@@ -1127,6 +1162,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Tasks generation failed' });
+      return;
+    }
+
+    // Validate that tasks.md was actually created
+    const tasksPath = join(workDir, `.red64/specs/${effectiveName}/tasks.md`);
+    try {
+      await stat(tasksPath);
+    } catch {
+      transitionPhase({ type: 'ERROR', error: 'Tasks file was not created by agent. Check that design was properly generated.' });
       return;
     }
 
