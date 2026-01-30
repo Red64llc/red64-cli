@@ -9,6 +9,7 @@ import { Box, Text } from 'ink';
 import type { ScreenProps } from './ScreenProps.js';
 import type { FlowState } from '../../types/index.js';
 import { createStateStore, type StateStoreService } from '../../services/StateStore.js';
+import { createWorktreeService, type WorktreeServiceInterface } from '../../services/WorktreeService.js';
 import { Spinner, FlowTable } from '../ui/index.js';
 
 /**
@@ -35,14 +36,42 @@ function getBaseDir(): string {
 export const ListScreen: React.FC<ScreenProps> = () => {
   const [state, setState] = useState<ListScreenState>({ step: 'loading' });
   const [stateStore] = useState<StateStoreService>(() => createStateStore(getBaseDir()));
+  const [worktreeService] = useState<WorktreeServiceInterface>(() => createWorktreeService());
 
   // Load all flows on mount
   useEffect(() => {
     const loadFlows = async () => {
       try {
+        const baseDir = getBaseDir();
+
         // Requirements 3.1, 3.2 - Scan and load all flow states
-        const flows = await stateStore.list();
-        setState({ step: 'loaded', flows });
+        // First load from main repo
+        const mainFlows = await stateStore.list();
+
+        // Also scan worktrees for flow states
+        const worktrees = await worktreeService.list(baseDir);
+        const worktreeFlows: FlowState[] = [];
+        const seenFeatures = new Set(mainFlows.map(f => f.feature));
+
+        for (const worktree of worktrees) {
+          // Skip main worktree (already scanned)
+          if (worktree.path === baseDir) continue;
+          if (!worktree.path) continue;
+
+          const worktreeStateStore = createStateStore(worktree.path);
+          const flows = await worktreeStateStore.list();
+
+          for (const flow of flows) {
+            // Avoid duplicates - prefer worktree state as it's more current
+            if (!seenFeatures.has(flow.feature)) {
+              worktreeFlows.push(flow);
+              seenFeatures.add(flow.feature);
+            }
+          }
+        }
+
+        const allFlows = [...mainFlows, ...worktreeFlows];
+        setState({ step: 'loaded', flows: allFlows });
       } catch (error) {
         setState({
           step: 'error',
@@ -52,7 +81,7 @@ export const ListScreen: React.FC<ScreenProps> = () => {
     };
 
     loadFlows();
-  }, [stateStore]);
+  }, [stateStore, worktreeService]);
 
   // Render based on state
   switch (state.step) {

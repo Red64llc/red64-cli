@@ -21,11 +21,23 @@ vi.mock('../../../src/services/StateStore.js', () => ({
   }))
 }));
 
+vi.mock('../../../src/services/WorktreeService.js', () => ({
+  createWorktreeService: vi.fn(() => ({
+    check: vi.fn().mockResolvedValue({ exists: false, path: '', branch: '' }),
+    create: vi.fn().mockResolvedValue({ success: true }),
+    remove: vi.fn().mockResolvedValue({ success: true }),
+    list: vi.fn().mockResolvedValue([])
+  })),
+  sanitizeFeatureName: vi.fn((name: string) => name.toLowerCase().replace(/\s+/g, '-'))
+}));
+
 // Import after mocking
 import { ListScreen } from '../../../src/components/screens/ListScreen.js';
 import { createStateStore } from '../../../src/services/StateStore.js';
+import { createWorktreeService } from '../../../src/services/WorktreeService.js';
 
 const mockCreateStateStore = createStateStore as ReturnType<typeof vi.fn>;
+const mockCreateWorktreeService = createWorktreeService as ReturnType<typeof vi.fn>;
 
 describe('ListScreen', () => {
   const defaultProps: ScreenProps = {
@@ -77,6 +89,13 @@ describe('ListScreen', () => {
       delete: vi.fn().mockResolvedValue(undefined),
       exists: vi.fn().mockResolvedValue(false),
       archive: vi.fn().mockResolvedValue(undefined)
+    });
+
+    mockCreateWorktreeService.mockReturnValue({
+      check: vi.fn().mockResolvedValue({ exists: false, path: '', branch: '' }),
+      create: vi.fn().mockResolvedValue({ success: true }),
+      remove: vi.fn().mockResolvedValue({ success: true }),
+      list: vi.fn().mockResolvedValue([])
     });
   });
 

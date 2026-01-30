@@ -253,6 +253,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Track if flow has been started
   const flowStartedRef = useRef(false);
 
+  // Ref to hold existingFlowState for resumeExistingFlow (avoids stale closure)
+  const existingFlowStateRef = useRef<FlowState | null>(null);
+
+  // Keep ref in sync with state
+  existingFlowStateRef.current = flowState.existingFlowState;
+
   // Add output line (to screen and log file)
   const addOutput = useCallback((line: string) => {
     setFlowState(prev => ({
@@ -619,7 +625,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Resume from existing flow state
   const resumeExistingFlow = useCallback(async () => {
-    const existingState = flowState.existingFlowState;
+    // Read from ref to avoid stale closure issue
+    const existingState = existingFlowStateRef.current;
     if (!existingState) {
       addOutput('Error: No existing flow state to resume');
       return;
@@ -728,7 +735,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     // Resume based on current phase
     await resumeFromPhase(existingState.phase.type, workDir, effectiveName);
-  }, [flowState.existingFlowState, services.healthCheck, services.configService, services.projectDetector, services.testRunner, flags, featureName, repoPath, initLogFile, addOutput]);
+  }, [services.healthCheck, services.configService, services.projectDetector, services.testRunner, services.commitService, flags, featureName, repoPath, initLogFile, addOutput]);
 
   // Resume from a specific phase
   const resumeFromPhase = async (phaseType: string, workDir: string, effectiveName: string) => {
