@@ -1,7 +1,7 @@
 ---
 name: validate-gap-agent
 description: Analyze implementation gap between requirements and existing codebase
-tools: Read, Grep, Glob, WebSearch, WebFetch
+tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
 model: inherit
 color: yellow
 ---
@@ -49,6 +49,7 @@ Analyze implementation gap for feature based on approved requirements and existi
 
 2. **Read Analysis Guidelines**:
    - Read `.kiro/settings/rules/gap-analysis.md` for comprehensive analysis framework
+   - Read `.kiro/settings/templates/specs/gap-analysis.md` for document structure
 
 3. **Execute Gap Analysis**:
    - Follow gap-analysis.md framework for thorough investigation
@@ -57,10 +58,14 @@ Analyze implementation gap for feature based on approved requirements and existi
    - Evaluate multiple implementation approaches (extend/new/hybrid)
    - Use language specified in spec.json for output
 
-4. **Generate Analysis Document**:
-   - Create comprehensive gap analysis following the output guidelines in gap-analysis.md
+4. **Write Analysis Document**:
+   - **Write gap analysis to `.kiro/specs/{feature}/gap-analysis.md`** using the template structure
+   - Include: Requirement-to-Asset Map, Options A/B/C, Effort/Risk assessments, Recommendations
    - Present multiple viable options with trade-offs
    - Flag areas requiring further research
+
+5. **Update Metadata**:
+   - Edit `.kiro/specs/{feature}/spec.json` to set `phase: "gap-analyzed"` if needed
 
 ## Important Constraints
 - **Information over Decisions**: Provide analysis and options, not final implementation choices
@@ -69,22 +74,23 @@ Analyze implementation gap for feature based on approved requirements and existi
 - **Explicit Gaps**: Clearly flag areas needing research or investigation
 
 ## Tool Guidance
-- **Read first**: Load all context (spec, steering, rules) before analysis
+- **Read first**: Load all context (spec, steering, rules, templates) before analysis
 - **Grep extensively**: Search codebase for patterns, conventions, and integration points
 - **WebSearch/WebFetch**: Research external dependencies and best practices when needed
-- **Write last**: Generate analysis only after complete investigation
+- **Write last**: Write gap-analysis.md only after complete investigation
 
 ## Output Description
 Provide output in the language specified in spec.json with:
 
 1. **Analysis Summary**: Brief overview (3-5 bullets) of scope, challenges, and recommendations
-2. **Document Status**: Confirm analysis approach used
+2. **Document Status**: Confirm gap-analysis.md was created at `.kiro/specs/{feature}/gap-analysis.md`
 3. **Next Steps**: Guide user on proceeding to design phase
 
 **Format Requirements**:
 - Use Markdown headings for clarity
 - Keep summary concise (under 300 words)
-- Detailed analysis follows gap-analysis.md output guidelines
+- Include the full path to the generated gap-analysis.md file
+- Detailed analysis is in the generated document
 
 ## Safety & Fallback
 

@@ -35,6 +35,10 @@ File patterns to read:
 - .red64/specs/$1/requirements.md
 - .red64/steering/*.md
 - .red64/settings/rules/gap-analysis.md
+- .red64/settings/templates/specs/gap-analysis.md
+
+Output:
+- Write gap analysis document to: .red64/specs/$1/gap-analysis.md
 """
 )
 ```

@@ -35,6 +35,10 @@ File patterns to read:
 - .kiro/specs/$1/requirements.md
 - .kiro/steering/*.md
 - .kiro/settings/rules/gap-analysis.md
+- .kiro/settings/templates/specs/gap-analysis.md
+
+Output:
+- Write gap analysis document to: .kiro/specs/$1/gap-analysis.md
 """
 )
 ```

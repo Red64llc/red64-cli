@@ -69,6 +69,18 @@ const PHASE_LABELS: Record<string, { label: string; description: string }> = {
 };
 
 /**
+ * Map approval phases to the specific file(s) to review
+ */
+const PHASE_REVIEW_FILES: Record<string, string> = {
+  'requirements-approval': 'requirements.md',
+  'gap-review': 'gap-analysis.md',
+  'design-approval': 'design.md',
+  'design-validation-review': 'design.md',
+  'tasks-approval': 'tasks.md',
+  'merge-decision': ''
+};
+
+/**
  * Approval options for review phases
  */
 const APPROVAL_OPTIONS = [
@@ -1458,7 +1470,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         {isApprovalPhase && !flowState.isExecuting && (
           <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
             <Text bold>Review Required</Text>
-            <Text dimColor>Review output in .red64/specs/{sanitizeFeatureName(featureName)}/</Text>
+            <Text dimColor>
+              Review output in .red64/specs/{flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}/
+              {PHASE_REVIEW_FILES[flowState.phase.type] ?? ''}
+            </Text>
             <Box marginTop={1}>
               <Select
                 options={APPROVAL_OPTIONS}
