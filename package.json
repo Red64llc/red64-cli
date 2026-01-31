@@ -1,6 +1,6 @@
 {
   "name": "red64-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Red64 Flow Orchestrator - Deterministic spec-driven development CLI",
   "type": "module",
   "bin": {
