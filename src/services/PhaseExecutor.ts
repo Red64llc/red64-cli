@@ -137,7 +137,8 @@ export function createPhaseExecutor(
           prompt,
           workingDirectory,
           skipPermissions: flags.skipPermissions,
-          tier: flags.tier
+          tier: flags.tier,
+          agent: flags.agent
         });
 
         if (result.success) {

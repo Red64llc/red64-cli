@@ -354,6 +354,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       workingDirectory: dir,
       skipPermissions: flags.skipPermissions ?? false,
       tier: flags.tier,
+      agent: flowState.agent as CodingAgent,
       model: flags.model,
       sandbox: flags.sandbox ?? false,
       onOutput: (chunk) => {

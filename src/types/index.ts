@@ -180,6 +180,7 @@ export interface AgentInvokeOptions {
   readonly workingDirectory: string;
   readonly skipPermissions: boolean;
   readonly tier: string | undefined;
+  readonly agent?: CodingAgent;  // Which CLI to invoke (default: claude)
   readonly model?: string;  // Model override (e.g., claude-3-5-haiku-latest)
   readonly sandbox?: boolean;  // Run in Docker sandbox
   readonly onOutput?: (chunk: string) => void;

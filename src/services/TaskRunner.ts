@@ -134,7 +134,8 @@ export function createTaskRunner(
           prompt,
           workingDirectory: options.workingDir,
           skipPermissions: options.flags.skipPermissions,
-          tier: options.flags.tier
+          tier: options.flags.tier,
+          agent: options.flags.agent
         });
 
         if (!result.success) {

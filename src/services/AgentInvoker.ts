@@ -7,8 +7,55 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentInvokeOptions, AgentResult } from '../types/index.js';
+import type { AgentInvokeOptions, AgentResult, CodingAgent } from '../types/index.js';
 import { createClaudeErrorDetector } from './ClaudeErrorDetector.js';
+
+/**
+ * Agent CLI configuration per coding agent
+ */
+interface AgentCliConfig {
+  readonly binary: string;
+  readonly buildArgs: (options: AgentInvokeOptions) => string[];
+  readonly envKeyName?: string;  // API key env var name (e.g., ANTHROPIC_API_KEY)
+}
+
+const AGENT_CLI_CONFIGS: Record<CodingAgent, AgentCliConfig> = {
+  claude: {
+    binary: 'claude',
+    envKeyName: 'ANTHROPIC_API_KEY',
+    buildArgs(options) {
+      const args: string[] = ['-p', options.prompt];
+      if (options.model) args.push('--model', options.model);
+      if (options.skipPermissions) args.push('--dangerously-skip-permissions');
+      return args;
+    }
+  },
+  gemini: {
+    binary: 'gemini',
+    envKeyName: 'GOOGLE_API_KEY',
+    buildArgs(options) {
+      // Positional prompt (preferred over deprecated -p flag)
+      const args: string[] = [options.prompt];
+      if (options.model) args.push('-m', options.model);
+      if (options.skipPermissions) args.push('--approval-mode=yolo');
+      return args;
+    }
+  },
+  codex: {
+    binary: 'codex',
+    envKeyName: 'CODEX_API_KEY',
+    buildArgs(options) {
+      const args: string[] = ['exec', options.prompt];
+      if (options.model) args.push('--model', options.model);
+      // codex exec runs in sandbox by default
+      return args;
+    }
+  }
+};
+
+function getAgentCliConfig(agent?: CodingAgent): AgentCliConfig {
+  return AGENT_CLI_CONFIGS[agent ?? 'claude'];
+}
 
 const SANDBOX_IMAGE = 'red64-sandbox:latest';
 
@@ -101,34 +148,24 @@ export function createAgentInvoker(): AgentInvokerService {
       }
 
       return new Promise((resolve) => {
-        // Build command arguments
-        const args: string[] = ['-p', options.prompt];
+        const agentConfig = getAgentCliConfig(options.agent);
 
-        // Add model flag if specified
-        if (options.model) {
-          args.push('--model', options.model);
-        }
-
-        // Add skip-permissions flag if configured
-        // Requirements: 7.3 - Pass --skip-permissions flag to Claude CLI when configured
-        if (options.skipPermissions) {
-          args.push('--dangerously-skip-permissions');
-        }
+        // Build command arguments per agent
+        const args = agentConfig.buildArgs(options);
 
         // Build environment
         const env: NodeJS.ProcessEnv = { ...process.env };
 
-        // Set CLAUDE_CONFIG_DIR if tier is specified
+        // Set CLAUDE_CONFIG_DIR if tier is specified (claude-specific)
         // Requirements: 7.4 - Set CLAUDE_CONFIG_DIR environment variable when tier is specified
-        // Format: --tier=red64 -> CLAUDE_CONFIG_DIR=~/.claude-red64
-        if (options.tier) {
+        if (options.tier && (options.agent ?? 'claude') === 'claude') {
           const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? '~';
           env.CLAUDE_CONFIG_DIR = `${homeDir}/.claude-${options.tier}`;
         }
 
-        // Spawn Claude CLI
+        // Spawn agent CLI
         // Requirements: 7.2 - Use spawn() for streaming output
-        currentProcess = spawn('claude', args, {
+        currentProcess = spawn(agentConfig.binary, args, {
           cwd: options.workingDirectory,
           env,
           stdio: ['pipe', 'pipe', 'pipe']
@@ -181,8 +218,10 @@ export function createAgentInvoker(): AgentInvokerService {
           const exitCode = code ?? -1;
           const success = exitCode === 0 && !timedOut && !aborted;
 
-          // Detect Claude-specific errors
-          const claudeError = !success ? errorDetector.detect(stdout, stderr) : undefined;
+          // Detect agent-specific errors (currently claude only)
+          const claudeError = !success && (options.agent ?? 'claude') === 'claude'
+            ? errorDetector.detect(stdout, stderr)
+            : undefined;
 
           // Requirements: 7.6 - Return typed result indicating success/failure
           resolve({
@@ -247,26 +286,21 @@ function invokeInDocker(
       '-v', `${options.workingDirectory}:/workspace`,  // Mount workspace
     ];
 
-    // Get API key from env or Claude config files
+    const agentConfig = getAgentCliConfig(options.agent);
+
+    // Get API key from env or config files
     const apiKey = getApiKey(options.tier);
     if (apiKey) {
-      dockerArgs.push('-e', `ANTHROPIC_API_KEY=${apiKey}`);
+      const envKeyName = agentConfig.envKeyName ?? 'ANTHROPIC_API_KEY';
+      dockerArgs.push('-e', `${envKeyName}=${apiKey}`);
     }
-
-    // Don't mount the Claude config - let Claude create a fresh one inside container
-    // The API key is passed via env var, which is all that's needed
 
     // Add image
     dockerArgs.push(SANDBOX_IMAGE);
 
-    // Add claude command with args
-    // In sandbox, always use --dangerously-skip-permissions since it's isolated
-    dockerArgs.push('claude', '-p', options.prompt, '--dangerously-skip-permissions');
-
-    // Add model flag if specified
-    if (options.model) {
-      dockerArgs.push('--model', options.model);
-    }
+    // Add agent command with args (in Docker, force skip-permissions since it's isolated)
+    const dockerOptions: AgentInvokeOptions = { ...options, skipPermissions: true };
+    dockerArgs.push(agentConfig.binary, ...agentConfig.buildArgs(dockerOptions));
 
     const proc = spawn('docker', dockerArgs, {
       stdio: ['pipe', 'pipe', 'pipe']
@@ -315,8 +349,10 @@ function invokeInDocker(
       const exitCode = code ?? -1;
       const success = exitCode === 0 && !timedOut && !isAborted();
 
-      // Detect Claude-specific errors
-      const claudeError = !success ? errorDetector.detect(stdout, stderr) : undefined;
+      // Detect agent-specific errors (currently claude only)
+      const claudeError = !success && (options.agent ?? 'claude') === 'claude'
+        ? errorDetector.detect(stdout, stderr)
+        : undefined;
 
       resolve({
         success,
