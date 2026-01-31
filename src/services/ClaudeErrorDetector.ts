@@ -43,19 +43,19 @@ const ERROR_PATTERNS: Array<{
     pattern: /credit balance is too low/i,
     code: 'CREDIT_EXHAUSTED',
     recoverable: false,
-    suggestion: 'Add credits at console.anthropic.com/settings/billing'
+    suggestion: 'Add credits at https://console.anthropic.com/settings/billing'
   },
   {
     pattern: /insufficient credits/i,
     code: 'CREDIT_EXHAUSTED',
     recoverable: false,
-    suggestion: 'Add credits at console.anthropic.com/settings/billing'
+    suggestion: 'Add credits at https://console.anthropic.com/settings/billing'
   },
   {
     pattern: /billing.*(?:issue|error|problem)/i,
     code: 'CREDIT_EXHAUSTED',
     recoverable: false,
-    suggestion: 'Check your billing status at console.anthropic.com/settings/billing'
+    suggestion: 'Check your billing status at https://console.anthropic.com/settings/billing'
   },
 
   // Rate limiting
