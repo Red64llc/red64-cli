@@ -14,11 +14,7 @@ Red64 automates the entire feature development lifecycle—from requirements to 
 ### 1. Install
 
 ```bash
-# Clone and install
-git clone https://github.com/your-org/red64-cli.git
-cd red64-cli
-npm install
-npm link
+npm install -g red64-cli
 ```
 
 ### 2. Initialize your project
