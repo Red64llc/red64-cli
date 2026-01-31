@@ -24,11 +24,9 @@ const COMMAND_HELP: Record<string, { usage: string; description: string; options
     description: 'Initialize Red64 in your project. Creates .red64/ directory with configuration and steering documents.',
     options: [
       '-a, --agent <name>     Coding agent: claude, gemini, codex (default: claude)',
-      '--repo <owner/repo>    GitHub repository for framework templates',
       '--stack <name>         Tech stack template (react, node, python, etc.)',
       '--skip-guided          Skip interactive setup wizard',
       '--no-steering          Skip steering document generation',
-      '--no-cache             Disable template caching',
       '-h, --help             Show this help'
     ]
   },

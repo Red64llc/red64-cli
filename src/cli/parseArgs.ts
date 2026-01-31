@@ -33,11 +33,9 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     sandbox: false,
     model: undefined,
     // Init-specific flags
-    repo: undefined,
     stack: undefined,
     'skip-guided': undefined,
     'no-steering': undefined,
-    'no-cache': undefined,
     'skip-tests': undefined,
     agent: undefined
   };
@@ -88,12 +86,6 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
         (flags as { model: string | undefined }).model = value;
         if (!argValue) i++;
       }
-    } else if (arg === '--repo') {
-      const value = argValue ?? argv[i + 1];
-      if (value && !value.startsWith('-')) {
-        (flags as { repo: string | undefined }).repo = value;
-        if (!argValue) i++;
-      }
     } else if (arg === '--stack') {
       const value = argValue ?? argv[i + 1];
       if (value && !value.startsWith('-')) {
@@ -104,8 +96,6 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { 'skip-guided': boolean })['skip-guided'] = true;
     } else if (arg === '--no-steering') {
       (flags as { 'no-steering': boolean })['no-steering'] = true;
-    } else if (arg === '--no-cache') {
-      (flags as { 'no-cache': boolean })['no-cache'] = true;
     } else if (arg === '--skip-tests') {
       (flags as { 'skip-tests': boolean })['skip-tests'] = true;
     } else if (arg === '--agent' || arg === '-a') {

@@ -95,12 +95,10 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
 
   // Extract init-specific flags
   const initFlags: InitFlags = {
-    repo: flags.repo,
     version: undefined, // Version flag conflicts with CLI --version
     stack: flags.stack,
     'skip-guided': flags['skip-guided'],
     'no-steering': flags['no-steering'],
-    'no-cache': flags['no-cache'],
     'skip-tests': flags['skip-tests'],
     agent: flags.agent
   };
@@ -109,7 +107,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   const [services] = useState(() => {
     const cacheService = createCacheService();
     const githubService = createGitHubService({
-      defaultRepo: initFlags.repo ?? DEFAULT_REPO,
+      defaultRepo: DEFAULT_REPO,
       defaultVersion: initFlags.version ?? DEFAULT_VERSION,
       cacheService
     });
@@ -257,9 +255,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
 
       try {
         const result = await services.githubService.fetchTarball({
-          repo: initFlags.repo,
           version: initFlags.version,
-          noCache: initFlags['no-cache'],
           onProgress: (progress: FetchProgress) => {
             setStep({ type: 'fetching', progress });
           }
@@ -408,7 +404,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         // Save configuration
         await services.configService.save(process.cwd(), {
           version: initFlags.version ?? DEFAULT_VERSION,
-          repo: initFlags.repo ?? DEFAULT_REPO,
+          repo: DEFAULT_REPO,
           stack: currentSetupData.stack ?? 'generic',
           projectType: currentSetupData.projectType ?? 'other',
           projectName: currentSetupData.projectName ?? 'my-project',
@@ -526,7 +522,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         return (
           <FetchStep
             progress={step.progress}
-            repo={initFlags.repo ?? DEFAULT_REPO}
+            repo={DEFAULT_REPO}
             version={initFlags.version ?? DEFAULT_VERSION}
             onNext={handleNext}
             onError={handleError}

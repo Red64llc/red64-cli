@@ -372,6 +372,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     setFlowState(prev => ({ ...prev, isExecuting: false }));
 
+    if (!result) {
+      const errorMsg = 'Command returned no result';
+      await logToFile(errorMsg);
+      setFlowState(prev => ({ ...prev, error: errorMsg }));
+      return { success: false, output: '', error: errorMsg };
+    }
+
     // Always log result to file
     await logToFile(`Exit code: ${result.exitCode}`);
     await logToFile(`Success: ${result.success}`);

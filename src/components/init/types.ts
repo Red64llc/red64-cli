@@ -88,12 +88,10 @@ export type ConflictResolution = 'overwrite' | 'merge' | 'abort';
  * Init command flags
  */
 export interface InitFlags {
-  readonly repo?: string;
   readonly version?: string;
   readonly stack?: string;
   readonly 'skip-guided'?: boolean;
   readonly 'no-steering'?: boolean;
-  readonly 'no-cache'?: boolean;
   readonly 'skip-tests'?: boolean;
   readonly agent?: CodingAgent;
 }

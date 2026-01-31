@@ -64,11 +64,9 @@ export interface GlobalFlags {
   readonly sandbox: boolean;
   readonly model?: string;  // Model override (validated against agent)
   // Init command specific flags
-  readonly repo?: string;
   readonly stack?: string;
   readonly 'skip-guided'?: boolean;
   readonly 'no-steering'?: boolean;
-  readonly 'no-cache'?: boolean;
   readonly agent?: CodingAgent;
   // Test check flags
   readonly 'skip-tests'?: boolean;
