@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
 # Red64 Agent Sandbox
-# Isolated Docker environment for running Claude CLI commands safely
+# Isolated Docker environment for running agent CLI commands safely
+# Supports: Claude, Gemini, Codex
 # =============================================================================
 
 FROM ubuntu:22.04
@@ -37,6 +38,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
     cp /root/.local/bin/claude /usr/local/bin/claude && \
     chmod 755 /usr/local/bin/claude
+
+# Install Gemini CLI
+RUN npm install -g @google/gemini-cli
+
+# Install Codex CLI
+RUN npm install -g @openai/codex
 
 # =============================================================================
 # Browser Automation for UI Verification

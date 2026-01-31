@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClaudeErrorDetector, type ClaudeError } from './ClaudeErrorDetector.js';
+import type { CodingAgent } from '../types/index.js';
 
 /**
  * Health check result
@@ -25,6 +26,7 @@ export interface HealthCheckOptions {
   readonly tier?: string;
   readonly sandbox?: boolean;
   readonly timeoutMs?: number;
+  readonly agent?: CodingAgent;
 }
 
 const SANDBOX_IMAGE = 'red64-sandbox:latest';
@@ -60,7 +62,16 @@ function readApiKeyFromConfig(configDir: string): string | null {
 /**
  * Get API key from environment or config
  */
-function getApiKey(tier?: string): string | null {
+function getApiKey(tier?: string, agent?: CodingAgent): string | null {
+  // Check agent-specific env vars first
+  if (agent === 'gemini') {
+    return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? null;
+  }
+  if (agent === 'codex') {
+    return process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
+  }
+
+  // Claude: check env then config files
   if (process.env.ANTHROPIC_API_KEY) {
     return process.env.ANTHROPIC_API_KEY;
   }
@@ -109,15 +120,31 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
 
       // Minimal prompt that should succeed quickly if API is healthy
       const healthPrompt = 'Reply with exactly: OK';
+      const agent = options?.agent ?? 'claude';
+
+      // Build agent-specific health check command
+      const getHealthArgs = (): { binary: string; args: string[] } => {
+        switch (agent) {
+          case 'gemini':
+            return { binary: 'gemini', args: [healthPrompt] };
+          case 'codex':
+            return { binary: 'codex', args: ['exec', healthPrompt] };
+          case 'claude':
+          default:
+            return { binary: 'claude', args: ['-p', healthPrompt] };
+        }
+      };
 
       return new Promise((resolve) => {
         let proc: ReturnType<typeof spawn>;
         let stdout = '';
         let stderr = '';
 
+        const { binary, args: healthArgs } = getHealthArgs();
+
         // Use Docker sandbox if enabled
         if (options?.sandbox) {
-          const apiKey = getApiKey(options?.tier);
+          const apiKey = getApiKey(options?.tier, agent);
           const dockerArgs: string[] = [
             'run',
             '--rm',
@@ -126,15 +153,18 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
           ];
 
           if (apiKey) {
-            dockerArgs.push('-e', `ANTHROPIC_API_KEY=${apiKey}`);
+            const envKey = agent === 'gemini' ? 'GOOGLE_API_KEY'
+              : agent === 'codex' ? 'CODEX_API_KEY'
+              : 'ANTHROPIC_API_KEY';
+            dockerArgs.push('-e', `${envKey}=${apiKey}`);
           }
 
           dockerArgs.push(SANDBOX_IMAGE);
-          dockerArgs.push('claude', '-p', healthPrompt, '--dangerously-skip-permissions');
+          dockerArgs.push(binary, ...healthArgs);
 
           proc = spawn('docker', dockerArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
         } else {
-          proc = spawn('claude', ['-p', healthPrompt], {
+          proc = spawn(binary, healthArgs, {
             env,
             stdio: ['pipe', 'pipe', 'pipe']
           });
@@ -173,8 +203,8 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
           clearTimeout(timeoutId);
           const durationMs = Date.now() - startTime;
 
-          // Check for known errors
-          const claudeError = errorDetector.detect(stdout, stderr);
+          // Check for known errors (claude-specific detector)
+          const claudeError = agent === 'claude' ? errorDetector.detect(stdout, stderr) : undefined;
 
           if (claudeError) {
             resolve({
@@ -196,7 +226,7 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
                 code: 'UNKNOWN',
                 message: errorLine,
                 recoverable: false,
-                suggestion: 'Check Claude CLI configuration and try again'
+                suggestion: `Check ${agent === 'gemini' ? 'Gemini' : agent === 'codex' ? 'Codex' : 'Claude'} CLI configuration and try again`
               },
               message: errorLine,
               durationMs
@@ -219,15 +249,16 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
 
           // Check if Claude CLI is not installed
           if (error.message.includes('ENOENT')) {
+            const cliName = agent === 'gemini' ? 'Gemini CLI' : agent === 'codex' ? 'Codex CLI' : 'Claude CLI';
             resolve({
               healthy: false,
               error: {
-                code: 'AUTH_FAILED',
-                message: 'Claude CLI not found',
+                code: 'CLI_NOT_FOUND',
+                message: `${cliName} not found`,
                 recoverable: false,
-                suggestion: 'Install Claude CLI: npm install -g @anthropic-ai/claude-cli'
+                suggestion: `Install ${cliName} and ensure it is on your PATH`
               },
-              message: 'Claude CLI is not installed',
+              message: `${cliName} is not installed`,
               durationMs
             });
             return;

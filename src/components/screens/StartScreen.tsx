@@ -116,6 +116,7 @@ function getClaudeErrorLabel(code: string): string {
     CREDIT_EXHAUSTED: 'Insufficient Credits',
     RATE_LIMITED: 'Rate Limited',
     AUTH_FAILED: 'Authentication Failed',
+    CLI_NOT_FOUND: 'CLI Not Found',
     MODEL_UNAVAILABLE: 'Service Unavailable',
     CONTEXT_EXCEEDED: 'Context Too Large',
     NETWORK_ERROR: 'Network Error',
@@ -271,8 +272,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Ref to hold existingFlowState for resumeExistingFlow (avoids stale closure)
   const existingFlowStateRef = useRef<FlowState | null>(null);
 
-  // Keep ref in sync with state
+  // Ref to hold agent for use in callbacks (avoids stale closure from React state)
+  const agentRef = useRef<CodingAgent>(flowState.agent as CodingAgent);
+
+  // Keep refs in sync with state
   existingFlowStateRef.current = flowState.existingFlowState;
+  agentRef.current = flowState.agent as CodingAgent;
 
   // Add output line (to screen and log file)
   const addOutput = useCallback((line: string) => {
@@ -354,7 +359,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       workingDirectory: dir,
       skipPermissions: flags.skipPermissions ?? false,
       tier: flags.tier,
-      agent: flowState.agent as CodingAgent,
+      agent: agentRef.current,
       model: flags.model,
       sandbox: flags.sandbox ?? false,
       onOutput: (chunk) => {
@@ -533,6 +538,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // Load config to get the agent setting
       const config = await services.configService.load(repoPath);
       if (config?.agent) {
+        agentRef.current = config.agent as CodingAgent;
         setFlowState(prev => ({ ...prev, agent: config.agent }));
       }
 
@@ -699,11 +705,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await initLogFile(workDir);
 
     // Run health check
-    addOutput('Checking Claude API status...');
+    const agentName = agentRef.current === 'gemini' ? 'Gemini' : agentRef.current === 'codex' ? 'Codex' : 'Claude';
+    addOutput(`Checking ${agentName} API status...`);
     const healthResult = await services.healthCheck.check({
       tier: flags.tier,
       sandbox: flags.sandbox,
-      timeoutMs: 30000
+      timeoutMs: 30000,
+      agent: agentRef.current
     });
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));
@@ -912,13 +920,15 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
 
     // Run health check before starting
-    addOutput('Checking Claude API status...');
+    const agentName = agentRef.current === 'gemini' ? 'Gemini' : agentRef.current === 'codex' ? 'Codex' : 'Claude';
+    addOutput(`Checking ${agentName} API status...`);
     setFlowState(prev => ({ ...prev, isHealthChecking: true }));
 
     const healthResult = await services.healthCheck.check({
       tier: flags.tier,
       sandbox: flags.sandbox,
-      timeoutMs: 30000
+      timeoutMs: 30000,
+      agent: agentRef.current
     });
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));
@@ -1546,7 +1556,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         {/* Health check spinner */}
         {flowState.isHealthChecking && (
           <Box marginBottom={1}>
-            <Spinner label="Checking Claude API status..." />
+            <Spinner label={`Checking ${agentRef.current === 'gemini' ? 'Gemini' : agentRef.current === 'codex' ? 'Codex' : 'Claude'} API status...`} />
           </Box>
         )}
 

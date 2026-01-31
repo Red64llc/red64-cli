@@ -92,10 +92,18 @@ function readApiKeyFromConfig(configDir: string): string | null {
 }
 
 /**
- * Get API key from environment or Claude config
+ * Get API key from environment or agent config
  */
-function getApiKey(tier?: string): string | null {
-  // First check environment variable
+function getApiKey(tier?: string, agent?: CodingAgent): string | null {
+  // Check agent-specific env vars first
+  if (agent === 'gemini') {
+    return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? null;
+  }
+  if (agent === 'codex') {
+    return process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
+  }
+
+  // Claude: check env then config files
   if (process.env.ANTHROPIC_API_KEY) {
     return process.env.ANTHROPIC_API_KEY;
   }
@@ -289,7 +297,7 @@ function invokeInDocker(
     const agentConfig = getAgentCliConfig(options.agent);
 
     // Get API key from env or config files
-    const apiKey = getApiKey(options.tier);
+    const apiKey = getApiKey(options.tier, options.agent);
     if (apiKey) {
       const envKeyName = agentConfig.envKeyName ?? 'ANTHROPIC_API_KEY';
       dockerArgs.push('-e', `${envKeyName}=${apiKey}`);

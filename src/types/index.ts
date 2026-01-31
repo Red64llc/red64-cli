@@ -195,6 +195,7 @@ export type ClaudeErrorCode =
   | 'CREDIT_EXHAUSTED'     // Account has no credits
   | 'RATE_LIMITED'         // Rate limit exceeded
   | 'AUTH_FAILED'          // Invalid API key or authentication error
+  | 'CLI_NOT_FOUND'        // Agent CLI binary not found on PATH
   | 'MODEL_UNAVAILABLE'    // Model not available or overloaded
   | 'CONTEXT_EXCEEDED'     // Context length exceeded
   | 'NETWORK_ERROR'        // Network connectivity issues
