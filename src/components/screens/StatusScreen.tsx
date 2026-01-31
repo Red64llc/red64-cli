@@ -11,6 +11,7 @@ import type { ScreenProps } from './ScreenProps.js';
 import type { FlowState, ExtendedFlowPhase, WorkflowMode, PRStatus } from '../../types/index.js';
 import { getPhaseSequence } from '../../types/index.js';
 import { createStateStore, type StateStoreService } from '../../services/StateStore.js';
+import { createWorktreeService, type WorktreeServiceInterface } from '../../services/WorktreeService.js';
 import { createPRStatusFetcher, type PRStatusFetcherService } from '../../services/PRStatusFetcher.js';
 import { Spinner, PhaseProgressView, ErrorDisplay } from '../ui/index.js';
 
@@ -69,6 +70,7 @@ export const StatusScreen: React.FC<ScreenProps> = ({ args }) => {
 
   const [state, setState] = useState<StatusScreenState>({ step: 'loading' });
   const [stateStore] = useState<StateStoreService>(() => createStateStore(getBaseDir()));
+  const [worktreeService] = useState<WorktreeServiceInterface>(() => createWorktreeService());
   const [prFetcher] = useState<PRStatusFetcherService>(() => createPRStatusFetcher());
 
   // Load flow state on mount
@@ -81,7 +83,20 @@ export const StatusScreen: React.FC<ScreenProps> = ({ args }) => {
     const loadState = async () => {
       try {
         // Requirements 2.1 - Load flow state
-        const flowState = await stateStore.load(featureName);
+        let flowState = await stateStore.load(featureName);
+
+        // If not found locally, search worktrees (flows run in worktrees)
+        if (!flowState) {
+          const baseDir = getBaseDir();
+          const worktrees = await worktreeService.list(baseDir);
+
+          for (const worktree of worktrees) {
+            if (worktree.path === baseDir || !worktree.path) continue;
+            const wtStore = createStateStore(worktree.path);
+            flowState = await wtStore.load(featureName);
+            if (flowState) break;
+          }
+        }
 
         if (!flowState) {
           // Requirements 2.6 - Handle missing state
