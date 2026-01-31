@@ -4,8 +4,7 @@
 
 Red64 automates the entire feature development lifecycle—from requirements to implementation—using a structured, phase-gated workflow that ensures quality and traceability.
 
-![Red64 Flow Demo](docs/assets/demo.gif)
-<!-- TODO: Add screencast -->
+<img width="1287" height="355" alt="Screenshot 2026-01-30 at 11 04 09 AM" src="https://github.com/user-attachments/assets/b1eca9ac-b08b-42b2-b47c-89b07a7cef57" />
 
 ---
 
@@ -114,9 +113,10 @@ red64 init --agent gemini  # Use Gemini as coding agent
 
 **Flags:**
 - `-a, --agent <name>` — Coding agent: `claude`, `gemini`, `codex` (default: `claude`)
-
-![red64 init](docs/assets/init.png)
-<!-- TODO: Add screenshot -->
+```
+➜  test01 git:(main) red64 init --agent=gemini
+```
+<img width="1282" height="206" alt="Screenshot 2026-01-31 at 8 18 27 AM" src="https://github.com/user-attachments/assets/a7a63b2b-c6e4-4c7c-bb85-f20420841977" />
 
 ### `red64 start <feature> <description>`
 
@@ -152,7 +152,9 @@ This means you can always use `red64 start <feature>` to continue working—no s
 - `--sandbox` — Run in Docker isolation
 - `--verbose` — Show detailed execution logs
 
-<img width="1134" height="567" alt="Screenshot 2026-01-29 at 6 35 01 PM" src="https://github.com/user-attachments/assets/91ea478f-53de-4964-a0b2-b0f05d2bfb2b" />
+<img width="1164" height="255" alt="Screenshot 2026-01-30 at 9 48 53 PM" src="https://github.com/user-attachments/assets/9ccbd92a-245b-4a79-9644-9cd9a93ce4d2" />
+
+<img width="1287" height="355" alt="Screenshot 2026-01-30 at 11 04 09 AM" src="https://github.com/user-attachments/assets/ec37359f-31ef-4c5d-ba51-b90de8c34e8d" />
 
 ### `red64 status [feature]`
 
@@ -163,8 +165,8 @@ red64 status shopping-cart
 red64 status  # Show all flows
 ```
 
-![red64 status](docs/assets/status.png)
-<!-- TODO: Add screenshot -->
+<img width="1286" height="616" alt="Screenshot 2026-01-31 at 8 28 39 AM" src="https://github.com/user-attachments/assets/1f9487ea-506f-4cc8-9bf5-b073289d98e3" />
+
 
 ### `red64 list`
 
@@ -173,6 +175,8 @@ List all active flows in the repository.
 ```bash
 red64 list
 ```
+
+<img width="1285" height="220" alt="Screenshot 2026-01-31 at 8 29 40 AM" src="https://github.com/user-attachments/assets/45c44eae-d9f0-4e3f-80fe-78211793c875" />
 
 ### `red64 abort <feature>`
 
