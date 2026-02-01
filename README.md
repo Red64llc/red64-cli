@@ -19,17 +19,19 @@ The result? Code that lives and evolves—not legacy the day it ships.
 
 </div>
 
+<img width="1283" height="378" alt="Red64 CLI screenshot (claude)" src="https://github.com/user-attachments/assets/cc309998-340b-4764-af83-902efc26b58f" />
+
 ---
 
 ## 🎯 The Problem
 
-I've spent 20 years building products and writing software. 30,000 hours of experience. Then I went all-in on AI coding tools—and discovered something:
+I've spent 20 years building products and writing software. 30,000 hours of experience. Then I went all-in on AI coding tools:
 
 **They're incredible for building a feature.** But then you start iterating—and you hit a wall:
 
-- ❌ Code quality goes down the toilet
+- ❌ Code quality goes down the drain
 - ❌ No testing (or tests written after the fact)
-- ❌ No documentation (good luck iterating on anything)
+- ❌ No documentation/specs (good luck iterating on anything)
 - ❌ No careful design review, no code review
 - ❌ No quality gates—code smells everywhere
 - ❌ Large commits that can't be easily rolled back
@@ -56,7 +58,7 @@ The solution is what I've been doing for 20 years: **Software Development Life C
 
 **The expertise (WHAT the software professional builds):**
 - Code smells to avoid (the stuff that breaks at 3 AM)
-- Patterns that actually scale (learned from production)
+- Patterns and anti-patterns for Python, Next, Ruby, Rails etc...
 - Stack-specific conventions (Next.js, Rails, FastAPI, etc.)
 
 **The result:** Code that lives and evolves. We've rewritten features in another language in **days** because the documentation is so complete.
