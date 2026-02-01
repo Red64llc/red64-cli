@@ -24,8 +24,20 @@
     "workflow",
     "orchestration"
   ],
-  "author": "Yacin Bahi <yacin@red64.io>",
+  "author": {
+    "name": "Yacin Bahi",
+    "email": "yacin@red64.io",
+    "url": "https://red64.io"
+  },
   "license": "MIT",
+  "homepage": "https://github.com/Red64llc/red64-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Red64llc/red64-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Red64llc/red64-cli/issues"
+  },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
     "date-fns": "^3.6.0",
