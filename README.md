@@ -1,436 +1,281 @@
 # Red64 CLI
 
-**Deterministic spec-driven development orchestrator for AI-assisted coding.**
+<div align="center">
 
-Red64 automates the entire feature development lifecycle—from requirements to implementation—using a structured, phase-gated workflow that ensures quality and traceability.
+### You can't replace 30,000 hours of experience.<br/>But you can encode it.
 
-<img width="1287" height="355" alt="Screenshot 2026-01-30 at 11 04 09 AM" src="https://github.com/user-attachments/assets/b1eca9ac-b08b-42b2-b47c-89b07a7cef57" />
+**I taught the AI coding agent the same way I teach junior devs.**
+
+Code smells to avoid. Patterns that scale. TDD built in. Documentation required.<br/>
+The result? Code that lives and evolves—not legacy the day it ships.
+
+[![npm version](https://img.shields.io/npm/v/red64-cli.svg)](https://www.npmjs.com/package/red64-cli)
+[![Build](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Built with Red64](https://img.shields.io/badge/Built%20with-Red64-red)](https://red64.io/ventures)
+
+[Quick Start](#-quick-start) · [Why Red64](#-why-red64) · [Features](#-features) · [Documentation](#-documentation)
+
+</div>
 
 ---
 
-## Quick Start
+## 🎯 The Problem
 
-### 1. Install
+AI coding tools write code that **works**. But it's not code a senior engineer would approve.
+
+- ❌ No tests (or tests written after the fact)
+- ❌ No documentation (good luck onboarding anyone)
+- ❌ Silent catch blocks, useEffect data fetching, frontend-only auth checks
+- ❌ Commit history that's just "fix" and "update" and "wip"
+- ❌ You babysit every. single. line.
+
+The code ships. Then it becomes legacy. Nobody wants to touch it in 6 months.
+
+## ✅ The Solution
+
+Red64 encodes **30,000 hours of CTO experience** into AI-assisted development:
+
+**What the AI learns (code quality):**
+- Code smells to avoid (the stuff that breaks at 3 AM)
+- Patterns that actually scale (learned from production)
+- Stack-specific conventions (Next.js, Rails, FastAPI, etc.)
+
+**How the AI works (process):**
+- Isolate every feature in a branch (git worktree)
+- Write tests FIRST (TDD built in)
+- Small atomic commits (one thing per commit)
+- Document everything (requirements, design, decisions)
+- High test coverage enforced
+
+**The result:** Code that lives and evolves. We've rewritten features in another language in **days** because the documentation is so complete.
+
+---
+
+## 🚀 Quick Start
 
 ```bash
+# Install
 npm install -g red64-cli
-```
 
-### 2. Initialize your project
-
-```bash
+# Initialize in your project
 cd /path/to/your/project
-red64 init
+red64 init --stack nextjs
+
+# Build sandbox image (required for --sandbox mode)
+docker build -f Dockerfile.sandbox -t red64-sandbox:latest .
+
+# Start a feature (interactive mode)
+red64 start "user-auth" "Add login and registration with JWT"
+
+# Or YOLO mode — no babysitting required
+red64 start "shopping-cart" "Full cart with checkout" --sandbox -y
 ```
 
-### 3. Start a feature
+That's it. Red64 generates requirements → design → tests → implementation → documentation.
 
-```bash
-red64 start "user-authentication" "Add login and registration with JWT tokens"
-```
-
-Red64 will:
-1. Create an isolated git worktree
-2. Generate requirements (EARS format)
-3. Create technical design
-4. Break down into implementation tasks
-5. Execute each task with commits
-6. Complete with a ready-to-review branch
+Each phase has review checkpoints. Each task = one clean commit. Tests first. Docs included.
 
 ---
 
-## What is Red64?
+## 🔥 YOLO Mode (No Babysitting)
 
-Red64 is a **spec-driven development orchestrator** that brings structure and determinism to AI-assisted coding. Instead of ad-hoc prompting, Red64 enforces a rigorous workflow:
+Tired of approving every line?
 
-```
-Requirements → Design → Tasks → Implementation
-     ↓            ↓        ↓          ↓
-  (review)    (review)  (review)   (commits)
+```bash
+red64 start "feature-name" "description" --sandbox -y
 ```
 
-### Key Features
+- `--sandbox` = Docker isolation (AI can't break your system)
+- `-y` = Auto-approve all phases (total autonomy)
 
-| Feature | Description |
-|---------|-------------|
-| **Spec-Driven** | Every feature starts with formal requirements and design |
-| **Phase Gates** | Human review required between phases (or auto-approve with `-y`) |
-| **Git Isolation** | Each feature runs in its own worktree and branch (sibling directory) |
-| **Atomic Commits** | One commit per task for clean history |
-| **Sandboxed Execution** | Optional Docker isolation for safe agent execution |
-| **Resumable Flows** | `start` auto-detects in-progress flows and offers resume |
-| **API Health Checks** | Validates Claude API before starting (credits, auth, network) |
+**Start a feature. Go to lunch. Come back to a completed branch.**
 
-### Goals
+This is safe because:
+1. **Steering docs** constrain the AI to your patterns
+2. **Sandbox** prevents system damage
+3. **Atomic commits** make review easy after completion
+4. **Tests are required** — no untested code ships
 
-1. **Predictability**: Same inputs produce consistent outputs through structured phases
-2. **Traceability**: Every code change links back to requirements and design decisions
-3. **Quality**: Mandatory review gates prevent AI hallucinations from reaching production
-4. **Isolation**: Git worktrees prevent work-in-progress from polluting main branch
-5. **Efficiency**: Automate the tedious parts while keeping humans in control
+Other tools: "Accept this change? This one? This one?"<br/>
+Red64 YOLO: Review the PR when it's done. Like a senior engineer delegating to a junior.
 
 ---
 
-## Installation
+## 🏆 Battle-Tested
 
-### Requirements
+We built **6 production companies** with Red64 at [red64.io/ventures](https://red64.io/ventures):
 
-- Node.js >= 20.0.0
-- Git
-- Claude CLI (`npm install -g @anthropic-ai/claude-cli`)
-- Docker (optional, for sandboxed execution)
+| Company | Industry | Status |
+|---------|----------|--------|
+| [Saife](https://red64.io/ventures) | InsurTech | Production |
+| [EngineValue](https://red64.io/ventures) | Engineering Scorecards | Production |
+| [MediaPulse](https://red64.io/ventures) | Digital Presence | Production |
+| [TheScriptMarketplace](https://red64.io/ventures) | Entertainment | Production |
+| [QueryVault](https://red64.io/ventures) | Data Platform | Production |
+| [KYTech](https://red64.io/ventures) | Dev Teams | Production |
 
-### From Source
-
-```bash
-git clone https://github.com/your-org/red64-cli.git
-cd red64-cli
-npm install
-npm run build
-npm link
-```
-
-### Verify Installation
-
-```bash
-red64 --version
-red64 help
-```
+Same tool. Same encoded experience. Now open source.
 
 ---
 
-## Commands
+## 💡 Why Red64?
 
-### `red64 init`
+### The Teaching Metaphor
 
-Initialize Red64 in your project. Creates `.red64/` directory with steering documents.
+Every senior engineer has sat with a junior dev and said:
+- *"Don't do that—it's a code smell"*
+- *"This pattern breaks at scale"*
+- *"Always handle this edge case"*
+- *"Here's why we do it this way"*
 
-```bash
-red64 init
-red64 init --repo owner/repo --stack nextjs
-red64 init --agent gemini  # Use Gemini as coding agent
+Red64 teaches AI the same way:
+
+| What Senior Engineers Do | Red64 Equivalent |
+|--------------------------|------------------|
+| "Here's our style guide" | `steering/tech.md` — Stack standards |
+| "Don't do that" | Code smell guardrails |
+| "Here's our architecture" | `steering/structure.md` — Codebase patterns |
+| "Write tests first" | TDD built into workflow |
+| "Document your decisions" | Auto-generated docs per feature |
+| "One thing per PR" | Atomic commits, one task per commit |
+
+### What You Get Per Feature
+
+```
+feature-branch/
+├── REQUIREMENTS.md      # What we're building and why
+├── DESIGN.md            # How it works, architecture decisions
+├── TASKS.md             # Atomic breakdown with acceptance criteria
+├── src/
+│   ├── feature.ts       # Implementation
+│   └── feature.test.ts  # Tests (written first)
+└── docs/
+    └── feature.md       # User-facing documentation
 ```
 
-**Flags:**
-- `-a, --agent <name>` — Coding agent: `claude`, `gemini`, `codex` (default: `claude`)
-```
-➜  test01 git:(main) red64 init --agent=gemini
-```
-<img width="1282" height="206" alt="Screenshot 2026-01-31 at 8 18 27 AM" src="https://github.com/user-attachments/assets/a7a63b2b-c6e4-4c7c-bb85-f20420841977" />
-
-### `red64 start <feature> <description>`
-
-Start a new feature development flow, or resume an existing one.
-
-```bash
-red64 start "shopping-cart" "Add shopping cart with add/remove items and checkout"
-```
-
-**Smart Resume Detection:**
-
-When you run `start` for a feature that's already in progress (at any phase: requirements, design, tasks, or implementation), Red64 will:
-
-1. **Detect uncommitted changes** — If the worktree has uncommitted changes, prompts:
-   - Commit changes (WIP commit)
-   - Discard changes
-   - Cancel
-
-2. **Offer resume or restart** — If an in-progress flow is found, prompts:
-   - Resume from current phase
-   - Start fresh (discard previous progress)
-   - Cancel
-
-This means you can always use `red64 start <feature>` to continue working—no separate resume command needed.
-
-**Flags:**
-- `-m, --model <name>` — Model to use (e.g., `claude-3-5-haiku-latest` for dev, `claude-sonnet-4-20250514` for prod)
-- `-y, --yes` — Auto-approve all phases (skip review gates)
-- `-b, --brownfield` — Enable gap analysis for existing codebases
-- `-g, --greenfield` — New feature mode (default)
-- `-s, --skip-permissions` — Pass to Claude CLI
-- `-t, --tier <name>` — Use specific Claude config tier
-- `--sandbox` — Run in Docker isolation
-- `--verbose` — Show detailed execution logs
-
-<img width="1164" height="255" alt="Screenshot 2026-01-30 at 9 48 53 PM" src="https://github.com/user-attachments/assets/9ccbd92a-245b-4a79-9644-9cd9a93ce4d2" />
-
-<img width="1287" height="355" alt="Screenshot 2026-01-30 at 11 04 09 AM" src="https://github.com/user-attachments/assets/ec37359f-31ef-4c5d-ba51-b90de8c34e8d" />
-
-### `red64 status [feature]`
-
-Show the status of a flow.
-
-```bash
-red64 status shopping-cart
-red64 status  # Show all flows
-```
-
-<img width="1286" height="616" alt="Screenshot 2026-01-31 at 8 28 39 AM" src="https://github.com/user-attachments/assets/1f9487ea-506f-4cc8-9bf5-b073289d98e3" />
-
-
-### `red64 list`
-
-List all active flows in the repository.
-
-```bash
-red64 list
-```
-
-<img width="1285" height="220" alt="Screenshot 2026-01-31 at 8 29 40 AM" src="https://github.com/user-attachments/assets/45c44eae-d9f0-4e3f-80fe-78211793c875" />
-
-### `red64 abort <feature>`
-
-Abort a flow and clean up resources (worktree, branch).
-
-```bash
-red64 abort shopping-cart
-```
+Every decision traceable. Every line has a reason.
 
 ---
 
-## Workflow Phases
+## 📊 Comparison
 
-### 1. Initialization
+| Feature | Red64 | Cursor | Copilot | Claude Code | Gemini CLI | Aider |
+|---------|:-----:|:------:|:-------:|:-----------:|:----------:|:-----:|
+| **30K hours expertise encoded** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Autonomous mode** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Sandboxed execution** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| **MCP support** | ✅ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
+| **TDD enforced (tests first)** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **High coverage enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Auto-generates docs** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Git worktree isolation** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Atomic commits enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Phase gates with review** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Code smell guardrails** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Resumable multi-step flows** | ✅ | ❌ | ❌ | ✅ | ❌ | ⚠️ |
+| **Multi-model support** | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| **Battle-tested (production)** | ✅ 6 cos | N/A | N/A | N/A | N/A | N/A |
 
-Creates spec directory at `.red64/specs/<feature>/` with `spec.json`.
+**Key:** ✅ = Built-in & enforced | ⚠️ = Partial/Optional | ❌ = Not available
 
-### 2. Requirements Generation
+> **The difference:** Other tools have autonomous modes. Red64 has autonomous mode **plus** the encoded expertise and enforced process that produces production-quality code.
 
-Generates `requirements.md` using EARS (Easy Approach to Requirements Syntax) format:
-- Ubiquitous requirements
-- Event-driven requirements
-- State-driven requirements
-- Optional features
-- Unwanted behaviors
+### When to Use Red64
 
-### 3. Gap Analysis (Brownfield only)
-
-For existing codebases, analyzes what already exists and what needs to be built.
-
-### 4. Design Generation
-
-Creates `design.md` with:
-- Architecture decisions
-- Component design
-- Data models
-- API contracts
-- File structure
-
-### 5. Task Generation
-
-Breaks down the design into atomic `tasks.md`:
-- Each task is independently implementable
-- Tasks are ordered by dependency
-- Each task produces a commit
-
-### 6. Implementation
-
-Executes tasks sequentially:
-- Runs `/red64:spec-impl <feature> <task-id>`
-- Commits after each task
-- Checkpoints every 3 tasks (optional pause)
-
-### 7. Completion
-
-Flow completes with:
-- All tasks implemented
-- Clean commit history
-- Feature branch ready for PR
-
----
-
-## Comparison with Other Tools
-
-| Feature | Red64 | Cursor/Copilot | Aider | Claude Code |
-|---------|-------|----------------|-------|-------------|
-| **Spec-driven workflow** | Yes | No | No | No |
-| **Phase gates** | Yes | No | No | No |
-| **Git worktree isolation** | Yes | No | No | No |
-| **Atomic commits per task** | Yes | No | Yes | No |
-| **Requirements generation** | Yes | No | No | No |
-| **Design documents** | Yes | No | No | No |
-| **Resumable flows** | Yes | No | Partial | No |
-| **Docker sandboxing** | Yes | No | No | Yes |
-| **IDE integration** | No | Yes | Partial | Yes |
-| **Real-time editing** | No | Yes | Yes | Yes |
-
-### When to use Red64
-
-**Use Red64 when:**
+✅ **Use Red64 when:**
 - Building complete features (not quick fixes)
-- You need traceable requirements and design
-- Working on complex, multi-file changes
-- You want clean git history with atomic commits
-- You need to pause and resume work across sessions
+- You want code with tests, docs, and clean history
+- You need to walk away and let AI work autonomously
+- You're tired of babysitting every line
+- You want code that's safe to refactor
 
-**Use other tools when:**
+❌ **Use other tools when:**
 - Making quick, single-file edits
+- You want real-time IDE autocomplete
 - Exploring or prototyping ideas
-- You need real-time IDE integration
-- Working on bug fixes without spec requirements
 
 ---
 
-## Limitations
+## ⚡ Features
 
-### Current Limitations
+### MCP Support (Model Context Protocol)
 
-1. **No IDE integration** — Red64 is CLI-only; no VS Code or JetBrains plugins yet
-2. **Sequential execution** — Tasks run one at a time, no parallelization
-3. **No incremental changes** — Regenerating a phase replaces previous output entirely
-4. **English-centric** — Prompts and templates are English-only (configurable per spec)
-
-### Known Issues
-
-- Large codebases may hit context limits during design phase
-- Docker sandbox requires pre-built image (`docker build -f Dockerfile.sandbox -t red64-sandbox:latest .`)
-- Some UI frameworks may not render correctly in all terminals
-
-### Roadmap
-
-- [ ] VS Code extension
-- [ ] Parallel task execution
-- [ ] Incremental phase editing
-- [ ] Web dashboard for flow monitoring
-
----
-
-## Project Structure
-
-```
-.red64/
-├── specs/                    # Feature specifications
-│   └── <feature>/
-│       ├── spec.json         # Spec metadata
-│       ├── requirements.md   # EARS requirements
-│       ├── design.md         # Technical design
-│       └── tasks.md          # Implementation tasks
-├── flows/                    # Flow state and logs
-│   └── <feature>/
-│       ├── state.json        # Current flow state
-│       └── flow.log          # Execution log
-└── steering/                 # Project-wide guidance
-    ├── product.md            # Product context
-    ├── tech.md               # Technical standards
-    └── structure.md          # Codebase structure
-```
-
-### Git Worktree Layout
-
-Red64 creates git worktrees in a **sibling directory** following the [GitLens/VSCode convention](https://gist.github.com/ChristopherA/4643b2f5e024578606b9cd5d2e6815cc). This keeps the main repository clean and avoids nested git structures.
-
-```
-~/projects/
-├── my-project/                    # Main repository (unchanged)
-│   ├── .git/
-│   ├── .red64/
-│   ├── src/
-│   └── package.json
-└── my-project.worktrees/          # Worktrees directory (sibling)
-    ├── user-authentication/       # feature/user-authentication branch
-    │   ├── .red64/
-    │   ├── src/
-    │   └── package.json
-    └── shopping-cart/             # feature/shopping-cart branch
-        ├── .red64/
-        ├── src/
-        └── package.json
-```
-
-**Benefits of sibling worktrees:**
-- Main repository stays clean (no `.gitignore` needed for worktrees)
-- No nested `.git` references inside the working tree
-- Better IDE and tool compatibility
-- Clear separation between main work and feature isolation
-- Easy to see all active features at a glance
-
----
-
-## Configuration
-
-### Steering Documents
-
-Customize AI behavior by editing `.red64/steering/`:
-
-- **product.md** — Product vision, user personas, business rules
-- **tech.md** — Tech stack, coding standards, patterns to use/avoid
-- **structure.md** — Codebase organization, file naming conventions
-
-### Coding Agents
-
-Red64 supports multiple coding agents. Set the agent at init time:
+Connect AI to your actual environment:
 
 ```bash
-red64 init --agent claude   # Default - Anthropic Claude
+red64 init --mcp
+```
+
+- Query your database schema
+- Read from your documentation
+- Access external APIs
+- Use custom tools you define
+
+### Multi-Agent Support
+
+Use your preferred AI:
+
+```bash
+red64 init --agent claude   # Default
 red64 init --agent gemini   # Google Gemini
 red64 init --agent codex    # OpenAI Codex
 ```
 
-The agent is stored in `.red64/config.json` and used for all subsequent commands.
+### Smart Resume
 
-### Model Selection
-
-Override the model per command for cost optimization:
+Interrupted? Just run `start` again:
 
 ```bash
-# Development (cheap, fast models)
-red64 start "feature" "desc" --model claude-3-5-haiku-latest
-red64 start "feature" "desc" --model gemini-2.0-flash
-red64 start "feature" "desc" --model gpt-4o-mini
-
-# Production (best quality models)
-red64 start "feature" "desc" --model claude-sonnet-4-20250514
-red64 start "feature" "desc" --model gemini-2.5-pro
-red64 start "feature" "desc" --model o1
+red64 start "shopping-cart" "..."
+# Detects in-progress flow, offers to resume
 ```
 
-| Agent | Cheap (Dev) | Best (Prod) |
-|-------|-------------|-------------|
-| Claude | `claude-3-5-haiku-latest` | `claude-sonnet-4-20250514` |
-| Gemini | `gemini-2.0-flash` | `gemini-2.5-pro` |
-| Codex | `gpt-4o-mini` | `o1` |
+### Steering Documents
 
-### Claude Tiers
+Customize AI behavior in `.red64/steering/`:
 
-Use different Claude configurations with `--tier`:
-
-```bash
-red64 start "feature" "desc" --tier pro
-# Uses ~/.claude-pro/ for configuration
-```
+- **product.md** — Product vision, user personas
+- **tech.md** — Stack standards, code smells to avoid
+- **structure.md** — Codebase organization
 
 ---
 
-## Development
+## 📖 Documentation
 
-### Run in development mode
-
-```bash
-npm run dev -- start my-feature "Feature description"
-```
-
-### Run tests
-
-```bash
-npm test
-npm run test:ui
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Type checking
-
-```bash
-npm run type-check
-```
+- [Full Documentation](./docs/README.md)
+- [Steering Document Guide](./docs/steering.md)
+- [Configuration Reference](./docs/configuration.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 
 ---
 
-## Contributing
+## 🛠 Commands
+
+```bash
+red64 init                    # Initialize Red64 in your project
+red64 start <feature> <desc>  # Start a new feature
+red64 start ... --sandbox -y  # YOLO mode (autonomous)
+red64 status [feature]        # Check flow status
+red64 list                    # List all active flows
+red64 abort <feature>         # Abort and clean up
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-y, --yes` | Auto-approve all phases (YOLO mode) |
+| `--sandbox` | Run in Docker isolation |
+| `-m, --model` | Override AI model |
+| `-a, --agent` | Set coding agent (claude/gemini/codex) |
+| `--verbose` | Show detailed logs |
+
+---
+
+## 🤝 Contributing
+
+We'd love your help encoding more production wisdom:
 
 1. Fork the repository
 2. Create a feature branch
@@ -438,16 +283,23 @@ npm run type-check
 4. Run tests: `npm test`
 5. Submit a pull request
 
+**What we're looking for:**
+- More code smells to catch
+- Stack-specific best practices
+- Bug fixes and improvements
+
 ---
 
-## License
+## 📜 License
 
-MIT
+MIT — Built by [Yacin Bahi](mailto:yacin@red64.io) at [Red64.io](https://red64.io)
 
 ---
 
-## Acknowledgments
+<div align="center">
 
-- Built by Yacin Bahi, yacin@Red64.io
-- Inspired by spec-driven development and EARS requirements methodology
-- Uses [Ink](https://github.com/vadimdemedes/ink) for terminal UI
+### The code isn't the asset.<br/>The documentation + tests + history is the asset.<br/>The code is just the current implementation.
+
+**[⭐ Star this repo](https://github.com/Red64llc/red64-cli)** if you believe AI should write code like a senior engineer.
+
+</div>
