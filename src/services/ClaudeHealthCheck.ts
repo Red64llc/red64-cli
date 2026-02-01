@@ -32,6 +32,42 @@ export interface HealthCheckOptions {
 const SANDBOX_IMAGE = 'red64-sandbox:latest';
 
 /**
+ * Agent setup instructions per coding agent
+ * Returns step-by-step instructions for configuring each agent's API access
+ */
+export function getAgentSetupInstructions(agent?: CodingAgent): string[] {
+  switch (agent) {
+    case 'gemini':
+      return [
+        '1. Get an API key at https://aistudio.google.com/apikey',
+        '2. Set the environment variable: export GEMINI_API_KEY=<your-key>',
+        '3. Or run: gemini  (first run will prompt for login)',
+      ];
+    case 'codex':
+      return [
+        '1. Get an API key at https://platform.openai.com/api-keys',
+        '2. Set the environment variable: export CODEX_API_KEY=<your-key>',
+        '3. Or set: export OPENAI_API_KEY=<your-key>',
+      ];
+    default: // claude
+      return [
+        '1. Run: claude  (first run will prompt for authentication)',
+        '2. Or get an API key at https://console.anthropic.com/settings/keys',
+        '3. Then set: export ANTHROPIC_API_KEY=<your-key>',
+      ];
+  }
+}
+
+/**
+ * Get agent-specific suggestion for unknown errors
+ */
+function getAgentErrorSuggestion(agent?: CodingAgent): string {
+  const envVar = agent === 'gemini' ? 'GEMINI_API_KEY' : agent === 'codex' ? 'CODEX_API_KEY' : 'ANTHROPIC_API_KEY';
+  const name = agent === 'gemini' ? 'Gemini' : agent === 'codex' ? 'Codex' : 'Claude';
+  return `Verify ${name} CLI is installed and ${envVar} is set. Run "red64 help" for setup details.`;
+}
+
+/**
  * Read API key from Claude config directory
  */
 function readApiKeyFromConfig(configDir: string): string | null {
@@ -65,7 +101,7 @@ function readApiKeyFromConfig(configDir: string): string | null {
 function getApiKey(tier?: string, agent?: CodingAgent): string | null {
   // Check agent-specific env vars first
   if (agent === 'gemini') {
-    return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? null;
+    return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? null;
   }
   if (agent === 'codex') {
     return process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
@@ -126,7 +162,7 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
       const getHealthArgs = (): { binary: string; args: string[] } => {
         switch (agent) {
           case 'gemini':
-            return { binary: 'gemini', args: [healthPrompt] };
+            return { binary: 'gemini', args: ['-p', healthPrompt] };
           case 'codex':
             return { binary: 'codex', args: ['exec', healthPrompt] };
           case 'claude':
@@ -153,7 +189,7 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
           ];
 
           if (apiKey) {
-            const envKey = agent === 'gemini' ? 'GOOGLE_API_KEY'
+            const envKey = agent === 'gemini' ? 'GEMINI_API_KEY'
               : agent === 'codex' ? 'CODEX_API_KEY'
               : 'ANTHROPIC_API_KEY';
             dockerArgs.push('-e', `${envKey}=${apiKey}`);
@@ -226,7 +262,7 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
                 code: 'UNKNOWN',
                 message: errorLine,
                 recoverable: false,
-                suggestion: `Check ${agent === 'gemini' ? 'Gemini' : agent === 'codex' ? 'Codex' : 'Claude'} CLI configuration and try again`
+                suggestion: getAgentErrorSuggestion(agent)
               },
               message: errorLine,
               durationMs
@@ -256,7 +292,11 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
                 code: 'CLI_NOT_FOUND',
                 message: `${cliName} not found`,
                 recoverable: false,
-                suggestion: `Install ${cliName} and ensure it is on your PATH`
+                suggestion: agent === 'gemini'
+                  ? 'Install Gemini CLI: npm install -g @google/gemini-cli'
+                  : agent === 'codex'
+                    ? 'Install Codex CLI: npm install -g @openai/codex'
+                    : 'Install Claude CLI: see https://docs.anthropic.com/en/docs/claude-code/overview'
               },
               message: `${cliName} is not installed`,
               durationMs

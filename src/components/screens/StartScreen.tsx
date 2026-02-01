@@ -29,6 +29,7 @@ import {
   createTaskParser,
   createSpecInitService,
   createClaudeHealthCheck,
+  getAgentSetupInstructions,
   createGitStatusChecker,
   createConfigService,
   createProjectDetector,
@@ -1471,8 +1472,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Text color="yellow">{claudeError.suggestion}</Text>
             </Box>
             {!claudeError.recoverable && (
-              <Box marginTop={1}>
+              <Box marginTop={1} flexDirection="column">
                 <Text color="red" dimColor>This error requires manual intervention before retrying.</Text>
+                <Box marginTop={1} flexDirection="column">
+                  <Text bold color="cyan">Setup instructions:</Text>
+                  {getAgentSetupInstructions(agentRef.current).map((line, i) => (
+                    <Text key={i} color="white">{line}</Text>
+                  ))}
+                </Box>
               </Box>
             )}
           </Box>

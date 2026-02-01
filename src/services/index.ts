@@ -140,6 +140,7 @@ export {
 
 export {
   createClaudeHealthCheck,
+  getAgentSetupInstructions,
   type ClaudeHealthCheckService,
   type HealthCheckResult,
   type HealthCheckOptions

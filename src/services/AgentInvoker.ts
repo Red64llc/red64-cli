@@ -32,10 +32,10 @@ const AGENT_CLI_CONFIGS: Record<CodingAgent, AgentCliConfig> = {
   },
   gemini: {
     binary: 'gemini',
-    envKeyName: 'GOOGLE_API_KEY',
+    envKeyName: 'GEMINI_API_KEY',
     buildArgs(options) {
-      // Positional prompt (preferred over deprecated -p flag)
-      const args: string[] = [options.prompt];
+      // -p flag is required for non-interactive (headless) mode
+      const args: string[] = ['-p', options.prompt];
       if (options.model) args.push('-m', options.model);
       if (options.skipPermissions) args.push('--approval-mode=yolo');
       return args;
@@ -97,7 +97,7 @@ function readApiKeyFromConfig(configDir: string): string | null {
 function getApiKey(tier?: string, agent?: CodingAgent): string | null {
   // Check agent-specific env vars first
   if (agent === 'gemini') {
-    return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? null;
+    return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? null;
   }
   if (agent === 'codex') {
     return process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
