@@ -21,6 +21,14 @@ vi.mock('../../../src/services/StateStore.js', () => ({
   }))
 }));
 
+vi.mock('../../../src/services/WorktreeService.js', () => ({
+  createWorktreeService: vi.fn(() => ({
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue(undefined)
+  }))
+}));
+
 vi.mock('../../../src/services/PRStatusFetcher.js', () => ({
   createPRStatusFetcher: vi.fn(() => ({
     getStatus: vi.fn().mockResolvedValue(undefined),
@@ -32,9 +40,11 @@ vi.mock('../../../src/services/PRStatusFetcher.js', () => ({
 import { StatusScreen } from '../../../src/components/screens/StatusScreen.js';
 import { createStateStore } from '../../../src/services/StateStore.js';
 import { createPRStatusFetcher } from '../../../src/services/PRStatusFetcher.js';
+import { createWorktreeService } from '../../../src/services/WorktreeService.js';
 
 const mockCreateStateStore = createStateStore as ReturnType<typeof vi.fn>;
 const mockCreatePRStatusFetcher = createPRStatusFetcher as ReturnType<typeof vi.fn>;
+const mockCreateWorktreeService = createWorktreeService as ReturnType<typeof vi.fn>;
 
 describe('StatusScreen', () => {
   const defaultProps: ScreenProps = {
@@ -80,6 +90,12 @@ describe('StatusScreen', () => {
       getStatus: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue({ success: true, error: undefined })
     });
+
+    mockCreateWorktreeService.mockReturnValue({
+      list: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(undefined)
+    });
   });
 
   afterEach(() => {
@@ -112,6 +128,7 @@ describe('StatusScreen', () => {
 
       const output = lastFrame();
       expect(output).toContain('No flow found');
+      expect(output).toContain('Suggestion');
     });
   });
 
