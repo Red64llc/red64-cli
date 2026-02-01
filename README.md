@@ -2,11 +2,12 @@
 
 <div align="center">
 
-### You can't replace 30,000 hours of experience.<br/>But you can encode it.
+### 30,000 hours of experience building software.<br/>The SDLC that makes AI-generated code maintainable.
 
-**I taught the AI coding agent the same way I teach junior devs.**
+**20 years of building products. 1+ year of AI-first development. Captured in a CLI.**
 
-Code smells to avoid. Patterns that scale. TDD built in. Documentation required.<br/>
+TDD built in. Code smells to avoid. Documentation required. Quality gates enforced.<br/>
+The process that turns AI code into production-ready software.
 The result? Code that lives and evolves—not legacy the day it ships.
 
 [![npm version](https://img.shields.io/npm/v/red64-cli.svg)](https://www.npmjs.com/package/red64-cli)
@@ -22,31 +23,41 @@ The result? Code that lives and evolves—not legacy the day it ships.
 
 ## 🎯 The Problem
 
-AI coding tools write code that **works**. But it's not code a senior engineer would approve.
+I've spent 20 years building products and writing software. 30,000 hours of experience. Then I went all-in on AI coding tools—and discovered something:
 
-- ❌ No tests (or tests written after the fact)
-- ❌ No documentation (good luck onboarding anyone)
-- ❌ Silent catch blocks, useEffect data fetching, frontend-only auth checks
-- ❌ Commit history that's just "fix" and "update" and "wip"
-- ❌ You babysit every. single. line.
+**They're incredible for building a feature.** But then you start iterating—and you hit a wall:
 
-The code ships. Then it becomes legacy. Nobody wants to touch it in 6 months.
+- ❌ Code quality goes down the toilet
+- ❌ No testing (or tests written after the fact)
+- ❌ No documentation (good luck iterating on anything)
+- ❌ No careful design review, no code review
+- ❌ No quality gates—code smells everywhere
+- ❌ Large commits that can't be easily rolled back
+- ❌ No non-regression tests, so things start breaking
+
+**This is the same problem that arises in any team with no processes, no gates, no constraints.**
 
 ## ✅ The Solution
 
-Red64 encodes **30,000 hours of CTO experience** into AI-assisted development:
+The solution is what I've been doing for 20 years: **Software Development Life Cycle and Processes.** The stuff tech leaders and experience software professional implement in their teams. The stuff that separates "it works" from "it's maintainable."
 
-**What the AI learns (code quality):**
-- Code smells to avoid (the stuff that breaks at 3 AM)
-- Patterns that actually scale (learned from production)
-- Stack-specific conventions (Next.js, Rails, FastAPI, etc.)
+**Red64 CLI captures both:**
 
-**How the AI works (process):**
+1. **My 30,000 hours of experience** — code smells to avoid, patterns that scale, production wisdom
+2. **My process for working with AI** — the SDLC that makes AI-generated code maintainable
+
+**The process (HOW the software professional works):**
 - Isolate every feature in a branch (git worktree)
 - Write tests FIRST (TDD built in)
 - Small atomic commits (one thing per commit)
-- Document everything (requirements, design, decisions)
+- Document everything (REQUIREMENTS.md, DESIGN.md)
 - High test coverage enforced
+- Quality gates at every phase
+
+**The expertise (WHAT the software professional builds):**
+- Code smells to avoid (the stuff that breaks at 3 AM)
+- Patterns that actually scale (learned from production)
+- Stack-specific conventions (Next.js, Rails, FastAPI, etc.)
 
 **The result:** Code that lives and evolves. We've rewritten features in another language in **days** because the documentation is so complete.
 
@@ -83,25 +94,27 @@ Tired of approving every line?
 red64 start "feature-name" "description" --sandbox -y
 ```
 
-- `--sandbox` = Docker isolation (pulls image from `ghcr.io/red64llc/red64-sandbox`)
+- `--sandbox` = Docker isolation (AI can't break your system, pulls image from `ghcr.io/red64llc/red64-sandbox`)
 - `-y` = Auto-approve all phases (total autonomy)
 
-**Start a feature. Go to lunch. Come back to a completed branch.**
+**Start a feature. Go to lunch. Come back to a completed branch—with tests, docs, and clean commits.**
 
-This is safe because:
-1. **Steering docs** constrain the AI to your patterns
-2. **Sandbox** prevents system damage
-3. **Atomic commits** make review easy after completion
-4. **Tests are required** — no untested code ships
+With other tools, YOLO mode means "write code fast with no oversight."<br/>
+With Red64, autonomous mode means "follow the SDLC with no babysitting."
 
-Other tools: "Accept this change? This one? This one?"<br/>
-Red64 YOLO: Review the PR when it's done. Like a senior engineer delegating to a junior.
+The AI still:
+1. Writes tests FIRST (TDD enforced)
+2. Documents everything (REQUIREMENTS.md, DESIGN.md)
+3. Makes atomic commits (easy to review, easy to rollback)
+4. Passes quality gates (no code smells ship)
+
+**Review the PR when it's done. Like a senior engineer delegating to a junior who's been properly onboarded.**
 
 ---
 
 ## 🏆 Battle-Tested
 
-We built **6 production companies** with Red64 at [red64.io/ventures](https://red64.io/ventures):
+We built **6 production products** with Red64 at [red64.io/ventures](https://red64.io/ventures):
 
 | Company | Industry | Status |
 |---------|----------|--------|
@@ -110,7 +123,7 @@ We built **6 production companies** with Red64 at [red64.io/ventures](https://re
 | [MediaPulse](https://red64.io/ventures) | Digital Presence | Production |
 | [TheScriptMarketplace](https://red64.io/ventures) | Entertainment | Production |
 | [QueryVault](https://red64.io/ventures) | Data Platform | Production |
-| [KYTech](https://red64.io/ventures) | Dev Teams | Production |
+| [Kafi](Internal product) | Virtual Executive Assistant | Production |
 
 Same tool. Same encoded experience. Now open source.
 
@@ -118,24 +131,27 @@ Same tool. Same encoded experience. Now open source.
 
 ## 💡 Why Red64?
 
-### The Teaching Metaphor
+### Two Decades of Experience, Encoded
 
-Every senior engineer has sat with a junior dev and said:
-- *"Don't do that—it's a code smell"*
-- *"This pattern breaks at scale"*
-- *"Always handle this edge case"*
-- *"Here's why we do it this way"*
+I've spent 20 years building products—30,000 hours of learning what works and what breaks. Then I spent a year going all-in on AI coding tools.
 
-Red64 teaches AI the same way:
+**The pattern is always the same:**
 
-| What Senior Engineers Do | Red64 Equivalent |
-|--------------------------|------------------|
-| "Here's our style guide" | `steering/tech.md` — Stack standards |
-| "Don't do that" | Code smell guardrails |
-| "Here's our architecture" | `steering/structure.md` — Codebase patterns |
-| "Write tests first" | TDD built into workflow |
-| "Document your decisions" | Auto-generated docs per feature |
-| "One thing per PR" | Atomic commits, one task per commit |
+1. **Week 1:** "This is amazing! I shipped a feature in a day!"
+2. **Week 4:** "Why is everything breaking? Why is the code so messy?"
+3. **Week 8:** "I'm afraid to touch anything. Time to rewrite."
+
+**The missing ingredient?** SDLC. The stuff that takes 20 years to learn. The stuff I've been teaching engineers my entire career.
+
+Red64 gives you both:
+
+| What Goes Wrong Without SDLC | Red64 Solution |
+|------------------------------|----------------|
+| No tests → things break when you iterate | TDD built in (tests FIRST) |
+| No docs → can't remember why anything works | REQUIREMENTS.md + DESIGN.md per feature |
+| Huge commits → can't rollback, can't review | Atomic commits (one task = one commit) |
+| No quality gates → code smells everywhere | Guardrails from 30K hours of experience |
+| Babysitting every line → slow, exhausting | Autonomous mode with SDLC guardrails |
 
 ### What You Get Per Feature
 
@@ -151,7 +167,7 @@ feature-branch/
     └── feature.md       # User-facing documentation
 ```
 
-Every decision traceable. Every line has a reason.
+Every decision traceable. Every line has a reason. **Code that survives iteration.**
 
 ---
 
@@ -160,6 +176,7 @@ Every decision traceable. Every line has a reason.
 | Feature | Red64 | Cursor | Copilot | Claude Code | Gemini CLI | Aider |
 |---------|:-----:|:------:|:-------:|:-----------:|:----------:|:-----:|
 | **30K hours expertise encoded** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **SDLC/Process enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Autonomous mode** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Sandboxed execution** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
 | **MCP support** | ✅ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
@@ -195,19 +212,6 @@ Every decision traceable. Every line has a reason.
 ---
 
 ## ⚡ Features
-
-### MCP Support (Model Context Protocol)
-
-Connect AI to your actual environment:
-
-```bash
-red64 init --mcp
-```
-
-- Query your database schema
-- Read from your documentation
-- Access external APIs
-- Use custom tools you define
 
 ### Multi-Agent Support
 
@@ -250,7 +254,7 @@ Customize AI behavior in `.red64/steering/`:
 ## 🛠 Commands
 
 ```bash
-red64 init                    # Initialize Red64 in your project
+red64 init --agent gemini     # Initialize Red64 in your project
 red64 start <feature> <desc>  # Start a new feature
 red64 start ... --sandbox -y  # YOLO mode (autonomous)
 red64 status [feature]        # Check flow status
