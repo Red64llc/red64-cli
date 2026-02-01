@@ -5,7 +5,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 
-const DEFAULT_IMAGE = 'red64-sandbox:latest';
+const DEFAULT_IMAGE = 'ghcr.io/red64llc/red64-sandbox:latest';
 
 /**
  * Docker run options

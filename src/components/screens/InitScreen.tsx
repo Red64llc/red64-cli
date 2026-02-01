@@ -412,7 +412,8 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
           initializedAt: new Date().toISOString(),
           customValues: currentSetupData.customValues ?? {},
           agent: initFlags.agent ?? 'claude',
-          testCommand: testCommandRef.current ?? undefined
+          testCommand: testCommandRef.current ?? undefined,
+          sandboxImage: flags['local-image'] ? 'red64-sandbox:latest' : undefined
         });
 
         // Transition to git setup

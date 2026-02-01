@@ -57,7 +57,7 @@ function getAgentCliConfig(agent?: CodingAgent): AgentCliConfig {
   return AGENT_CLI_CONFIGS[agent ?? 'claude'];
 }
 
-const SANDBOX_IMAGE = 'red64-sandbox:latest';
+const DEFAULT_SANDBOX_IMAGE = 'ghcr.io/red64llc/red64-sandbox:latest';
 
 /**
  * Try to read API key from Claude config directory
@@ -304,7 +304,7 @@ function invokeInDocker(
     }
 
     // Add image
-    dockerArgs.push(SANDBOX_IMAGE);
+    dockerArgs.push(options.sandboxImage ?? DEFAULT_SANDBOX_IMAGE);
 
     // Add agent command with args (in Docker, force skip-permissions since it's isolated)
     const dockerOptions: AgentInvokeOptions = { ...options, skipPermissions: true };

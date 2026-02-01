@@ -62,9 +62,6 @@ npm install -g red64-cli
 cd /path/to/your/project
 red64 init --stack nextjs
 
-# Build sandbox image (required for --sandbox mode)
-docker build -f Dockerfile.sandbox -t red64-sandbox:latest .
-
 # Start a feature (interactive mode)
 red64 start "user-auth" "Add login and registration with JWT"
 
@@ -86,7 +83,7 @@ Tired of approving every line?
 red64 start "feature-name" "description" --sandbox -y
 ```
 
-- `--sandbox` = Docker isolation (AI can't break your system)
+- `--sandbox` = Docker isolation (pulls image from `ghcr.io/red64llc/red64-sandbox`)
 - `-y` = Auto-approve all phases (total autonomy)
 
 **Start a feature. Go to lunch. Come back to a completed branch.**
@@ -266,7 +263,8 @@ red64 abort <feature>         # Abort and clean up
 | Flag | Description |
 |------|-------------|
 | `-y, --yes` | Auto-approve all phases (YOLO mode) |
-| `--sandbox` | Run in Docker isolation |
+| `--sandbox` | Run in Docker isolation (uses GHCR image by default) |
+| `--local-image` | Build and use local sandbox image instead of GHCR (init only) |
 | `-m, --model` | Override AI model |
 | `-a, --agent` | Set coding agent (claude/gemini/codex) |
 | `--verbose` | Show detailed logs |

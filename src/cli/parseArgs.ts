@@ -37,6 +37,7 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     'skip-guided': undefined,
     'no-steering': undefined,
     'skip-tests': undefined,
+    'local-image': undefined,
     agent: undefined
   };
 
@@ -98,6 +99,8 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { 'no-steering': boolean })['no-steering'] = true;
     } else if (arg === '--skip-tests') {
       (flags as { 'skip-tests': boolean })['skip-tests'] = true;
+    } else if (arg === '--local-image') {
+      (flags as { 'local-image': boolean })['local-image'] = true;
     } else if (arg === '--agent' || arg === '-a') {
       const value = argValue ?? argv[i + 1];
       if (value && !value.startsWith('-') && VALID_AGENTS.includes(value as CodingAgent)) {
@@ -143,6 +146,7 @@ Usage:
 Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)
   --skip-tests              Skip test detection and execution
+  --local-image             Build and use local sandbox image instead of GHCR
 
 Global Options:
   -m, --model <name>        Model to use (must match agent, e.g. claude-3-5-haiku-latest)

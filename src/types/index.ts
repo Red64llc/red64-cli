@@ -70,6 +70,7 @@ export interface GlobalFlags {
   readonly agent?: CodingAgent;
   // Test check flags
   readonly 'skip-tests'?: boolean;
+  readonly 'local-image'?: boolean;
 }
 
 /**
@@ -183,6 +184,7 @@ export interface AgentInvokeOptions {
   readonly agent?: CodingAgent;  // Which CLI to invoke (default: claude)
   readonly model?: string;  // Model override (e.g., claude-3-5-haiku-latest)
   readonly sandbox?: boolean;  // Run in Docker sandbox
+  readonly sandboxImage?: string;  // Override sandbox Docker image
   readonly onOutput?: (chunk: string) => void;
   readonly onError?: (chunk: string) => void;
   readonly timeout?: number;

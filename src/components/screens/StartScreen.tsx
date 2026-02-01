@@ -274,6 +274,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Ref to hold agent for use in callbacks (avoids stale closure from React state)
   const agentRef = useRef<CodingAgent>(flowState.agent as CodingAgent);
+  const sandboxImageRef = useRef<string | undefined>(undefined);
 
   // Keep refs in sync with state
   existingFlowStateRef.current = flowState.existingFlowState;
@@ -362,6 +363,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       agent: agentRef.current,
       model: flags.model,
       sandbox: flags.sandbox ?? false,
+      sandboxImage: sandboxImageRef.current,
       onOutput: (chunk) => {
         // Stream output in real-time
         const lines = chunk.split('\n').filter(l => l.trim());
@@ -540,6 +542,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       if (config?.agent) {
         agentRef.current = config.agent as CodingAgent;
         setFlowState(prev => ({ ...prev, agent: config.agent }));
+      }
+      if (config?.sandboxImage) {
+        sandboxImageRef.current = config.sandboxImage;
       }
 
       addOutput('Checking for existing flow...');
