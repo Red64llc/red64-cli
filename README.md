@@ -234,6 +234,25 @@ red64 start "shopping-cart" "..."
 # Detects in-progress flow, offers to resume
 ```
 
+### MCP Server Support
+
+Configure MCP servers once, and Red64 automatically injects them into whichever agent you use (Claude, Gemini, or Codex):
+
+```bash
+# Add an MCP server
+red64 mcp add context7 npx -y @upstash/context7-mcp
+
+# List configured servers
+red64 mcp list
+
+# Remove a server
+red64 mcp remove context7
+```
+
+MCP servers are stored in `.red64/config.json` and translated into each agent's native config format before invocation. Configs are cleaned up after execution so your personal agent settings stay untouched.
+
+Works in both local and `--sandbox` mode (stdio servers run inside the container).
+
 ### Steering Documents
 
 Customize AI behavior in `.red64/steering/`:
@@ -262,6 +281,9 @@ red64 start ... --sandbox -y  # YOLO mode (autonomous)
 red64 status [feature]        # Check flow status
 red64 list                    # List all active flows
 red64 abort <feature>         # Abort and clean up
+red64 mcp list                # List configured MCP servers
+red64 mcp add <name> <cmd>    # Add an MCP server
+red64 mcp remove <name>       # Remove an MCP server
 ```
 
 ### Flags
