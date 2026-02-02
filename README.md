@@ -253,6 +253,9 @@ MCP servers are stored in `.red64/config.json` and translated into each agent's 
 
 Works in both local and `--sandbox` mode (stdio servers run inside the container).
 
+### Note on Playright
+Please note that [Playright's](https://github.com/microsoft/playwright-mcp) capabilities are already included in the Docker Image via Vercel's AI-native browser automation CLI. THere's no need to add Playrigh MCP when running in Sanbox mode. 
+
 ### Steering Documents
 
 Customize AI behavior in `.red64/steering/`:
