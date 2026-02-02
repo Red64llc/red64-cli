@@ -13,6 +13,7 @@ const VALID_COMMANDS: readonly Command[] = [
   'status',
   'list',
   'abort',
+  'mcp',
   'help'
 ] as const;
 
@@ -147,6 +148,11 @@ Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)
   --skip-tests              Skip test detection and execution
   --local-image             Build and use local sandbox image instead of GHCR
+
+MCP Commands:
+  red64 mcp list                       List configured MCP servers
+  red64 mcp add <name> <cmd> [args..]  Add an MCP server
+  red64 mcp remove <name>              Remove an MCP server
 
 Global Options:
   -m, --model <name>        Model to use (must match agent, e.g. claude-3-5-haiku-latest)

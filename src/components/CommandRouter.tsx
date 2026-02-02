@@ -11,7 +11,8 @@ import {
   StartScreen,
   StatusScreen,
   ListScreen,
-  AbortScreen
+  AbortScreen,
+  McpScreen
 } from './screens/index.js';
 
 /**
@@ -50,6 +51,8 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
       return <ListScreen {...screenProps} />;
     case 'abort':
       return <AbortScreen {...screenProps} />;
+    case 'mcp':
+      return <McpScreen {...screenProps} />;
     case 'help':
     case undefined:
     default:

@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentInvokeOptions, AgentResult, CodingAgent } from '../types/index.js';
 import { createClaudeErrorDetector } from './ClaudeErrorDetector.js';
+import { createMcpConfigWriter } from './McpConfigWriter.js';
 
 /**
  * Agent CLI configuration per coding agent
@@ -140,6 +141,7 @@ export function createAgentInvoker(): AgentInvokerService {
   let currentProcess: ChildProcess | null = null;
   let aborted = false;
   const errorDetector = createClaudeErrorDetector();
+  const mcpConfigWriter = createMcpConfigWriter();
 
   return {
     /**
@@ -152,7 +154,13 @@ export function createAgentInvoker(): AgentInvokerService {
 
       // Use Docker sandbox if enabled
       if (options.sandbox) {
-        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted, errorDetector);
+        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted, errorDetector, mcpConfigWriter);
+      }
+
+      // Inject MCP configs before spawning
+      const agent = options.agent ?? 'claude';
+      if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+        await mcpConfigWriter.inject(agent, options.workingDirectory, options.mcpServers);
       }
 
       return new Promise((resolve) => {
@@ -231,6 +239,11 @@ export function createAgentInvoker(): AgentInvokerService {
             ? errorDetector.detect(stdout, stderr)
             : undefined;
 
+          // Cleanup injected MCP configs
+          if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+            mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
+          }
+
           // Requirements: 7.6 - Return typed result indicating success/failure
           resolve({
             success,
@@ -278,13 +291,21 @@ export function createAgentInvoker(): AgentInvokerService {
  * Invoke Claude CLI inside Docker sandbox
  * Provides isolation for running with --dangerously-skip-permissions
  */
-function invokeInDocker(
+async function invokeInDocker(
   options: AgentInvokeOptions,
   getProcess: () => ChildProcess | null,
   setProcess: (p: ChildProcess | null) => void,
   isAborted: () => boolean,
-  errorDetector: ReturnType<typeof createClaudeErrorDetector>
+  errorDetector: ReturnType<typeof createClaudeErrorDetector>,
+  mcpConfigWriter?: ReturnType<typeof createMcpConfigWriter>
 ): Promise<AgentResult> {
+  const agent = options.agent ?? 'claude';
+
+  // Inject MCP configs into workspace (auto-mounted into container for claude/gemini)
+  if (mcpConfigWriter && options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+    await mcpConfigWriter.inject(agent, options.workingDirectory, options.mcpServers);
+  }
+
   return new Promise((resolve) => {
     // Build docker run command
     const dockerArgs: string[] = [
@@ -361,6 +382,11 @@ function invokeInDocker(
       const claudeError = !success && (options.agent ?? 'claude') === 'claude'
         ? errorDetector.detect(stdout, stderr)
         : undefined;
+
+      // Cleanup injected MCP configs
+      if (mcpConfigWriter && options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+        mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
+      }
 
       resolve({
         success,

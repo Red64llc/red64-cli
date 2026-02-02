@@ -18,6 +18,7 @@ export type Command =
   | 'status'
   | 'list'
   | 'abort'
+  | 'mcp'
   | 'help'
   | undefined;
 
@@ -29,6 +30,15 @@ export type Command =
  * Supported coding agents
  */
 export type CodingAgent = 'claude' | 'gemini' | 'codex';
+
+/**
+ * MCP server configuration (stdio transport)
+ */
+export interface McpServerConfig {
+  readonly command: string;
+  readonly args: string[];
+  readonly env?: Record<string, string>;
+}
 
 /**
  * Model options per agent
@@ -185,6 +195,7 @@ export interface AgentInvokeOptions {
   readonly model?: string;  // Model override (e.g., claude-3-5-haiku-latest)
   readonly sandbox?: boolean;  // Run in Docker sandbox
   readonly sandboxImage?: string;  // Override sandbox Docker image
+  readonly mcpServers?: Record<string, McpServerConfig>;
   readonly onOutput?: (chunk: string) => void;
   readonly onError?: (chunk: string) => void;
   readonly timeout?: number;

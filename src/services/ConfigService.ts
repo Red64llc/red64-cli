@@ -5,7 +5,7 @@
 
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CodingAgent } from '../types/index.js';
+import type { CodingAgent, McpServerConfig } from '../types/index.js';
 
 /**
  * Project type options
@@ -28,6 +28,7 @@ export interface InitConfig {
   readonly agent: CodingAgent;
   readonly testCommand?: string;
   readonly sandboxImage?: string;
+  readonly mcpServers?: Record<string, McpServerConfig>;
 }
 
 /**

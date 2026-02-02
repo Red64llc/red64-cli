@@ -8,6 +8,7 @@ export { StartScreen } from './StartScreen.js';
 export { StatusScreen } from './StatusScreen.js';
 export { ListScreen } from './ListScreen.js';
 export { AbortScreen } from './AbortScreen.js';
+export { McpScreen } from './McpScreen.js';
 export { ApprovalScreen } from './ApprovalScreen.js';
 export { ProgressScreen } from './ProgressScreen.js';
 export type { ScreenProps } from './ScreenProps.js';
