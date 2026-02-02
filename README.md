@@ -123,9 +123,8 @@ We built **6 production products** with Red64 at [red64.io/ventures](https://red
 | [Saife](https://red64.io/ventures) | InsurTech | Production |
 | [EngineValue](https://red64.io/ventures) | Engineering Scorecards | Production |
 | [MediaPulse](https://red64.io/ventures) | Digital Presence | Production |
-| [TheScriptMarketplace](https://red64.io/ventures) | Entertainment | Production |
 | [QueryVault](https://red64.io/ventures) | Data Platform | Production |
-| [Kafi](Internal product) | Virtual Executive Assistant | Production |
+| [Kafi (Internal product)](https://red64.io/ventures) | Virtual Executive Assistant | Production |
 
 Same tool. Same encoded experience. Now open source.
 
@@ -179,9 +178,9 @@ Every decision traceable. Every line has a reason. **Code that survives iteratio
 |---------|:-----:|:------:|:-------:|:-----------:|:----------:|:-----:|
 | **30K hours expertise encoded** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **SDLC/Process enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Autonomous mode** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Autonomous mode** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Sandboxed execution** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
-| **MCP support** | ✅ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
+| **MCP support** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | **TDD enforced (tests first)** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **High coverage enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Auto-generates docs** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -189,7 +188,7 @@ Every decision traceable. Every line has a reason. **Code that survives iteratio
 | **Atomic commits enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **Phase gates with review** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Code smell guardrails** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Resumable multi-step flows** | ✅ | ❌ | ❌ | ✅ | ❌ | ⚠️ |
+| **Resumable multi-step flows** | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ |
 | **Multi-model support** | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 | **Battle-tested (production)** | ✅ 6 cos | N/A | N/A | N/A | N/A | N/A |
 
@@ -254,7 +253,7 @@ MCP servers are stored in `.red64/config.json` and translated into each agent's 
 Works in both local and `--sandbox` mode (stdio servers run inside the container).
 
 ### Note on Playright
-Please note that [Playright's](https://github.com/microsoft/playwright-mcp) capabilities are already included in the Docker Image via Vercel's AI-native browser automation CLI. THere's no need to add Playrigh MCP when running in Sanbox mode. 
+Please note that [Playright's](https://github.com/microsoft/playwright-mcp) capabilities are already included in the Docker Image via Vercel's AI-native browser automation CLI. There's no need to add Playrigh MCP when running in Sanbox mode. 
 
 ### Steering Documents
 
