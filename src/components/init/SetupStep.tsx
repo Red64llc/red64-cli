@@ -5,9 +5,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text } from 'ink';
-import { Select, TextInput } from '@inkjs/ui';
+import { TextInput } from '@inkjs/ui';
 import type { BaseStepProps, SetupData } from './types.js';
-import type { ProjectType } from '../../services/ConfigService.js';
+import { GroupedSelect, type OptionGroup } from './GroupedSelect.js';
 
 export interface SetupStepProps extends BaseStepProps {
   readonly availableStacks: readonly string[];
@@ -16,15 +16,60 @@ export interface SetupStepProps extends BaseStepProps {
   readonly onComplete: (data: SetupData) => void;
 }
 
-type SetupPhase = 'project-type' | 'stack' | 'name' | 'description' | 'complete';
+type SetupPhase = 'stack' | 'name' | 'description' | 'complete';
 
-const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
-  { value: 'web-app', label: 'Web Application' },
-  { value: 'cli-tool', label: 'CLI Tool' },
-  { value: 'library', label: 'Library / Package' },
-  { value: 'api', label: 'API / Backend Service' },
-  { value: 'other', label: 'Other' }
-];
+const LANGUAGE_LABELS: Record<string, string> = {
+  c: 'C',
+  cpp: 'C++',
+  java: 'Java',
+  javascript: 'JavaScript',
+  php: 'PHP',
+  python: 'Python',
+  rust: 'Rust',
+};
+
+const FRAMEWORK_META: Record<string, { label: string; hint: string }> = {
+  laravel: { label: 'Laravel', hint: 'PHP' },
+  loco: { label: 'Loco', hint: 'Rust' },
+  nextjs: { label: 'Next.js', hint: 'JavaScript' },
+  rails: { label: 'Rails', hint: 'Ruby' },
+  react: { label: 'React', hint: 'JavaScript' },
+};
+
+const LANGUAGES = new Set(Object.keys(LANGUAGE_LABELS));
+
+function categorizeStacks(stacks: readonly string[]): readonly OptionGroup[] {
+  const filtered = stacks.filter(s => s !== 'generic');
+
+  const langGroup = filtered
+    .filter(s => LANGUAGES.has(s))
+    .map(s => ({ value: s, label: LANGUAGE_LABELS[s] ?? s }));
+
+  const fwGroup = filtered
+    .filter(s => s in FRAMEWORK_META)
+    .map(s => ({
+      value: s,
+      label: FRAMEWORK_META[s]!.label,
+      hint: FRAMEWORK_META[s]!.hint,
+    }));
+
+  // Any stack not recognized as language or framework
+  const knownKeys = new Set([...LANGUAGES, ...Object.keys(FRAMEWORK_META), 'generic']);
+  const unknownGroup = filtered
+    .filter(s => !knownKeys.has(s))
+    .map(s => ({ value: s, label: s }));
+
+  const groups: OptionGroup[] = [];
+  if (langGroup.length > 0) groups.push({ label: 'Languages', options: langGroup });
+  if (fwGroup.length > 0) groups.push({ label: 'Frameworks', options: fwGroup });
+  if (unknownGroup.length > 0) groups.push({ label: 'Other', options: unknownGroup });
+  groups.push({
+    label: unknownGroup.length > 0 ? '' : 'Other',
+    options: [{ value: 'generic', label: 'Generic', hint: 'no framework-specific templates' }],
+  });
+
+  return groups;
+}
 
 export const SetupStep: React.FC<SetupStepProps> = ({
   availableStacks,
@@ -33,8 +78,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   onNext,
   onComplete
 }) => {
-  const [phase, setPhase] = useState<SetupPhase>('project-type');
-  const [projectType, setProjectType] = useState<ProjectType>('web-app');
+  const [phase, setPhase] = useState<SetupPhase>('stack');
   const [stack, setStack] = useState(defaultStack ?? 'generic');
   const [projectName, setProjectName] = useState('');
   const [, setDescription] = useState('');
@@ -63,11 +107,6 @@ export const SetupStep: React.FC<SetupStepProps> = ({
     }
   }, [skipGuided, defaultStack]);
 
-  const handleProjectTypeSelect = (value: string) => {
-    setProjectType(value as ProjectType);
-    setPhase('stack');
-  };
-
   const handleStackSelect = (value: string) => {
     setStack(value);
     setPhase('name');
@@ -81,7 +120,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   const handleDescriptionSubmit = (value: string) => {
     setDescription(value);
     const data: SetupData = {
-      projectType,
+      projectType: 'other',
       stack,
       projectName: projectName || 'my-project',
       description: value,
@@ -99,12 +138,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
     );
   }
 
-  // Filter out 'generic' from availableStacks to avoid duplicate, then add it with better label at end
-  const filteredStacks = availableStacks.filter(s => s !== 'generic');
-  const stackOptions = [
-    ...filteredStacks.map(s => ({ value: s, label: s })),
-    { value: 'generic', label: 'Generic (no framework-specific templates)' }
-  ];
+  const stackGroups = categorizeStacks(availableStacks);
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -112,25 +146,13 @@ export const SetupStep: React.FC<SetupStepProps> = ({
         <Text bold color="cyan">Project Setup</Text>
       </Box>
 
-      {phase === 'project-type' && (
-        <Box flexDirection="column">
-          <Box marginBottom={1}>
-            <Text>What type of project is this?</Text>
-          </Box>
-          <Select
-            options={PROJECT_TYPES}
-            onChange={handleProjectTypeSelect}
-          />
-        </Box>
-      )}
-
       {phase === 'stack' && (
         <Box flexDirection="column">
           <Box marginBottom={1}>
             <Text>Select your technology stack:</Text>
           </Box>
-          <Select
-            options={stackOptions}
+          <GroupedSelect
+            groups={stackGroups}
             onChange={handleStackSelect}
           />
         </Box>
