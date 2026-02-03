@@ -26,6 +26,7 @@ export interface InitConfig {
   readonly initializedAt: string;
   readonly customValues: Record<string, string>;
   readonly agent: CodingAgent;
+  readonly setupCommand?: string;
   readonly testCommand?: string;
   readonly sandboxImage?: string;
   readonly mcpServers?: Record<string, McpServerConfig>;

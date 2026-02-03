@@ -749,17 +749,21 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       // Load config to get test command
       const config = await services.configService.load(workDir);
+      let setupCommand = config?.setupCommand;
       let testCommand = config?.testCommand;
 
       // If no stored command, try to detect
       if (!testCommand) {
         const detection = await services.projectDetector.detect(workDir);
+        setupCommand = detection.setupCommand ?? undefined;
         testCommand = detection.testCommand ?? undefined;
       }
 
       if (testCommand) {
-        addOutput(`Running: ${testCommand}`);
+        const fullCommand = setupCommand ? `${setupCommand} && ${testCommand}` : testCommand;
+        addOutput(`Running: ${fullCommand}`);
         const testResult = await services.testRunner.run({
+          setupCommand,
           testCommand,
           workingDir: workDir,
           timeoutMs: 300000
@@ -974,17 +978,21 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       // Load config to get test command
       const config = await services.configService.load(repoPath);
+      let setupCommand = config?.setupCommand;
       let testCommand = config?.testCommand;
 
       // If no stored command, try to detect
       if (!testCommand) {
         const detection = await services.projectDetector.detect(repoPath);
+        setupCommand = detection.setupCommand ?? undefined;
         testCommand = detection.testCommand ?? undefined;
       }
 
       if (testCommand) {
-        addOutput(`Running: ${testCommand}`);
+        const fullCommand = setupCommand ? `${setupCommand} && ${testCommand}` : testCommand;
+        addOutput(`Running: ${fullCommand}`);
         const testResult = await services.testRunner.run({
+          setupCommand,
           testCommand,
           workingDir: repoPath,
           timeoutMs: 300000

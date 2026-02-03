@@ -7,10 +7,59 @@ import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
+ * Check if file exists
+ */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detect Node.js package manager by lockfile
+ */
+async function detectNodePackageManager(projectDir: string): Promise<'npm' | 'yarn' | 'pnpm' | 'bun'> {
+  // Check in priority order (more specific first)
+  if (await fileExists(join(projectDir, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (await fileExists(join(projectDir, 'yarn.lock'))) return 'yarn';
+  if (await fileExists(join(projectDir, 'bun.lockb'))) return 'bun';
+  // Default to npm
+  return 'npm';
+}
+
+/**
+ * Get setup command for Node.js package manager
+ */
+function getNodeSetupCommand(pm: 'npm' | 'yarn' | 'pnpm' | 'bun'): string {
+  switch (pm) {
+    case 'pnpm': return 'pnpm install';
+    case 'yarn': return 'yarn install';
+    case 'bun': return 'bun install';
+    default: return 'npm ci';
+  }
+}
+
+/**
+ * Get test command for Node.js package manager
+ */
+function getNodeTestCommand(pm: 'npm' | 'yarn' | 'pnpm' | 'bun'): string {
+  switch (pm) {
+    case 'pnpm': return 'pnpm test';
+    case 'yarn': return 'yarn test';
+    case 'bun': return 'bun test';
+    default: return 'npm test';
+  }
+}
+
+/**
  * Detection result interface
  */
 export interface DetectionResult {
   readonly detected: boolean;
+  readonly setupCommand: string | null;
   readonly testCommand: string | null;
   readonly source: string | null;
   readonly confidence: 'high' | 'medium' | 'low';
@@ -28,11 +77,19 @@ export interface ProjectDetectorService {
 }
 
 /**
+ * Detection strategy result
+ */
+interface StrategyResult {
+  readonly setupCommand: string | null;
+  readonly testCommand: string;
+}
+
+/**
  * Detection strategy for a specific project type
  */
 interface DetectionStrategy {
   readonly file: string;
-  readonly detect: (content: string) => string | null;
+  readonly detect: (content: string, projectDir: string) => StrategyResult | null | Promise<StrategyResult | null>;
   readonly confidence: 'high' | 'medium' | 'low';
 }
 
@@ -44,26 +101,29 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
   {
     file: 'package.json',
     confidence: 'high',
-    detect: (content: string) => {
+    detect: async (content: string, projectDir: string) => {
       try {
         const pkg = JSON.parse(content);
+        const pm = await detectNodePackageManager(projectDir);
+        const setupCommand = getNodeSetupCommand(pm);
+
         // Check scripts.test - ignore default npm init placeholder
         if (pkg.scripts?.test && pkg.scripts.test !== 'echo "Error: no test specified" && exit 1') {
-          return 'npm test';
+          return { setupCommand, testCommand: getNodeTestCommand(pm) };
         }
         // Check for common test runners in dependencies
         const deps = { ...pkg.devDependencies, ...pkg.dependencies };
         if (deps?.vitest) {
-          return 'npx vitest run';
+          return { setupCommand, testCommand: `${pm === 'npm' ? 'npx' : pm} vitest run` };
         }
         if (deps?.jest) {
-          return 'npx jest';
+          return { setupCommand, testCommand: `${pm === 'npm' ? 'npx' : pm} jest` };
         }
         if (deps?.mocha) {
-          return 'npx mocha';
+          return { setupCommand, testCommand: `${pm === 'npm' ? 'npx' : pm} mocha` };
         }
         if (deps?.ava) {
-          return 'npx ava';
+          return { setupCommand, testCommand: `${pm === 'npm' ? 'npx' : pm} ava` };
         }
         return null;
       } catch {
@@ -76,11 +136,15 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     file: 'pyproject.toml',
     confidence: 'high',
     detect: (content: string) => {
+      // Check for uv first (modern Python package manager)
+      const usesUv = content.includes('[tool.uv]') || content.includes('uv.lock');
+      const setupCommand = usesUv ? 'uv sync' : 'pip install -e .';
+
       if (content.includes('[tool.pytest') || content.includes('pytest')) {
-        return 'pytest';
+        return { setupCommand, testCommand: usesUv ? 'uv run pytest' : 'pytest' };
       }
       if (content.includes('unittest')) {
-        return 'python -m unittest discover';
+        return { setupCommand, testCommand: 'python -m unittest discover' };
       }
       return null;
     }
@@ -91,7 +155,7 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     confidence: 'medium',
     detect: (content: string) => {
       if (content.includes('pytest') || content.includes('test_suite')) {
-        return 'pytest';
+        return { setupCommand: 'pip install -e .', testCommand: 'pytest' };
       }
       return null;
     }
@@ -102,25 +166,25 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     confidence: 'medium',
     detect: (content: string) => {
       if (content.includes('pytest')) {
-        return 'pytest';
+        return { setupCommand: 'pip install -r requirements.txt', testCommand: 'pytest' };
       }
       return null;
     }
   },
-  // Rust / Cargo.toml
+  // Rust / Cargo.toml (cargo handles deps automatically)
   {
     file: 'Cargo.toml',
     confidence: 'high',
-    detect: (_content: string) => {
-      return 'cargo test';
+    detect: () => {
+      return { setupCommand: null, testCommand: 'cargo test' };
     }
   },
-  // Go / go.mod
+  // Go / go.mod (go handles deps automatically)
   {
     file: 'go.mod',
     confidence: 'high',
-    detect: (_content: string) => {
-      return 'go test ./...';
+    detect: () => {
+      return { setupCommand: null, testCommand: 'go test ./...' };
     }
   },
   // Ruby / Gemfile
@@ -128,37 +192,38 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     file: 'Gemfile',
     confidence: 'medium',
     detect: (content: string) => {
+      const setupCommand = 'bundle install';
       if (content.includes('rspec')) {
-        return 'bundle exec rspec';
+        return { setupCommand, testCommand: 'bundle exec rspec' };
       }
       if (content.includes('minitest')) {
-        return 'bundle exec rake test';
+        return { setupCommand, testCommand: 'bundle exec rake test' };
       }
       return null;
     }
   },
-  // Java / Maven
+  // Java / Maven (maven handles deps automatically)
   {
     file: 'pom.xml',
     confidence: 'high',
-    detect: (_content: string) => {
-      return 'mvn test';
+    detect: () => {
+      return { setupCommand: null, testCommand: 'mvn test' };
     }
   },
-  // Java/Kotlin / Gradle
+  // Java/Kotlin / Gradle (gradle handles deps automatically)
   {
     file: 'build.gradle',
     confidence: 'high',
-    detect: (_content: string) => {
-      return './gradlew test';
+    detect: () => {
+      return { setupCommand: null, testCommand: './gradlew test' };
     }
   },
   // Kotlin DSL
   {
     file: 'build.gradle.kts',
     confidence: 'high',
-    detect: (_content: string) => {
-      return './gradlew test';
+    detect: () => {
+      return { setupCommand: null, testCommand: './gradlew test' };
     }
   },
   // Makefile
@@ -167,7 +232,12 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     confidence: 'medium',
     detect: (content: string) => {
       if (content.match(/^test\s*:/m)) {
-        return 'make test';
+        // Check if there's an install target
+        const hasInstall = content.match(/^install\s*:/m);
+        return {
+          setupCommand: hasInstall ? 'make install' : null,
+          testCommand: 'make test'
+        };
       }
       return null;
     }
@@ -179,12 +249,13 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
     detect: (content: string) => {
       try {
         const composer = JSON.parse(content);
+        const setupCommand = 'composer install';
         if (composer.scripts?.test) {
-          return 'composer test';
+          return { setupCommand, testCommand: 'composer test' };
         }
         const deps = { ...composer.require, ...composer['require-dev'] };
         if (deps?.['phpunit/phpunit']) {
-          return './vendor/bin/phpunit';
+          return { setupCommand, testCommand: './vendor/bin/phpunit' };
         }
         return null;
       } catch {
@@ -196,31 +267,19 @@ const DETECTION_STRATEGIES: readonly DetectionStrategy[] = [
   {
     file: 'mix.exs',
     confidence: 'high',
-    detect: (_content: string) => {
-      return 'mix test';
+    detect: () => {
+      return { setupCommand: 'mix deps.get', testCommand: 'mix test' };
     }
   },
-  // .NET / C#
+  // .NET / C# (dotnet restore is usually automatic, but explicit is safer)
   {
     file: '*.csproj',
     confidence: 'high',
-    detect: (_content: string) => {
-      return 'dotnet test';
+    detect: () => {
+      return { setupCommand: 'dotnet restore', testCommand: 'dotnet test' };
     }
   }
 ];
-
-/**
- * Check if file exists
- */
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Create project detector service
@@ -241,12 +300,13 @@ export function createProjectDetector(): ProjectDetectorService {
         if (await fileExists(filePath)) {
           try {
             const content = await readFile(filePath, 'utf-8');
-            const testCommand = strategy.detect(content);
+            const result = await strategy.detect(content, projectDir);
 
-            if (testCommand) {
+            if (result) {
               return {
                 detected: true,
-                testCommand,
+                setupCommand: result.setupCommand,
+                testCommand: result.testCommand,
                 source: strategy.file,
                 confidence: strategy.confidence
               };
@@ -260,6 +320,7 @@ export function createProjectDetector(): ProjectDetectorService {
       // No test command detected
       return {
         detected: false,
+        setupCommand: null,
         testCommand: null,
         source: null,
         confidence: 'low'

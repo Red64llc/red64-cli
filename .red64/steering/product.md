@@ -2,7 +2,7 @@
 
 ## Project: red64-cli
 
-A spec driven development environment
+Spec driven software development cli
 
 ## Core Capabilities
 

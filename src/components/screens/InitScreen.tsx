@@ -91,6 +91,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   const [conflictResolution, setConflictResolution] = useState<'overwrite' | 'merge' | null>(null);
   const [, setDetectionResult] = useState<DetectionResult | null>(null);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [setupCommand, setSetupCommand] = useState<string | null>(null);
   const [testCommand, setTestCommand] = useState<string | null>(null);
 
   // Extract init-specific flags
@@ -216,9 +217,10 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
   }, [setupData.stack, steeringFiles, gitInitialized, gitCommitted, testCommand, testResult]);
 
   // Handle test completion from TestCheckStep
-  const handleTestComplete = useCallback((result: TestResult | null, command: string | null) => {
+  const handleTestComplete = useCallback((result: TestResult | null, command: string | null, setup: string | null) => {
     setTestResult(result);
     setTestCommand(command);
+    setSetupCommand(setup);
   }, []);
 
   // Use refs to avoid callback dependency issues
@@ -227,6 +229,9 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
 
   const setupDataRef = useRef(setupData);
   setupDataRef.current = setupData;
+
+  const setupCommandRef = useRef(setupCommand);
+  setupCommandRef.current = setupCommand;
 
   const testCommandRef = useRef(testCommand);
   testCommandRef.current = testCommand;
@@ -362,6 +367,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
         // If detection fails, proceed with empty detection
         const emptyDetection: DetectionResult = {
           detected: false,
+          setupCommand: null,
           testCommand: null,
           source: null,
           confidence: 'low'
@@ -412,6 +418,7 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
           initializedAt: new Date().toISOString(),
           customValues: currentSetupData.customValues ?? {},
           agent: initFlags.agent ?? 'claude',
+          setupCommand: setupCommandRef.current ?? undefined,
           testCommand: testCommandRef.current ?? undefined,
           sandboxImage: flags['local-image'] ? 'red64-sandbox:latest' : undefined
         });
@@ -564,8 +571,9 @@ export const InitScreen: React.FC<ScreenProps> = ({ flags }) => {
             onNext={handleNext}
             onError={handleError}
             onTestComplete={handleTestComplete}
-            runTests={async (cmd) => {
+            runTests={async (cmd, setup) => {
               return services.testRunner.run({
+                setupCommand: setup,
                 testCommand: cmd,
                 workingDir: process.cwd(),
                 timeoutMs: 300000

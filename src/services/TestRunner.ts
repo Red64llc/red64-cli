@@ -21,6 +21,7 @@ export interface TestResult {
  * Test runner options
  */
 export interface TestRunnerOptions {
+  readonly setupCommand?: string | null;
   readonly testCommand: string;
   readonly workingDir: string;
   readonly timeoutMs?: number;
@@ -64,13 +65,18 @@ export function createTestRunner(): TestRunnerService {
       const startTime = Date.now();
       const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+      // Combine setup and test commands if setup is provided
+      const fullCommand = options.setupCommand
+        ? `${options.setupCommand} && ${options.testCommand}`
+        : options.testCommand;
+
       return new Promise((resolve) => {
         let stdout = '';
         let stderr = '';
         let timedOut = false;
 
         // Use shell to handle complex commands (pipes, &&, etc.)
-        const proc = spawn(options.testCommand, [], {
+        const proc = spawn(fullCommand, [], {
           cwd: options.workingDir,
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: true

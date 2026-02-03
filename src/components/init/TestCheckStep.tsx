@@ -12,8 +12,8 @@ import type { TestResult } from '../../services/TestRunner.js';
 
 export interface TestCheckStepProps extends BaseStepProps {
   readonly detection: DetectionResult;
-  readonly onTestComplete: (result: TestResult | null, testCommand: string | null) => void;
-  readonly runTests: (testCommand: string) => Promise<TestResult>;
+  readonly onTestComplete: (result: TestResult | null, testCommand: string | null, setupCommand: string | null) => void;
+  readonly runTests: (testCommand: string, setupCommand?: string | null) => Promise<TestResult>;
   readonly skipTests?: boolean;
 }
 
@@ -27,9 +27,13 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
   skipTests
 }) => {
   const [phase, setPhase] = useState<Phase>('display');
+  const [setupCommand, setSetupCommand] = useState<string | null>(detection.setupCommand ?? null);
   const [testCommand, setTestCommand] = useState<string>(detection.testCommand ?? '');
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [manualInput, setManualInput] = useState('');
+
+  // Compute full command for display
+  const fullCommand = setupCommand ? `${setupCommand} && ${testCommand}` : testCommand;
 
   // Use refs for stable callbacks
   const onTestCompleteRef = useRef(onTestComplete);
@@ -44,7 +48,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
   useEffect(() => {
     if (skipTests && !skipHandledRef.current) {
       skipHandledRef.current = true;
-      onTestCompleteRef.current(null, null);
+      onTestCompleteRef.current(null, null, null);
       onNextRef.current();
     }
   }, [skipTests]);
@@ -71,7 +75,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
   // Handle Enter key on result screen
   useInput((_input, key) => {
     if (phase === 'result' && key.return) {
-      onTestCompleteRef.current(testResult, testCommand || null);
+      onTestCompleteRef.current(testResult, testCommand || null, setupCommand);
       onNextRef.current();
     }
   });
@@ -80,7 +84,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
     if (value === 'run' && testCommand) {
       setPhase('running');
       try {
-        const result = await runTests(testCommand);
+        const result = await runTests(testCommand, setupCommand);
         setTestResult(result);
         setPhase('result');
       } catch {
@@ -95,10 +99,10 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
         setPhase('result');
       }
     } else if (value === 'edit') {
-      setManualInput(testCommand);
+      setManualInput(fullCommand);
       setPhase('manual-input');
     } else if (value === 'skip') {
-      onTestCompleteRef.current(null, testCommand || null);
+      onTestCompleteRef.current(null, testCommand || null, setupCommand);
       onNextRef.current();
     }
   };
@@ -106,10 +110,12 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
   const handleManualSubmit = async (value: string) => {
     const trimmed = value.trim();
     if (trimmed) {
+      // For manual input, treat the whole command as testCommand (user can include setup themselves)
       setTestCommand(trimmed);
+      setSetupCommand(null);
       setPhase('running');
       try {
-        const result = await runTests(trimmed);
+        const result = await runTests(trimmed, null);
         setTestResult(result);
         setPhase('result');
       } catch {
@@ -125,7 +131,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
       }
     } else {
       // Skip if empty
-      onTestCompleteRef.current(null, null);
+      onTestCompleteRef.current(null, null, null);
       onNextRef.current();
     }
   };
@@ -154,7 +160,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
                 <Text color="green">:</Text>
               </Box>
               <Box marginLeft={2} marginTop={1}>
-                <Text color="cyan">{detection.testCommand}</Text>
+                <Text color="cyan">{fullCommand}</Text>
               </Box>
               <Box marginTop={1}>
                 <Text dimColor>Confidence: {detection.confidence}</Text>
@@ -172,7 +178,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
         <Box flexDirection="column">
           <Box marginBottom={1}>
             <Text>Run tests with: </Text>
-            <Text color="cyan">{testCommand}</Text>
+            <Text color="cyan">{fullCommand}</Text>
           </Box>
           <Select
             options={[
@@ -200,7 +206,7 @@ export const TestCheckStep: React.FC<TestCheckStepProps> = ({
 
       {phase === 'running' && (
         <Box flexDirection="column">
-          <Spinner label={`Running: ${testCommand}`} />
+          <Spinner label={`Running: ${fullCommand}`} />
         </Box>
       )}
 
