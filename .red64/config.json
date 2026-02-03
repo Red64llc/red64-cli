@@ -1,0 +1,12 @@
+{
+  "version": "main",
+  "repo": "Red64llc/red64-cli",
+  "stack": "react",
+  "projectType": "other",
+  "projectName": "red64-cli",
+  "description": "A spec driven development environment",
+  "initializedAt": "2026-02-03T17:04:06.519Z",
+  "customValues": {},
+  "agent": "claude",
+  "testCommand": "CI=true npm test"
+}
