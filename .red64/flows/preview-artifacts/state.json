@@ -1,0 +1,16 @@
+{
+  "feature": "preview-artifacts",
+  "phase": {
+    "type": "initializing",
+    "feature": "preview-artifacts",
+    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
+  },
+  "createdAt": "2026-02-04T16:30:11.223Z",
+  "updatedAt": "2026-02-04T16:30:11.223Z",
+  "history": [],
+  "metadata": {
+    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
+    "mode": "brownfield",
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts"
+  }
+}
