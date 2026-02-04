@@ -2,7 +2,7 @@
 
 ## Project: red64-cli
 
-Spec driven software development cli
+A spec driven software development framework for coding agents
 
 ## Core Capabilities
 

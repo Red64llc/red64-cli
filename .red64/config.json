@@ -4,8 +4,8 @@
   "stack": "react",
   "projectType": "other",
   "projectName": "red64-cli",
-  "description": "Spec driven software development cli",
-  "initializedAt": "2026-02-03T18:11:11.044Z",
+  "description": "A spec driven software development framework for coding agents",
+  "initializedAt": "2026-02-04T16:19:19.723Z",
   "customValues": {},
   "agent": "claude",
   "testCommand": "npm ci && CI=true npm test"
