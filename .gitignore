@@ -27,7 +27,3 @@ npm-debug.log*
 # Test coverage
 coverage/
 
-# Dev files
-.claude/
-.kiro/
-
