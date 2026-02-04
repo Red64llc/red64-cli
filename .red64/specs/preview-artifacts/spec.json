@@ -3,7 +3,7 @@
   "created_at": "2026-02-04T16:30:11.226Z",
   "updated_at": "2026-02-04T16:35:22.000Z",
   "language": "en",
-  "phase": "requirements-generated",
+  "phase": "gap-analyzed",
   "approvals": {
     "requirements": {
       "generated": true,
