@@ -1,16 +1,16 @@
 {
   "feature_name": "preview-artifacts",
   "created_at": "2026-02-04T16:30:11.226Z",
-  "updated_at": "2026-02-04T16:35:22.000Z",
+  "updated_at": "2026-02-04T17:45:00.000Z",
   "language": "en",
-  "phase": "gap-analyzed",
+  "phase": "design-generated",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "design": {
-      "generated": false,
+      "generated": true,
       "approved": false
     },
     "tasks": {
