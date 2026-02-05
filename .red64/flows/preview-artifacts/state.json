@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "requirements-generating",
+    "type": "requirements-approval",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:31:08.465Z",
+  "updatedAt": "2026-02-05T01:31:20.342Z",
   "history": [
     {
       "phase": {
@@ -79,6 +79,13 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:31:08.465Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:31:20.342Z"
     }
   ],
   "metadata": {
