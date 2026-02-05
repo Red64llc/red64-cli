@@ -83,7 +83,7 @@ export class PreviewHTTPServer implements PreviewHTTPServerInterface {
    */
   private async tryStartServer(html: string, port: number): Promise<ServerStartResult> {
     return new Promise((resolve) => {
-      const server = http.createServer((req, res) => {
+      const server = http.createServer((_req, res) => {
         // Serve HTML content with proper Content-Type
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html);

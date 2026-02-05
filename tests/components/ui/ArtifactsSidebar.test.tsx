@@ -82,4 +82,37 @@ describe('ArtifactsSidebar', () => {
       expect(lastFrame()).not.toContain('Path:');
     });
   });
+
+  describe('keyboard navigation support', () => {
+    it('should accept onPreview callback prop', () => {
+      const onPreview = vi.fn();
+      const { lastFrame } = render(
+        <ArtifactsSidebar artifacts={mockArtifacts} worktreePath="/test/path" onPreview={onPreview} />
+      );
+
+      // Component should render without errors when onPreview is provided
+      expect(lastFrame()).toBeDefined();
+      expect(lastFrame()).toContain('requirements.md');
+    });
+
+    it('should render without onPreview callback', () => {
+      const { lastFrame } = render(
+        <ArtifactsSidebar artifacts={mockArtifacts} worktreePath="/test/path" />
+      );
+
+      // Component should render without errors even without onPreview
+      expect(lastFrame()).toBeDefined();
+      expect(lastFrame()).toContain('requirements.md');
+    });
+
+    it('should show visual selection indicator for first artifact', () => {
+      const { lastFrame } = render(
+        <ArtifactsSidebar artifacts={mockArtifacts} worktreePath="/test/path" onPreview={vi.fn()} />
+      );
+
+      // Should show selection indicator (▶) for first artifact by default
+      const output = lastFrame() ?? '';
+      expect(output).toContain('▶');
+    });
+  });
 });

@@ -28,12 +28,10 @@ export class PreviewHTMLGenerator implements PreviewHTMLGeneratorInterface {
    */
   generateHTML(content: string, title: string): string {
     // Parse markdown to HTML using marked
-    // Disable HTML sanitization to allow Mermaid diagrams, but escape inline HTML
+    // GitHub Flavored Markdown with line breaks enabled
     const renderedMarkdown = marked.parse(content, {
       gfm: true, // GitHub Flavored Markdown
       breaks: true, // Convert \n to <br>
-      mangle: false, // Don't escape email addresses
-      headerIds: false, // Don't add IDs to headings
     }) as string;
 
     // Generate complete HTML5 document

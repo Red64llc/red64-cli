@@ -39,6 +39,10 @@ import {
   type ClaudeError,
   type GitStatus
 } from '../../services/index.js';
+import { PreviewService } from '../../services/PreviewService.js';
+import { ContentCache } from '../../services/ContentCache.js';
+import { PreviewHTMLGenerator } from '../../services/PreviewHTMLGenerator.js';
+import { PreviewHTTPServer } from '../../services/PreviewHTTPServer.js';
 import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
@@ -186,6 +190,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     configService: ReturnType<typeof createConfigService>;
     projectDetector: ReturnType<typeof createProjectDetector>;
     testRunner: ReturnType<typeof createTestRunner>;
+    previewService: PreviewService;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -202,6 +207,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const projectDetector = createProjectDetector();
     const testRunner = createTestRunner();
 
+    // Initialize preview service with dependencies
+    const contentCache = new ContentCache();
+    const htmlGenerator = new PreviewHTMLGenerator();
+    const httpServer = new PreviewHTTPServer();
+    const previewService = new PreviewService(contentCache, htmlGenerator, httpServer);
+
     servicesRef.current = {
       stateStore,
       agentInvoker,
@@ -214,7 +225,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       gitStatusChecker,
       configService,
       projectDetector,
-      testRunner
+      testRunner,
+      previewService
     };
   }
 
@@ -1330,6 +1342,36 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
   };
 
+  // Handle artifact preview
+  const handleArtifactPreview = useCallback(async (artifact: Artifact) => {
+    addOutput(`Opening preview: ${artifact.name}...`);
+
+    const result = await services.previewService.previewArtifact(artifact);
+
+    if (result.success) {
+      addOutput(`Preview opened at: ${result.url}`);
+    } else {
+      // Display error based on error code
+      const { error } = result;
+      switch (error.code) {
+        case 'FILE_NOT_FOUND':
+          addOutput(`Error: Artifact not found: ${artifact.path}`);
+          break;
+        case 'FILE_READ_ERROR':
+          addOutput(`Error: Cannot read artifact: ${artifact.path}. Check permissions.`);
+          break;
+        case 'PORT_UNAVAILABLE':
+          addOutput('Error: Cannot start preview server. All ports busy.');
+          break;
+        case 'BROWSER_LAUNCH_ERROR':
+          addOutput(`Error: Cannot open browser. Preview available at: ${error.details ?? ''}`);
+          break;
+        default:
+          addOutput(`Error: ${error.message}`);
+      }
+    }
+  }, [services.previewService, addOutput]);
+
   // Handle approval decision
   const handleApproval = useCallback(async (decision: string) => {
     const workDir = getWorkingDir();
@@ -1647,6 +1689,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         <ArtifactsSidebar
           artifacts={flowState.artifacts}
           worktreePath={flowState.worktreePath}
+          onPreview={handleArtifactPreview}
         />
       )}
     </Box>

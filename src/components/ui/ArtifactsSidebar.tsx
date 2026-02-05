@@ -1,10 +1,10 @@
 /**
  * ArtifactsSidebar Component
- * Right-side panel showing generated artifacts with clickable links
+ * Right-side panel showing generated artifacts with keyboard navigation and preview
  */
 
-import React from 'react';
-import { Box, Text } from 'ink';
+import React, { useState } from 'react';
+import { Box, Text, useInput } from 'ink';
 import type { Artifact } from '../../types/index.js';
 
 /**
@@ -13,6 +13,7 @@ import type { Artifact } from '../../types/index.js';
 export interface ArtifactsSidebarProps {
   readonly artifacts: readonly Artifact[];
   readonly worktreePath: string | null;
+  readonly onPreview?: (artifact: Artifact) => void;
 }
 
 /**
@@ -42,14 +43,48 @@ function getArtifactColor(filename: string): string {
 
 /**
  * ArtifactsSidebar Component
- * Displays generated artifacts with clickable file links
+ * Displays generated artifacts with keyboard navigation and preview support
  */
 export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
   artifacts,
   worktreePath: _worktreePath,  // Reserved for future use (terminal hyperlinks)
+  onPreview,
 }) => {
   // Filter out any invalid artifacts
   const validArtifacts = artifacts.filter(a => a && a.name && a.path);
+
+  // Track selected artifact index for keyboard navigation
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Handle keyboard input for navigation and selection
+  useInput((input, key) => {
+    // Only handle input if we have artifacts and a preview callback
+    if (validArtifacts.length === 0) return;
+
+    // Arrow Up: Move selection up
+    if (key.upArrow) {
+      setSelectedIndex(prev => {
+        if (prev === 0) return validArtifacts.length - 1; // Wrap to last
+        return prev - 1;
+      });
+    }
+
+    // Arrow Down: Move selection down
+    if (key.downArrow) {
+      setSelectedIndex(prev => {
+        if (prev === validArtifacts.length - 1) return 0; // Wrap to first
+        return prev + 1;
+      });
+    }
+
+    // Enter or Space: Trigger preview
+    if ((key.return || input === ' ') && onPreview) {
+      const selected = validArtifacts[selectedIndex];
+      if (selected) {
+        onPreview(selected);
+      }
+    }
+  });
 
   return (
     <Box
@@ -71,10 +106,13 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
           validArtifacts.map((artifact, index) => {
             const icon = getArtifactIcon(artifact.filename);
             const color = getArtifactColor(artifact.filename);
+            const isSelected = index === selectedIndex;
 
             return (
               <Box key={`${artifact.path}-${index}`} marginBottom={index < validArtifacts.length - 1 ? 1 : 0}>
-                <Text color={color}>{icon} {artifact.filename}</Text>
+                <Text color={color} inverse={isSelected} bold={isSelected}>
+                  {isSelected ? '▶ ' : '  '}{icon} {artifact.filename}
+                </Text>
               </Box>
             );
           })
