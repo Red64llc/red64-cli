@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "gap-analysis",
+    "type": "design-generating",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T10:42:41.665Z",
+  "updatedAt": "2026-02-05T10:47:47.105Z",
   "history": [
     {
       "phase": {
@@ -93,6 +93,13 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T10:42:41.665Z"
+    },
+    {
+      "phase": {
+        "type": "design-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:47:47.105Z"
     }
   ],
   "metadata": {

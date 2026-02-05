@@ -85,7 +85,7 @@ graph TB
   - PreviewService: Prevents UI components from knowing about browsers/servers
   - ContentCache: Centralizes caching logic per Requirement 8.3
   - PreviewHTTPServer: Isolates HTTP server lifecycle from preview orchestration
-- **Steering compliance**: Follows structure.md (service layer), tech.md (TypeScript strict), components.md (functional components with hooks)
+- **Steering compliance**: Follows service layer separation, TypeScript strict mode, and functional component patterns
 
 ### Technology Stack
 
@@ -129,7 +129,7 @@ sequenceDiagram
 
     alt Content in cache and fresh
         PreviewService->>ContentCache: get(artifact.path)
-        ContentCache-->>PreviewService: {content, timestamp}
+        ContentCache-->>PreviewService: content, timestamp
     else Cache miss or stale
         PreviewService->>FileSystem: readFile(artifact.path)
         FileSystem-->>PreviewService: markdown content
@@ -153,10 +153,10 @@ sequenceDiagram
 ```
 
 **Flow-level decisions**:
-- **Cache check first**: Avoids file I/O for repeated previews of same artifact
-- **Ephemeral server**: Started on-demand, auto-shutdown after inactivity (60s timeout) or process exit
-- **Port selection**: Random port in range 3000-3999 with availability check
-- **Graceful shutdown**: HTTP server closes connections and exits cleanly
+- Cache check first: Avoids file I/O for repeated previews of same artifact
+- Ephemeral server: Started on-demand, auto-shutdown after inactivity (60s timeout) or process exit
+- Port selection: Random port in range 3000-3999 with availability check
+- Graceful shutdown: HTTP server closes connections and exits cleanly
 
 ### Error Handling Flow
 
@@ -198,7 +198,7 @@ flowchart TD
 | 1.4 | Loading indicator during load | PreviewService | N/A (instant in terminal) | N/A |
 | 1.5 | Error message if not found | PreviewService | Error handling | Error Handling Flow |
 | 1.6 | Hover/focus states | ArtifactsSidebar | Visual highlighting | N/A |
-| 2.1-2.8 | Markdown rendering (headings, lists, code, links, etc.) | PreviewHTMLGenerator | marked library API | Preview Artifact Flow |
+| 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8 | Markdown rendering (headings, lists, code, links, emphasis, blockquotes, line breaks, paragraphs) | PreviewHTMLGenerator | marked library API | Preview Artifact Flow |
 | 3.1 | Render Mermaid code blocks | PreviewHTMLGenerator | mermaid.js script tag | Preview Artifact Flow |
 | 3.2 | Support common diagram types | mermaid.js (client) | N/A | N/A |
 | 3.3 | Error message on diagram failure | mermaid.js (client) | N/A | Error Handling Flow |
@@ -215,17 +215,8 @@ flowchart TD
 | 5.3 | Invalid path error | PreviewService | Error handling | Error Handling Flow |
 | 5.4 | Smooth transition | N/A (browser native) | N/A | N/A |
 | 5.5 | Retry button on error | N/A (user re-selects) | N/A | N/A |
-| 6.1 | Responsive layout | github-markdown-css | CSS media queries | N/A |
-| 6.2 | Full viewport on mobile | github-markdown-css | CSS media queries | N/A |
-| 6.3 | Max width centered on desktop | github-markdown-css | CSS styling | N/A |
-| 6.4 | Scrollable content | Browser native | Browser scrollbar | N/A |
-| 6.5 | ARIA roles for screen readers | Browser native | Semantic HTML | N/A |
-| 6.6 | Focus trap | N/A (browser manages) | N/A | N/A |
-| 6.7 | Keyboard accessible close | Browser native | Browser UI | N/A |
-| 6.8 | WCAG AA contrast ratio | github-markdown-css | CSS styling | N/A |
-| 7.1 | Window dimensions 800x600 | N/A (browser default) | N/A | N/A |
-| 7.2 | Centrally positioned | N/A (browser default) | N/A | N/A |
-| 7.3 | Prevent background scroll | N/A (separate window) | N/A | N/A |
+| 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8 | Responsive layout, mobile/desktop optimization, scrolling, ARIA roles, focus management, keyboard access, WCAG contrast | github-markdown-css, Browser native | CSS, Semantic HTML | N/A |
+| 7.1, 7.2, 7.3 | Window dimensions, positioning, background scroll prevention | N/A (browser default) | N/A | N/A |
 | 7.4 | Replace content on new artifact | HTTPServer | Server state | Preview Artifact Flow |
 | 7.5 | Remember scroll position | N/A (not MVP) | N/A | N/A |
 | 8.1 | Render within 300ms | Browser native | N/A | N/A |
@@ -243,7 +234,7 @@ flowchart TD
 | ArtifactsSidebar | UI / Presentation | Display artifacts with keyboard selection | 1.1, 1.2, 1.6 | Ink Box/Text (P0), useInput (P0) | Callback |
 | PreviewService | Service / Orchestration | Coordinate preview lifecycle (read → serve → open) | 1.4, 1.5, 5.2, 5.3, 8.3 | ContentCache (P0), PreviewHTMLGenerator (P0), PreviewHTTPServer (P0), open (P0) | Service |
 | ContentCache | Service / Caching | Store artifact content with TTL | 8.3 | None | Service |
-| PreviewHTMLGenerator | Service / Transformation | Convert markdown to HTML with Mermaid | 2.1-2.8, 3.1, 4.6 | marked (P0), github-markdown-css (P0) | Service |
+| PreviewHTMLGenerator | Service / Transformation | Convert markdown to HTML with Mermaid | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.1, 4.6 | marked (P0), github-markdown-css (P0) | Service |
 | PreviewHTTPServer | Service / Integration | Manage ephemeral HTTP server | 7.4 | Node.js http (P0) | Service |
 
 ### UI Layer
@@ -269,30 +260,29 @@ flowchart TD
 - Outbound: PreviewService for preview execution (P0)
 - External: Ink Box/Text/useInput for rendering and keyboard handling (P0)
 
-**Contracts**: State [ ] / Callback [X]
+**Contracts**: Callback [X]
 
 ##### Callback Interface
 ```typescript
 interface ArtifactsSidebarProps {
   readonly artifacts: readonly Artifact[];
   readonly worktreePath: string | null;
-  readonly onPreview?: (artifact: Artifact) => void; // NEW: Preview callback
+  readonly onPreview?: (artifact: Artifact) => void;
 }
 
-// Artifact type (existing)
 interface Artifact {
-  readonly name: string;        // Display name (e.g., "Requirements")
-  readonly filename: string;    // File name (e.g., "requirements.md")
-  readonly path: string;        // Full path from worktree root
-  readonly phase: string;       // Phase that generated it
-  readonly createdAt: string;   // ISO timestamp
+  readonly name: string;
+  readonly filename: string;
+  readonly path: string;
+  readonly phase: string;
+  readonly createdAt: string;
 }
 ```
 
 **Implementation Notes**
-- **Integration**: Extend existing ArtifactsSidebar component with useInput hook for keyboard handling
-- **Validation**: Selected index clamped to valid range [0, artifacts.length-1]
-- **Risks**: useInput may capture input globally; ensure proper focus management
+- Integration: Extend existing ArtifactsSidebar component with useInput hook for keyboard handling
+- Validation: Selected index clamped to valid range [0, artifacts.length-1]
+- Risks: useInput may capture input globally; ensure proper focus management
 
 ### Service Layer
 
@@ -308,7 +298,7 @@ interface Artifact {
 - Check ContentCache for artifact content, read from filesystem if miss/stale
 - Delegate HTML generation to PreviewHTMLGenerator
 - Manage PreviewHTTPServer lifecycle (start, track, shutdown)
-- Launch browser using `open` library
+- Launch browser using open library
 - Handle errors gracefully (file not found, port busy, browser launch failure)
 - Domain boundary: Orchestration only; does not render HTML or manage HTTP connections directly
 
@@ -336,8 +326,8 @@ interface PreviewServiceInterface {
 }
 
 type PreviewResult =
-  | { success: true; url: string }
-  | { success: false; error: PreviewError };
+  | { readonly success: true; readonly url: string }
+  | { readonly success: false; readonly error: PreviewError };
 
 interface PreviewError {
   readonly code: PreviewErrorCode;
@@ -346,10 +336,10 @@ interface PreviewError {
 }
 
 type PreviewErrorCode =
-  | 'FILE_NOT_FOUND'        // Artifact file doesn't exist
-  | 'FILE_READ_ERROR'       // Permission denied or I/O error
-  | 'PORT_UNAVAILABLE'      // All ports exhausted
-  | 'BROWSER_LAUNCH_ERROR'  // Failed to open browser
+  | 'FILE_NOT_FOUND'
+  | 'FILE_READ_ERROR'
+  | 'PORT_UNAVAILABLE'
+  | 'BROWSER_LAUNCH_ERROR'
   | 'UNKNOWN';
 ```
 
@@ -358,9 +348,9 @@ type PreviewErrorCode =
 - **Invariants**: At most one HTTP server per artifact preview; server auto-shutdown after 60s inactivity
 
 **Implementation Notes**
-- **Integration**: Instantiated as singleton in StartScreen or App component
-- **Validation**: Check artifact.path is absolute and within worktree bounds
-- **Risks**: Port conflicts in multi-user environments; browser not installed (Docker sandbox)
+- Integration: Instantiated as singleton in StartScreen or App component
+- Validation: Check artifact.path is absolute and within worktree bounds
+- Risks: Port conflicts in multi-user environments; browser not installed (Docker sandbox)
 
 #### ContentCache
 
@@ -411,28 +401,27 @@ interface ContentCacheInterface {
   prune(): void;
 }
 
-// Internal cache entry structure
 interface CacheEntry {
   readonly content: string;
-  readonly timestamp: number; // Date.now()
+  readonly timestamp: number;
 }
 ```
 
 - **Preconditions**: filePath must be non-empty string
-- **Postconditions**: `get` returns null if entry stale or missing; `set` always succeeds; `prune` removes expired entries
+- **Postconditions**: get returns null if entry stale or missing; set always succeeds; prune removes expired entries
 - **Invariants**: TTL is 300,000 ms (5 minutes); timestamps are Unix epoch milliseconds
 
 **Implementation Notes**
-- **Integration**: Singleton instance passed to PreviewService
-- **Validation**: prune() called on every get() to avoid memory leaks
-- **Risks**: Memory growth if many large files cached; mitigated by TTL and prune()
+- Integration: Singleton instance passed to PreviewService
+- Validation: prune() called on every get() to avoid memory leaks
+- Risks: Memory growth if many large files cached; mitigated by TTL and prune()
 
 #### PreviewHTMLGenerator
 
 | Field | Detail |
 |-------|--------|
 | Intent | Transform markdown content to HTML with GitHub styling and Mermaid support |
-| Requirements | 2.1-2.8, 3.1, 4.6 |
+| Requirements | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.1, 4.6 |
 | Owner / Reviewers | Core team |
 
 **Responsibilities & Constraints**
@@ -461,28 +450,6 @@ interface PreviewHTMLGeneratorInterface {
    */
   generateHTML(content: string, title: string): string;
 }
-
-// Example output structure (not interface):
-// <!DOCTYPE html>
-// <html lang="en">
-// <head>
-//   <meta charset="UTF-8">
-//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//   <title>{title}</title>
-//   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.css">
-//   <script type="module">
-//     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-//     mermaid.initialize({ startOnLoad: true });
-//   </script>
-//   <style>
-//     .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
-//     @media (max-width: 767px) { .markdown-body { padding: 15px; } }
-//   </style>
-// </head>
-// <body>
-//   <article class="markdown-body">{htmlContent}</article>
-// </body>
-// </html>
 ```
 
 - **Preconditions**: content is valid UTF-8 string (may be empty)
@@ -490,9 +457,9 @@ interface PreviewHTMLGeneratorInterface {
 - **Invariants**: HTML always includes github-markdown-css and mermaid.js script; max-width 980px on desktop
 
 **Implementation Notes**
-- **Integration**: Stateless utility; can be pure function or class with no instance state
-- **Validation**: marked library handles invalid markdown gracefully (no exceptions)
-- **Risks**: CDN availability for github-markdown-css and mermaid.js; fallback to inline styles if needed
+- Integration: Stateless utility; can be pure function or class with no instance state
+- Validation: marked library handles invalid markdown gracefully (no exceptions)
+- Risks: CDN availability for github-markdown-css and mermaid.js; fallback to inline styles if needed
 
 #### PreviewHTTPServer
 
@@ -540,8 +507,8 @@ interface PreviewHTTPServerInterface {
 }
 
 type ServerStartResult =
-  | { success: true; url: string; port: number }
-  | { success: false; error: string };
+  | { readonly success: true; readonly url: string; readonly port: number }
+  | { readonly success: false; readonly error: string };
 ```
 
 - **Preconditions**: html is non-empty string; port (if provided) is 1-65535
@@ -549,9 +516,9 @@ type ServerStartResult =
 - **Invariants**: Port selection tries up to 3 random ports if unavailable; server always responds with Content-Type: text/html
 
 **Implementation Notes**
-- **Integration**: Singleton instance passed to PreviewService
-- **Validation**: Check port availability before binding with net.Server.listen error handling
-- **Risks**: Port exhaustion if many previews opened rapidly; orphaned servers if process crashes (mitigated by auto-shutdown timeout)
+- Integration: Singleton instance passed to PreviewService
+- Validation: Check port availability before binding with net.Server.listen error handling
+- Risks: Port exhaustion if many previews opened rapidly; orphaned servers if process crashes (mitigated by auto-shutdown timeout)
 
 ## Data Models
 
@@ -587,25 +554,20 @@ type ServerStartResult =
 
 **Structure Definition**:
 ```typescript
-// Preview Session (transient, not persisted)
 interface PreviewSession {
-  artifact: Artifact;
-  serverUrl: string;
-  serverPort: number;
-  startedAt: Date;
+  readonly artifact: Artifact;
+  readonly serverUrl: string;
+  readonly serverPort: number;
+  readonly startedAt: Date;
 }
 
-// Cache Entry (in-memory only)
 interface CacheEntry {
-  content: string;
-  timestamp: number;
+  readonly content: string;
+  readonly timestamp: number;
 }
 
-// Cache Map
-type ContentCacheMap = Map<string, CacheEntry>; // Key: artifact.path
-
-// Active Servers Map
-type ActiveServersMap = Map<string, http.Server>; // Key: serverUrl
+type ContentCacheMap = Map<string, CacheEntry>;
+type ActiveServersMap = Map<string, http.Server>;
 ```
 
 **Consistency & Integrity**:
@@ -618,12 +580,12 @@ type ActiveServersMap = Map<string, http.Server>; // Key: serverUrl
 No persistent storage. All data stored in memory (JavaScript Map) during process lifetime.
 
 **In-Memory Structures**:
-- ContentCache: `Map<string, { content: string; timestamp: number }>`
-- ActiveServers: `Map<string, http.Server>`
+- ContentCache: Map<string, { content: string; timestamp: number }>
+- ActiveServers: Map<string, http.Server>
 
 **Cleanup Strategy**:
-- ContentCache pruned on every `get()` call to remove stale entries
-- HTTP servers auto-shutdown after 60s timeout using Node.js `setTimeout`
+- ContentCache pruned on every get() call to remove stale entries
+- HTTP servers auto-shutdown after 60s timeout using Node.js setTimeout
 - All resources released on process exit (no explicit persistence)
 
 ## Error Handling
@@ -636,21 +598,21 @@ Use discriminated union types for error results. Return structured errors instea
 
 **User Errors (File/Path Issues)**:
 - **FILE_NOT_FOUND**: Artifact file doesn't exist at specified path
-  - **Response**: Display error in terminal: "Artifact not found: {path}". Suggest checking artifact list.
-  - **Recovery**: User can select different artifact; no retry logic needed
+  - Response: Display error in terminal: "Artifact not found: {path}". Suggest checking artifact list.
+  - Recovery: User can select different artifact; no retry logic needed
 
 - **FILE_READ_ERROR**: Permission denied or I/O error reading file
-  - **Response**: Display error: "Cannot read artifact: {path}. Check permissions."
-  - **Recovery**: User can fix permissions or select different artifact
+  - Response: Display error: "Cannot read artifact: {path}. Check permissions."
+  - Recovery: User can fix permissions or select different artifact
 
 **System Errors (Infrastructure)**:
 - **PORT_UNAVAILABLE**: All attempted ports (3 retries) are busy
-  - **Response**: Display error: "Cannot start preview server. All ports busy. Please close other applications."
-  - **Recovery**: User can retry after closing conflicting services; no automatic retry
+  - Response: Display error: "Cannot start preview server. All ports busy. Please close other applications."
+  - Recovery: User can retry after closing conflicting services; no automatic retry
 
 - **BROWSER_LAUNCH_ERROR**: Failed to launch browser (not installed, sandbox mode)
-  - **Response**: Display error: "Cannot open browser. Preview available at: {url}. Copy URL to browser."
-  - **Recovery**: User can manually open URL; provide fallback message with path
+  - Response: Display error: "Cannot open browser. Preview available at: {url}. Copy URL to browser."
+  - Recovery: User can manually open URL; provide fallback message with path
 
 **Business Logic Errors**: None (read-only preview operation)
 
