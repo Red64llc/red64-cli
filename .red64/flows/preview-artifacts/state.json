@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T21:25:10.509Z",
+  "updatedAt": "2026-02-05T21:25:10.738Z",
   "history": [
     {
       "phase": {
@@ -327,6 +327,14 @@
       "timestamp": "2026-02-05T21:25:10.509Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-10-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T21:25:10.738Z",
+      "event": "TASK_START",
+      "subStep": "task-11-started"
     }
   ],
   "metadata": {
@@ -422,9 +430,9 @@
       {
         "id": "11",
         "title": "Write unit tests for PreviewHTTPServer",
-        "startedAt": null,
+        "startedAt": "2026-02-05T21:25:10.738Z",
         "completedAt": null,
-        "status": "pending"
+        "status": "in_progress"
       },
       {
         "id": "12",
@@ -455,7 +463,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "10"
+    "currentTaskId": "11"
   },
   "artifacts": [
     {
