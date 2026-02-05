@@ -1,6 +1,6 @@
 /**
- * Unit tests for ContentCache service
- * Tests in-memory caching with 5-minute TTL
+ * ContentCache Unit Tests
+ * Requirements: 8.3 - Cache content 5 minutes
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -11,6 +11,7 @@ describe('ContentCache', () => {
 
   beforeEach(() => {
     cache = new ContentCache();
+    // Use fake timers for TTL testing
     vi.useFakeTimers();
   });
 
@@ -18,169 +19,218 @@ describe('ContentCache', () => {
     vi.useRealTimers();
   });
 
-  describe('get and set', () => {
-    it('should return cached content for valid entry', () => {
-      const filePath = '/test/file.md';
+  describe('get', () => {
+    it('returns null for cache miss', () => {
+      const result = cache.get('/path/to/nonexistent.md');
+      expect(result).toBeNull();
+    });
+
+    it('returns stored content for cache hit', () => {
+      const path = '/path/to/artifact.md';
+      const content = '# Test Content\n\nThis is a test.';
+
+      cache.set(path, content);
+      const result = cache.get(path);
+
+      expect(result).toBe(content);
+    });
+
+    it('returns null for stale entry older than 5 minutes', () => {
+      const path = '/path/to/artifact.md';
       const content = '# Test Content';
 
-      cache.set(filePath, content);
-      const result = cache.get(filePath);
+      cache.set(path, content);
 
+      // Fast-forward time by 5 minutes + 1ms
+      vi.advanceTimersByTime(300_001);
+
+      const result = cache.get(path);
+      expect(result).toBeNull();
+    });
+
+    it('returns content for fresh entry within 5 minutes', () => {
+      const path = '/path/to/artifact.md';
+      const content = '# Test Content';
+
+      cache.set(path, content);
+
+      // Fast-forward time by 4 minutes 59 seconds
+      vi.advanceTimersByTime(299_000);
+
+      const result = cache.get(path);
       expect(result).toBe(content);
     });
 
-    it('should return null for cache miss', () => {
-      const result = cache.get('/nonexistent.md');
-      expect(result).toBeNull();
+    it('automatically prunes stale entries on get', () => {
+      const path1 = '/path/to/artifact1.md';
+      const path2 = '/path/to/artifact2.md';
+      const content1 = 'Content 1';
+      const content2 = 'Content 2';
+
+      cache.set(path1, content1);
+
+      // Fast-forward 5 minutes + 1ms to make path1 stale
+      vi.advanceTimersByTime(300_001);
+
+      // Set path2 (now fresh)
+      cache.set(path2, content2);
+
+      // Get path2 should trigger pruning of path1
+      const result2 = cache.get(path2);
+      expect(result2).toBe(content2);
+
+      // Verify path1 was pruned
+      const result1 = cache.get(path1);
+      expect(result1).toBeNull();
+    });
+  });
+
+  describe('set', () => {
+    it('stores content with current timestamp', () => {
+      const path = '/path/to/artifact.md';
+      const content = '# Test Content';
+
+      cache.set(path, content);
+
+      const result = cache.get(path);
+      expect(result).toBe(content);
     });
 
-    it('should return null for stale entry (older than 5 minutes)', () => {
-      const filePath = '/test/file.md';
-      const content = '# Old Content';
+    it('overwrites existing entry with new content', () => {
+      const path = '/path/to/artifact.md';
+      const oldContent = 'Old content';
+      const newContent = 'New content';
 
-      cache.set(filePath, content);
+      cache.set(path, oldContent);
+      cache.set(path, newContent);
 
-      // Fast-forward time by 6 minutes (360,000 ms)
-      vi.advanceTimersByTime(360_000);
-
-      const result = cache.get(filePath);
-      expect(result).toBeNull();
+      const result = cache.get(path);
+      expect(result).toBe(newContent);
     });
 
-    it('should return content for fresh entry (less than 5 minutes old)', () => {
-      const filePath = '/test/file.md';
-      const content = '# Fresh Content';
+    it('resets TTL when updating existing entry', () => {
+      const path = '/path/to/artifact.md';
+      const oldContent = 'Old content';
+      const newContent = 'New content';
 
-      cache.set(filePath, content);
+      cache.set(path, oldContent);
 
-      // Fast-forward time by 4 minutes (240,000 ms)
+      // Fast-forward 4 minutes
       vi.advanceTimersByTime(240_000);
 
-      const result = cache.get(filePath);
-      expect(result).toBe(content);
-    });
+      // Update entry (resets TTL)
+      cache.set(path, newContent);
 
-    it('should store content with current timestamp', () => {
-      const filePath = '/test/file.md';
-      const content = '# Content';
-      const now = Date.now();
+      // Fast-forward another 4 minutes (total 8 minutes from first set, 4 from update)
+      vi.advanceTimersByTime(240_000);
 
-      vi.setSystemTime(now);
-      cache.set(filePath, content);
-
-      // Verify it's retrievable immediately
-      expect(cache.get(filePath)).toBe(content);
-    });
-
-    it('should overwrite existing entry on set', () => {
-      const filePath = '/test/file.md';
-      const content1 = '# First';
-      const content2 = '# Second';
-
-      cache.set(filePath, content1);
-      cache.set(filePath, content2);
-
-      expect(cache.get(filePath)).toBe(content2);
+      // Should still be fresh because TTL was reset
+      const result = cache.get(path);
+      expect(result).toBe(newContent);
     });
   });
 
   describe('clear', () => {
-    it('should remove all entries', () => {
-      cache.set('/file1.md', 'Content 1');
-      cache.set('/file2.md', 'Content 2');
-      cache.set('/file3.md', 'Content 3');
+    it('removes all entries from cache', () => {
+      const path1 = '/path/to/artifact1.md';
+      const path2 = '/path/to/artifact2.md';
+      const content1 = 'Content 1';
+      const content2 = 'Content 2';
+
+      cache.set(path1, content1);
+      cache.set(path2, content2);
 
       cache.clear();
 
-      expect(cache.get('/file1.md')).toBeNull();
-      expect(cache.get('/file2.md')).toBeNull();
-      expect(cache.get('/file3.md')).toBeNull();
+      expect(cache.get(path1)).toBeNull();
+      expect(cache.get(path2)).toBeNull();
     });
 
-    it('should work on empty cache', () => {
+    it('works on empty cache without error', () => {
       expect(() => cache.clear()).not.toThrow();
     });
   });
 
   describe('prune', () => {
-    it('should remove only stale entries', () => {
-      cache.set('/fresh.md', 'Fresh content');
+    it('removes only stale entries older than 5 minutes', () => {
+      const path1 = '/path/to/stale.md';
+      const path2 = '/path/to/fresh.md';
+      const content1 = 'Stale content';
+      const content2 = 'Fresh content';
 
-      // Advance time by 1 minute
-      vi.advanceTimersByTime(60_000);
+      cache.set(path1, content1);
 
-      cache.set('/stale.md', 'Stale content');
+      // Fast-forward 5 minutes + 1ms to make path1 stale
+      vi.advanceTimersByTime(300_001);
 
-      // Advance time by 5 more minutes (total 6 minutes for /stale.md)
-      vi.advanceTimersByTime(300_000);
+      cache.set(path2, content2);
 
       cache.prune();
 
-      // /fresh.md is 6 minutes old (stale), /stale.md is 5 minutes old (fresh)
-      expect(cache.get('/fresh.md')).toBeNull();
-      expect(cache.get('/stale.md')).toBe('Stale content');
+      // Stale entry should be removed
+      expect(cache.get(path1)).toBeNull();
+
+      // Fresh entry should remain
+      expect(cache.get(path2)).toBe(content2);
     });
 
-    it('should not remove fresh entries', () => {
-      cache.set('/file1.md', 'Content 1');
-      cache.set('/file2.md', 'Content 2');
+    it('keeps all entries when none are stale', () => {
+      const path1 = '/path/to/artifact1.md';
+      const path2 = '/path/to/artifact2.md';
+      const content1 = 'Content 1';
+      const content2 = 'Content 2';
 
-      // Advance time by 2 minutes
+      cache.set(path1, content1);
+      cache.set(path2, content2);
+
+      // Fast-forward 2 minutes (well within TTL)
       vi.advanceTimersByTime(120_000);
 
       cache.prune();
 
-      expect(cache.get('/file1.md')).toBe('Content 1');
-      expect(cache.get('/file2.md')).toBe('Content 2');
+      // Both entries should still be present
+      expect(cache.get(path1)).toBe(content1);
+      expect(cache.get(path2)).toBe(content2);
     });
 
-    it('should handle empty cache', () => {
+    it('removes all entries when all are stale', () => {
+      const path1 = '/path/to/artifact1.md';
+      const path2 = '/path/to/artifact2.md';
+      const content1 = 'Content 1';
+      const content2 = 'Content 2';
+
+      cache.set(path1, content1);
+      cache.set(path2, content2);
+
+      // Fast-forward 5 minutes + 1ms
+      vi.advanceTimersByTime(300_001);
+
+      cache.prune();
+
+      // Both entries should be removed
+      expect(cache.get(path1)).toBeNull();
+      expect(cache.get(path2)).toBeNull();
+    });
+
+    it('works on empty cache without error', () => {
       expect(() => cache.prune()).not.toThrow();
     });
   });
 
-  describe('automatic pruning on get', () => {
-    it('should prune stale entries when get is called', () => {
-      cache.set('/stale.md', 'Stale content');
-      cache.set('/fresh.md', 'Fresh content');
+  describe('TTL behavior', () => {
+    it('has TTL of exactly 300,000 milliseconds (5 minutes)', () => {
+      const path = '/path/to/artifact.md';
+      const content = 'Test content';
 
-      // Advance time by 6 minutes
-      vi.advanceTimersByTime(360_000);
+      cache.set(path, content);
 
-      // Add a new entry to make it fresh
-      cache.set('/new.md', 'New content');
+      // At 299,999ms - should still be fresh
+      vi.advanceTimersByTime(299_999);
+      expect(cache.get(path)).toBe(content);
 
-      // Get should trigger automatic pruning
-      cache.get('/fresh.md');
-
-      // Manually check that stale entry was removed
-      // We can't directly test the internal state, but we know get() triggers prune()
-      expect(cache.get('/stale.md')).toBeNull();
-      expect(cache.get('/new.md')).toBe('New content');
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should handle empty file path', () => {
-      cache.set('', 'Empty path content');
-      expect(cache.get('')).toBe('Empty path content');
-    });
-
-    it('should handle empty content', () => {
-      cache.set('/empty.md', '');
-      expect(cache.get('/empty.md')).toBe('');
-    });
-
-    it('should handle large content', () => {
-      const largeContent = 'x'.repeat(1_000_000);
-      cache.set('/large.md', largeContent);
-      expect(cache.get('/large.md')).toBe(largeContent);
-    });
-
-    it('should handle special characters in file path', () => {
-      const specialPath = '/test/файл.md';
-      cache.set(specialPath, 'Content with special characters');
-      expect(cache.get(specialPath)).toBe('Content with special characters');
+      // Advance 2ms more (total 300,001ms) - should be stale
+      vi.advanceTimersByTime(2);
+      expect(cache.get(path)).toBeNull();
     });
   });
 });

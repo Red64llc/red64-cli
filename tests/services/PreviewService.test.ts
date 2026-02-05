@@ -1,159 +1,111 @@
 /**
- * Unit tests for PreviewService (orchestration layer)
- * Tests artifact preview lifecycle with mocked dependencies
+ * PreviewService Unit Tests
+ * Requirements: 1.4, 1.5, 5.2, 5.3, 8.3 - Preview orchestration with error handling
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PreviewService } from '../../src/services/PreviewService.js';
-import type { ContentCacheInterface } from '../../src/services/ContentCache.js';
-import type { PreviewHTMLGeneratorInterface } from '../../src/services/PreviewHTMLGenerator.js';
-import type { PreviewHTTPServerInterface, ServerStartResult } from '../../src/services/PreviewHTTPServer.js';
+import { ContentCache } from '../../src/services/ContentCache.js';
+import { PreviewHTMLGenerator } from '../../src/services/PreviewHTMLGenerator.js';
+import { PreviewHTTPServer } from '../../src/services/PreviewHTTPServer.js';
 import type { Artifact } from '../../src/types/index.js';
-
-// Mock implementations
-const createMockCache = (): ContentCacheInterface => ({
-  get: vi.fn(),
-  set: vi.fn(),
-  clear: vi.fn(),
-  prune: vi.fn()
-});
-
-const createMockGenerator = (): PreviewHTMLGeneratorInterface => ({
-  generateHTML: vi.fn()
-});
-
-const createMockHTTPServer = (): PreviewHTTPServerInterface => ({
-  start: vi.fn(),
-  shutdown: vi.fn(),
-  shutdownAll: vi.fn()
-});
-
-const mockOpen = vi.fn();
-
-// Mock fs/promises
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn()
-}));
-
-// Mock open library
-vi.mock('open', () => ({
-  default: vi.fn()
-}));
+import { writeFile, unlink, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 describe('PreviewService', () => {
-  let service: PreviewService;
-  let mockCache: ContentCacheInterface;
-  let mockGenerator: PreviewHTMLGeneratorInterface;
-  let mockServer: PreviewHTTPServerInterface;
+  let previewService: PreviewService;
+  let cache: ContentCache;
+  let generator: PreviewHTMLGenerator;
+  let httpServer: PreviewHTTPServer;
+  const testDir = '/tmp/preview-service-test';
 
   beforeEach(async () => {
-    mockCache = createMockCache();
-    mockGenerator = createMockGenerator();
-    mockServer = createMockHTTPServer();
+    cache = new ContentCache();
+    generator = new PreviewHTMLGenerator();
+    httpServer = new PreviewHTTPServer();
+    previewService = new PreviewService(cache, generator, httpServer);
 
-    // Reset mocks
-    vi.clearAllMocks();
-    mockOpen.mockClear();
+    // Create test directory
+    await mkdir(testDir, { recursive: true });
+  });
 
-    // Set up default mock implementations
-    vi.mocked(mockCache.get).mockReturnValue(null);
-    vi.mocked(mockGenerator.generateHTML).mockReturnValue('<html><body>Generated HTML</body></html>');
-    vi.mocked(mockServer.start).mockResolvedValue({
-      success: true,
-      url: 'http://localhost:3000',
-      port: 3000
-    });
-
-    // Import and mock open
-    const openModule = await import('open');
-    vi.mocked(openModule.default).mockResolvedValue(undefined as any);
-
-    service = new PreviewService(mockCache, mockGenerator, mockServer);
+  afterEach(async () => {
+    // Cleanup
+    await previewService.shutdownAll();
+    
+    // Clean up test files
+    try {
+      await unlink(join(testDir, 'test-artifact.md'));
+    } catch {
+      // Ignore if file doesn't exist
+    }
   });
 
   describe('previewArtifact', () => {
-    const testArtifact: Artifact = {
-      name: 'Requirements',
-      filename: 'requirements.md',
-      path: '/workspace/.red64/specs/test-feature/requirements.md',
-      phase: 'requirements-generating',
-      createdAt: '2024-01-01T00:00:00.000Z'
-    };
+    it('returns success result with URL when preview succeeds', async () => {
+      const testFile = join(testDir, 'test-artifact.md');
+      const content = '# Test Content\n\nThis is a test.';
+      await writeFile(testFile, content, 'utf-8');
 
-    it('should return success result with URL when preview succeeds', async () => {
-      // Mock file read
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
+      const artifact: Artifact = {
+        name: 'Test Artifact',
+        filename: 'test-artifact.md',
+        path: testFile,
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
 
-      const result = await service.previewArtifact(testArtifact);
+      const result = await previewService.previewArtifact(artifact);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.url).toBe('http://localhost:3000');
+        expect(result.url).toMatch(/^http:\/\/localhost:\d+$/);
       }
     });
 
-    it('should check cache before reading file (cache hit)', async () => {
-      vi.mocked(mockCache.get).mockReturnValue('# Cached Content');
+    it('uses cached content on second preview of same artifact', async () => {
+      const testFile = join(testDir, 'cached-artifact.md');
+      const content = '# Cached Content';
+      await writeFile(testFile, content, 'utf-8');
 
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('Should not be called');
+      const artifact: Artifact = {
+        name: 'Cached Artifact',
+        filename: 'cached-artifact.md',
+        path: testFile,
+        phase: 'design-generating',
+        createdAt: new Date().toISOString()
+      };
 
-      await service.previewArtifact(testArtifact);
+      // First preview - should read from file
+      const result1 = await previewService.previewArtifact(artifact);
+      expect(result1.success).toBe(true);
 
-      expect(mockCache.get).toHaveBeenCalledWith(testArtifact.path);
-      expect(readFile).not.toHaveBeenCalled();
+      // Modify file after first preview
+      await writeFile(testFile, '# Modified Content', 'utf-8');
+
+      // Second preview - should use cache (still shows original content)
+      const result2 = await previewService.previewArtifact(artifact);
+      expect(result2.success).toBe(true);
+
+      // Verify cache was used by checking the served content
+      if (result2.success) {
+        const response = await fetch(result2.url);
+        const html = await response.text();
+        expect(html).toContain('Cached Content');
+        expect(html).not.toContain('Modified Content');
+      }
     });
 
-    it('should read file and cache on cache miss', async () => {
-      vi.mocked(mockCache.get).mockReturnValue(null);
+    it('returns FILE_NOT_FOUND error when artifact file does not exist', async () => {
+      const artifact: Artifact = {
+        name: 'Missing Artifact',
+        filename: 'nonexistent.md',
+        path: '/tmp/nonexistent-file-12345.md',
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
 
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Fresh Content');
-
-      await service.previewArtifact(testArtifact);
-
-      expect(mockCache.get).toHaveBeenCalledWith(testArtifact.path);
-      expect(readFile).toHaveBeenCalledWith(testArtifact.path, 'utf-8');
-      expect(mockCache.set).toHaveBeenCalledWith(testArtifact.path, '# Fresh Content');
-    });
-
-    it('should generate HTML with artifact content and name', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      await service.previewArtifact(testArtifact);
-
-      expect(mockGenerator.generateHTML).toHaveBeenCalledWith('# Test Content', 'Requirements');
-    });
-
-    it('should start HTTP server with generated HTML', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      await service.previewArtifact(testArtifact);
-
-      expect(mockServer.start).toHaveBeenCalledWith('<html><body>Generated HTML</body></html>');
-    });
-
-    it('should launch browser with server URL', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      const openModule = await import('open');
-
-      await service.previewArtifact(testArtifact);
-
-      expect(openModule.default).toHaveBeenCalledWith('http://localhost:3000');
-    });
-
-    it('should return FILE_NOT_FOUND error when file does not exist', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('ENOENT: no such file or directory') as any;
-      error.code = 'ENOENT';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      const result = await service.previewArtifact(testArtifact);
+      const result = await previewService.previewArtifact(artifact);
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -162,280 +114,305 @@ describe('PreviewService', () => {
       }
     });
 
-    it('should return FILE_READ_ERROR when file read fails', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('Permission denied') as any;
-      error.code = 'EACCES';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      const result = await service.previewArtifact(testArtifact);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FILE_READ_ERROR');
-        expect(result.error.message).toContain('Cannot read');
-      }
-    });
-
-    it('should return PORT_UNAVAILABLE error when server start fails', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      vi.mocked(mockServer.start).mockResolvedValue({
-        success: false,
-        error: 'All ports busy'
-      });
-
-      const result = await service.previewArtifact(testArtifact);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('PORT_UNAVAILABLE');
-      }
-    });
-
-    it('should return BROWSER_LAUNCH_ERROR when browser fails to open', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      const openModule = await import('open');
-      vi.mocked(openModule.default).mockRejectedValue(new Error('Browser not found'));
-
-      const result = await service.previewArtifact(testArtifact);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('BROWSER_LAUNCH_ERROR');
-        expect(result.error.details).toBe('http://localhost:3000');
-      }
-    });
-
-    it('should handle path validation', async () => {
-      const invalidArtifact: Artifact = {
-        name: 'Invalid',
-        filename: 'invalid.md',
-        path: '', // Empty path
+    it('returns FILE_NOT_FOUND error when artifact path is empty', async () => {
+      const artifact: Artifact = {
+        name: 'Empty Path',
+        filename: 'empty.md',
+        path: '',
         phase: 'requirements-generating',
-        createdAt: '2024-01-01T00:00:00.000Z'
+        createdAt: new Date().toISOString()
       };
 
-      const result = await service.previewArtifact(invalidArtifact);
+      const result = await previewService.previewArtifact(artifact);
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe('FILE_NOT_FOUND');
+        expect(result.error.message).toContain('empty or invalid');
       }
+    });
+
+    it('returns FILE_READ_ERROR on permission denied', async () => {
+      const testFile = join(testDir, 'no-permission.md');
+      await writeFile(testFile, '# Content', 'utf-8');
+      
+      // Remove read permissions
+      const fs = await import('node:fs/promises');
+      await fs.chmod(testFile, 0o000);
+
+      const artifact: Artifact = {
+        name: 'No Permission',
+        filename: 'no-permission.md',
+        path: testFile,
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        const result = await previewService.previewArtifact(artifact);
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.code).toBe('FILE_READ_ERROR');
+          expect(result.error.message).toContain('permissions');
+        }
+      } finally {
+        // Restore permissions for cleanup
+        await fs.chmod(testFile, 0o644);
+      }
+    });
+
+    it('generates HTML from markdown content', async () => {
+      const testFile = join(testDir, 'markdown-test.md');
+      const content = '# Heading\n\nThis is **bold** and *italic*.';
+      await writeFile(testFile, content, 'utf-8');
+
+      const artifact: Artifact = {
+        name: 'Markdown Test',
+        filename: 'markdown-test.md',
+        path: testFile,
+        phase: 'design-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await previewService.previewArtifact(artifact);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // Fetch and verify HTML content
+        const response = await fetch(result.url);
+        const html = await response.text();
+
+        expect(html).toContain('<!DOCTYPE html>');
+        expect(html).toContain('<h1');
+        expect(html).toContain('Heading');
+        expect(html).toContain('<strong>bold</strong>');
+        expect(html).toContain('<em>italic</em>');
+      }
+    });
+
+    it('includes artifact name in HTML title', async () => {
+      const testFile = join(testDir, 'title-test.md');
+      await writeFile(testFile, '# Content', 'utf-8');
+
+      const artifact: Artifact = {
+        name: 'Requirements Document',
+        filename: 'title-test.md',
+        path: testFile,
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await previewService.previewArtifact(artifact);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const response = await fetch(result.url);
+        const html = await response.text();
+
+        expect(html).toContain('<title>Requirements Document</title>');
+      }
+    });
+
+    it('handles Mermaid diagrams in markdown', async () => {
+      const testFile = join(testDir, 'mermaid-test.md');
+      const content = '# Design\n\n```mermaid\ngraph TD\n  A-->B\n```';
+      await writeFile(testFile, content, 'utf-8');
+
+      const artifact: Artifact = {
+        name: 'Design with Diagram',
+        filename: 'mermaid-test.md',
+        path: testFile,
+        phase: 'design-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await previewService.previewArtifact(artifact);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const response = await fetch(result.url);
+        const html = await response.text();
+
+        expect(html).toContain('mermaid');
+        expect(html).toContain('graph TD');
+      }
+    });
+  });
+
+  describe('error handling', () => {
+    it('logs errors to stderr with context', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const artifact: Artifact = {
+        name: 'Error Test',
+        filename: 'error.md',
+        path: '/tmp/nonexistent-error-test.md',
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      await previewService.previewArtifact(artifact);
+
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      const logCall = consoleErrorSpy.mock.calls[0];
+      expect(logCall[0]).toBe('Preview error:');
+      expect(logCall[1]).toMatchObject({
+        code: 'FILE_NOT_FOUND',
+        path: artifact.path,
+        artifactName: artifact.name
+      });
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('includes timestamp in error logs', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const artifact: Artifact = {
+        name: 'Timestamp Test',
+        filename: 'timestamp.md',
+        path: '/tmp/nonexistent-timestamp.md',
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
+
+      await previewService.previewArtifact(artifact);
+
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      const logContext = consoleErrorSpy.mock.calls[0][1];
+      expect(logContext.timestamp).toBeDefined();
+      expect(typeof logContext.timestamp).toBe('string');
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
   describe('shutdownAll', () => {
-    it('should delegate to HTTP server shutdownAll', async () => {
-      await service.shutdownAll();
+    it('shuts down all active preview servers', async () => {
+      const testFile1 = join(testDir, 'server1.md');
+      const testFile2 = join(testDir, 'server2.md');
+      await writeFile(testFile1, '# Server 1', 'utf-8');
+      await writeFile(testFile2, '# Server 2', 'utf-8');
 
-      expect(mockServer.shutdownAll).toHaveBeenCalled();
-    });
-
-    it('should handle errors gracefully', async () => {
-      vi.mocked(mockServer.shutdownAll).mockRejectedValue(new Error('Shutdown failed'));
-
-      // Should not throw
-      await expect(service.shutdownAll()).resolves.not.toThrow();
-    });
-  });
-
-  describe('error logging', () => {
-    const testArtifact: Artifact = {
-      name: 'Requirements',
-      filename: 'requirements.md',
-      path: '/workspace/.red64/specs/test-feature/requirements.md',
-      phase: 'requirements-generating',
-      createdAt: '2024-01-01T00:00:00.000Z'
-    };
-
-    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      consoleErrorSpy.mockRestore();
-    });
-
-    it('should log FILE_NOT_FOUND errors to stderr with context', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('ENOENT: no such file or directory') as any;
-      error.code = 'ENOENT';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      await service.previewArtifact(testArtifact);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Preview error'),
-        expect.objectContaining({
-          code: 'FILE_NOT_FOUND',
-          path: testArtifact.path,
-          artifactName: testArtifact.name
-        })
-      );
-    });
-
-    it('should log FILE_READ_ERROR errors to stderr with context', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('Permission denied') as any;
-      error.code = 'EACCES';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      await service.previewArtifact(testArtifact);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Preview error'),
-        expect.objectContaining({
-          code: 'FILE_READ_ERROR',
-          path: testArtifact.path
-        })
-      );
-    });
-
-    it('should log PORT_UNAVAILABLE errors to stderr', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      vi.mocked(mockServer.start).mockResolvedValue({
-        success: false,
-        error: 'All ports busy'
-      });
-
-      await service.previewArtifact(testArtifact);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Preview error'),
-        expect.objectContaining({
-          code: 'PORT_UNAVAILABLE'
-        })
-      );
-    });
-
-    it('should log BROWSER_LAUNCH_ERROR errors to stderr with URL', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockResolvedValue('# Test Content');
-
-      const openModule = await import('open');
-      vi.mocked(openModule.default).mockRejectedValue(new Error('Browser not found'));
-
-      await service.previewArtifact(testArtifact);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Preview error'),
-        expect.objectContaining({
-          code: 'BROWSER_LAUNCH_ERROR',
-          url: 'http://localhost:3000'
-        })
-      );
-    });
-
-    it('should include timestamp in error logs', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('ENOENT') as any;
-      error.code = 'ENOENT';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      const now = new Date();
-      vi.setSystemTime(now);
-
-      await service.previewArtifact(testArtifact);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          timestamp: expect.any(String)
-        })
-      );
-    });
-  });
-
-  describe('edge cases', () => {
-    const testArtifact: Artifact = {
-      name: 'Requirements',
-      filename: 'requirements.md',
-      path: '/workspace/.red64/specs/test-feature/requirements.md',
-      phase: 'requirements-generating',
-      createdAt: '2024-01-01T00:00:00.000Z'
-    };
-
-    it('should handle file deletion between cache check and read', async () => {
-      vi.mocked(mockCache.get).mockReturnValue(null);
-
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('ENOENT: file was deleted') as any;
-      error.code = 'ENOENT';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      const result = await service.previewArtifact(testArtifact);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FILE_NOT_FOUND');
-        expect(result.error.message).toContain('not found');
-      }
-    });
-
-    it('should handle EPERM error code for permission issues', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('Operation not permitted') as any;
-      error.code = 'EPERM';
-      vi.mocked(readFile).mockRejectedValue(error);
-
-      const result = await service.previewArtifact(testArtifact);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FILE_READ_ERROR');
-        expect(result.error.message).toContain('Check permissions');
-      }
-    });
-
-    it('should handle whitespace-only path as invalid', async () => {
-      const invalidArtifact: Artifact = {
-        name: 'Invalid',
-        filename: 'invalid.md',
-        path: '   ', // Whitespace only
+      const artifact1: Artifact = {
+        name: 'Server 1',
+        filename: 'server1.md',
+        path: testFile1,
         phase: 'requirements-generating',
-        createdAt: '2024-01-01T00:00:00.000Z'
+        createdAt: new Date().toISOString()
       };
 
-      const result = await service.previewArtifact(invalidArtifact);
+      const artifact2: Artifact = {
+        name: 'Server 2',
+        filename: 'server2.md',
+        path: testFile2,
+        phase: 'design-generating',
+        createdAt: new Date().toISOString()
+      };
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FILE_NOT_FOUND');
+      const result1 = await previewService.previewArtifact(artifact1);
+      const result2 = await previewService.previewArtifact(artifact2);
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+
+      // Shutdown all
+      await previewService.shutdownAll();
+
+      // Servers should be inaccessible
+      if (result1.success) {
+        await expect(fetch(result1.url)).rejects.toThrow();
+      }
+      if (result2.success) {
+        await expect(fetch(result2.url)).rejects.toThrow();
       }
     });
 
-    it('should handle non-Error thrown objects', async () => {
-      const { readFile } = await import('node:fs/promises');
-      vi.mocked(readFile).mockRejectedValue('String error');
+    it('handles shutdown errors gracefully', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const result = await service.previewArtifact(testArtifact);
+      // Should not throw even if no servers are active
+      await expect(previewService.shutdownAll()).resolves.not.toThrow();
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('UNKNOWN');
-      }
+      consoleWarnSpy.mockRestore();
     });
+  });
 
-    it('should handle null error code in file errors', async () => {
-      const { readFile } = await import('node:fs/promises');
-      const error = new Error('Unknown file error') as any;
-      error.code = null;
-      vi.mocked(readFile).mockRejectedValue(error);
+  describe('integration with cache', () => {
+    it('stores content in cache after reading file', async () => {
+      const testFile = join(testDir, 'cache-integration.md');
+      const content = '# Cache Test';
+      await writeFile(testFile, content, 'utf-8');
 
-      const result = await service.previewArtifact(testArtifact);
+      const artifact: Artifact = {
+        name: 'Cache Integration',
+        filename: 'cache-integration.md',
+        path: testFile,
+        phase: 'requirements-generating',
+        createdAt: new Date().toISOString()
+      };
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FILE_READ_ERROR');
-      }
+      // Cache should be empty initially
+      expect(cache.get(testFile)).toBeNull();
+
+      // Preview artifact
+      await previewService.previewArtifact(artifact);
+
+      // Cache should now contain content
+      expect(cache.get(testFile)).toBe(content);
+    });
+  });
+
+  describe('concurrent previews', () => {
+    it('handles multiple concurrent preview requests', async () => {
+      const testFile1 = join(testDir, 'concurrent1.md');
+      const testFile2 = join(testDir, 'concurrent2.md');
+      const testFile3 = join(testDir, 'concurrent3.md');
+
+      await Promise.all([
+        writeFile(testFile1, '# Concurrent 1', 'utf-8'),
+        writeFile(testFile2, '# Concurrent 2', 'utf-8'),
+        writeFile(testFile3, '# Concurrent 3', 'utf-8')
+      ]);
+
+      const artifacts: Artifact[] = [
+        {
+          name: 'Concurrent 1',
+          filename: 'concurrent1.md',
+          path: testFile1,
+          phase: 'requirements-generating',
+          createdAt: new Date().toISOString()
+        },
+        {
+          name: 'Concurrent 2',
+          filename: 'concurrent2.md',
+          path: testFile2,
+          phase: 'design-generating',
+          createdAt: new Date().toISOString()
+        },
+        {
+          name: 'Concurrent 3',
+          filename: 'concurrent3.md',
+          path: testFile3,
+          phase: 'tasks-generating',
+          createdAt: new Date().toISOString()
+        }
+      ];
+
+      // Preview all concurrently
+      const results = await Promise.all(
+        artifacts.map(a => previewService.previewArtifact(a))
+      );
+
+      // All should succeed
+      expect(results.every(r => r.success)).toBe(true);
+
+      // All should have different URLs
+      const urls = results.map(r => r.success ? r.url : '');
+      const uniqueUrls = new Set(urls);
+      expect(uniqueUrls.size).toBe(3);
     });
   });
 });

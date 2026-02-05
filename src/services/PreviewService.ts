@@ -94,7 +94,9 @@ export class PreviewService implements PreviewServiceInterface {
           this.cache.set(artifact.path, content);
         } catch (error) {
           const result = this.handleFileError(error, artifact);
-          this.logError(result.error, artifact);
+          if (!result.success) {
+            this.logError(result.error, artifact);
+          }
           return result;
         }
       }
@@ -114,7 +116,7 @@ export class PreviewService implements PreviewServiceInterface {
             details: serverResult.error
           }
         };
-        this.logError(result.error, artifact, serverResult.url);
+        this.logError(result.error, artifact);
         return result;
       }
 
@@ -158,7 +160,7 @@ export class PreviewService implements PreviewServiceInterface {
   /**
    * Handle file read errors and map to appropriate error codes
    */
-  private handleFileError(error: unknown, artifact: Artifact): PreviewResult {
+  private handleFileError(error: unknown, _artifact: Artifact): PreviewResult {
     if (error instanceof Error) {
       const nodeError = error as NodeJS.ErrnoException;
 
