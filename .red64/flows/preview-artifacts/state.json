@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T13:09:37.079Z",
+  "updatedAt": "2026-02-05T19:13:25.601Z",
   "history": [
     {
       "phase": {
@@ -167,6 +167,22 @@
       "timestamp": "2026-02-05T13:09:37.079Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-3-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:11:18.316Z",
+      "event": "TASK_START",
+      "subStep": "task-1-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:13:25.601Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-1-completed"
     }
   ],
   "metadata": {
@@ -176,11 +192,117 @@
   },
   "taskProgress": {
     "completedGroups": [
-      1,
-      2,
-      3
+      1
     ],
-    "totalGroups": 3
+    "totalGroups": 3,
+    "taskEntries": [
+      {
+        "id": "1",
+        "title": "Install required dependencies",
+        "startedAt": "2026-02-05T19:11:18.315Z",
+        "completedAt": "2026-02-05T19:13:25.600Z",
+        "status": "completed"
+      },
+      {
+        "id": "2",
+        "title": "Create ContentCache service for artifact caching",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "3",
+        "title": "Create PreviewHTMLGenerator service for markdown transformation",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "4",
+        "title": "Create PreviewHTTPServer service for ephemeral server lifecycle",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "5",
+        "title": "Create PreviewService orchestration layer",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "6",
+        "title": "Enhance ArtifactsSidebar with keyboard navigation",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "7",
+        "title": "Integrate PreviewService into StartScreen component",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "8",
+        "title": "Add error handling and edge case coverage",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "9",
+        "title": "Write unit tests for ContentCache",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "10",
+        "title": "Write unit tests for PreviewHTMLGenerator",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "11",
+        "title": "Write unit tests for PreviewHTTPServer",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "12",
+        "title": "Write unit tests for PreviewService",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "13",
+        "title": "Write integration tests for ArtifactsSidebar",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "14",
+        "title": "Write integration tests for full preview flow",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "15",
+        "title": "Write baseline rendering and accessibility tests",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      }
+    ],
+    "currentTaskId": "1"
   },
   "artifacts": [
     {
