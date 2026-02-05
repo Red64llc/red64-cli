@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:23:42.556Z",
+  "updatedAt": "2026-02-05T19:28:54.064Z",
   "history": [
     {
       "phase": {
@@ -231,6 +231,22 @@
       "timestamp": "2026-02-05T19:23:42.556Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-4-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:23:42.822Z",
+      "event": "TASK_START",
+      "subStep": "task-5-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:28:54.064Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-5-completed"
     }
   ],
   "metadata": {
@@ -243,9 +259,10 @@
       1,
       2,
       3,
-      4
+      4,
+      5
     ],
-    "totalGroups": 4,
+    "totalGroups": 5,
     "taskEntries": [
       {
         "id": "1",
@@ -278,9 +295,9 @@
       {
         "id": "5",
         "title": "Create PreviewService orchestration layer",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:23:42.822Z",
+        "completedAt": "2026-02-05T19:28:54.062Z",
+        "status": "completed"
       },
       {
         "id": "6",
@@ -353,7 +370,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "4"
+    "currentTaskId": "5"
   },
   "artifacts": [
     {
