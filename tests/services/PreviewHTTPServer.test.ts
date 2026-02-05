@@ -204,6 +204,33 @@ describe('PreviewHTTPServer', () => {
         expect(response.ok).toBe(true);
       }
     });
+
+    it('auto-shuts down server after 60 seconds of inactivity', async () => {
+      // Use fake timers to test timeout behavior
+      vi.useFakeTimers();
+
+      const html = '<h1>Test</h1>';
+      const result = await server.start(html);
+
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        // Verify server is accessible initially
+        const initialResponse = await fetch(result.url);
+        expect(initialResponse.ok).toBe(true);
+
+        // Fast-forward time by 60 seconds
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        // Give a small delay for the async shutdown to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Server should now be shut down and inaccessible
+        await expect(fetch(result.url)).rejects.toThrow();
+      }
+
+      vi.useRealTimers();
+    });
   });
 
   describe('port generation', () => {

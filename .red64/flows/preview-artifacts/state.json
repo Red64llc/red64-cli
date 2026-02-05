@@ -1,10 +1,12 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "idle"
+    "type": "initializing",
+    "feature": "preview-artifacts",
+    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T21:25:10.738Z",
+  "updatedAt": "2026-02-05T21:29:28.167Z",
   "history": [
     {
       "phase": {
@@ -487,6 +489,5 @@
       "phase": "tasks-generating",
       "createdAt": "2026-02-05T01:29:58.933Z"
     }
-  ],
-  "version": 2
+  ]
 }
