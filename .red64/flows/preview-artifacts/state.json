@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T13:06:56.220Z",
+  "updatedAt": "2026-02-05T13:09:37.079Z",
   "history": [
     {
       "phase": {
@@ -159,6 +159,14 @@
       "timestamp": "2026-02-05T13:06:56.220Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-2-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T13:09:37.079Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3-completed"
     }
   ],
   "metadata": {
@@ -169,9 +177,10 @@
   "taskProgress": {
     "completedGroups": [
       1,
-      2
+      2,
+      3
     ],
-    "totalGroups": 2
+    "totalGroups": 3
   },
   "artifacts": [
     {
