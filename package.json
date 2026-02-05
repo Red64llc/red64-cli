@@ -15,6 +15,8 @@
     "build:ts": "tsc",
     "dev": "tsx src/cli.tsx",
     "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "type-check": "tsc --noEmit"
   },
