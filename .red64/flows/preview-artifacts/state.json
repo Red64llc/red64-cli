@@ -1,12 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "initializing",
-    "feature": "preview-artifacts",
-    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
+    "type": "requirements-generating",
+    "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:31:08.318Z",
+  "updatedAt": "2026-02-05T01:31:08.465Z",
   "history": [
     {
       "phase": {
@@ -73,6 +72,13 @@
         "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
       },
       "timestamp": "2026-02-05T01:31:08.318Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:31:08.465Z"
     }
   ],
   "metadata": {
