@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:20:26.972Z",
+  "updatedAt": "2026-02-05T19:23:42.556Z",
   "history": [
     {
       "phase": {
@@ -215,6 +215,22 @@
       "timestamp": "2026-02-05T19:20:26.972Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-3-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:20:27.230Z",
+      "event": "TASK_START",
+      "subStep": "task-4-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:23:42.556Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-4-completed"
     }
   ],
   "metadata": {
@@ -226,9 +242,10 @@
     "completedGroups": [
       1,
       2,
-      3
+      3,
+      4
     ],
-    "totalGroups": 3,
+    "totalGroups": 4,
     "taskEntries": [
       {
         "id": "1",
@@ -254,9 +271,9 @@
       {
         "id": "4",
         "title": "Create PreviewHTTPServer service for ephemeral server lifecycle",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:20:27.229Z",
+        "completedAt": "2026-02-05T19:23:42.555Z",
+        "status": "completed"
       },
       {
         "id": "5",
@@ -336,7 +353,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "3"
+    "currentTaskId": "4"
   },
   "artifacts": [
     {
