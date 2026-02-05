@@ -3,7 +3,7 @@
  * Right-side panel showing generated artifacts with keyboard navigation and preview
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Artifact } from '../../types/index.js';
 
@@ -55,6 +55,13 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
 
   // Track selected artifact index for keyboard navigation
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Clamp selectedIndex when artifacts change to ensure it stays within valid range
+  useEffect(() => {
+    if (validArtifacts.length > 0 && selectedIndex >= validArtifacts.length) {
+      setSelectedIndex(validArtifacts.length - 1);
+    }
+  }, [validArtifacts.length, selectedIndex]);
 
   // Handle keyboard input for navigation and selection
   useInput((input, key) => {

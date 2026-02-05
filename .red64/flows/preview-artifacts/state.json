@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:28:54.064Z",
+  "updatedAt": "2026-02-05T19:37:57.115Z",
   "history": [
     {
       "phase": {
@@ -247,6 +247,22 @@
       "timestamp": "2026-02-05T19:28:54.064Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-5-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:28:54.340Z",
+      "event": "TASK_START",
+      "subStep": "task-6-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:37:57.115Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-6-completed"
     }
   ],
   "metadata": {
@@ -260,9 +276,10 @@
       2,
       3,
       4,
-      5
+      5,
+      6
     ],
-    "totalGroups": 5,
+    "totalGroups": 6,
     "taskEntries": [
       {
         "id": "1",
@@ -302,9 +319,9 @@
       {
         "id": "6",
         "title": "Enhance ArtifactsSidebar with keyboard navigation",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:28:54.339Z",
+        "completedAt": "2026-02-05T19:37:57.114Z",
+        "status": "completed"
       },
       {
         "id": "7",
@@ -370,7 +387,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "5"
+    "currentTaskId": "6"
   },
   "artifacts": [
     {
