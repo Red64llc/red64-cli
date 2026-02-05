@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "design-validation",
+    "type": "complete",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T10:56:41.593Z",
+  "updatedAt": "2026-02-05T12:52:19.343Z",
   "history": [
     {
       "phase": {
@@ -114,13 +114,42 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T10:56:41.593Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:39.929Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:39.934Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "preview-artifacts",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-05T10:59:51.360Z"
+    },
+    {
+      "phase": {
+        "type": "complete",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:51.365Z"
     }
   ],
   "metadata": {
     "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
-    "resolvedFeatureName": "preview-artifacts"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts"
   },
   "artifacts": [
     {
