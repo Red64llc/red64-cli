@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:50:15.245Z",
+  "updatedAt": "2026-02-05T21:25:10.509Z",
   "history": [
     {
       "phase": {
@@ -319,6 +319,14 @@
       "timestamp": "2026-02-05T19:50:15.245Z",
       "event": "TASK_START",
       "subStep": "task-10-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T21:25:10.509Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-10-completed"
     }
   ],
   "metadata": {
@@ -336,9 +344,10 @@
       6,
       7,
       8,
-      9
+      9,
+      10
     ],
-    "totalGroups": 9,
+    "totalGroups": 10,
     "taskEntries": [
       {
         "id": "1",
@@ -407,8 +416,8 @@
         "id": "10",
         "title": "Write unit tests for PreviewHTMLGenerator",
         "startedAt": "2026-02-05T19:50:15.244Z",
-        "completedAt": null,
-        "status": "in_progress"
+        "completedAt": "2026-02-05T21:25:10.506Z",
+        "status": "completed"
       },
       {
         "id": "11",
