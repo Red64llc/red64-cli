@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "gap-analysis",
+    "type": "design-generating",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:20:30.195Z",
+  "updatedAt": "2026-02-05T01:25:50.817Z",
   "history": [
     {
       "phase": {
@@ -13,6 +13,13 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:20:30.195Z"
+    },
+    {
+      "phase": {
+        "type": "design-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:25:50.817Z"
     }
   ],
   "metadata": {
@@ -21,5 +28,14 @@
     "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
     "resolvedFeatureName": "preview-artifacts"
   },
+  "artifacts": [
+    {
+      "name": "Gap Analysis",
+      "filename": "gap-analysis.md",
+      "path": ".red64/specs/preview-artifacts/gap-analysis.md",
+      "phase": "gap-analysis",
+      "createdAt": "2026-02-05T01:25:47.346Z"
+    }
+  ],
   "version": 2
 }
