@@ -25,6 +25,11 @@ export class PreviewHTMLGenerator implements PreviewHTMLGeneratorInterface {
   /**
    * Generate complete HTML document from markdown content
    * Includes GitHub markdown CSS and Mermaid.js for diagram rendering
+   *
+   * CDN Graceful Degradation:
+   * - If GitHub CSS fails to load: Markdown renders unstyled but readable
+   * - If Mermaid.js fails to load: Diagrams display as code blocks
+   * - Browser handles CDN failures automatically; no server-side error handling needed
    */
   generateHTML(content: string, title: string): string {
     // Parse markdown to HTML using marked

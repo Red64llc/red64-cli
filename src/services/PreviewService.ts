@@ -72,13 +72,15 @@ export class PreviewService implements PreviewServiceInterface {
     try {
       // Validate artifact path
       if (!artifact.path || artifact.path.trim() === '') {
-        return {
+        const result: PreviewResult = {
           success: false,
           error: {
             code: 'FILE_NOT_FOUND',
             message: 'Artifact path is empty or invalid'
           }
         };
+        this.logError(result.error, artifact);
+        return result;
       }
 
       // Step 1: Check cache for artifact content
@@ -91,7 +93,9 @@ export class PreviewService implements PreviewServiceInterface {
           // Store in cache
           this.cache.set(artifact.path, content);
         } catch (error) {
-          return this.handleFileError(error);
+          const result = this.handleFileError(error, artifact);
+          this.logError(result.error, artifact);
+          return result;
         }
       }
 
@@ -102,7 +106,7 @@ export class PreviewService implements PreviewServiceInterface {
       const serverResult = await this.server.start(html);
 
       if (!serverResult.success) {
-        return {
+        const result: PreviewResult = {
           success: false,
           error: {
             code: 'PORT_UNAVAILABLE',
@@ -110,6 +114,8 @@ export class PreviewService implements PreviewServiceInterface {
             details: serverResult.error
           }
         };
+        this.logError(result.error, artifact, serverResult.url);
+        return result;
       }
 
       // Step 5: Launch browser with server URL
@@ -118,7 +124,7 @@ export class PreviewService implements PreviewServiceInterface {
       } catch (error) {
         // Browser launch failed, but server is running
         // Return error but include URL for manual opening
-        return {
+        const result: PreviewResult = {
           success: false,
           error: {
             code: 'BROWSER_LAUNCH_ERROR',
@@ -126,6 +132,8 @@ export class PreviewService implements PreviewServiceInterface {
             details: serverResult.url
           }
         };
+        this.logError(result.error, artifact, serverResult.url);
+        return result;
       }
 
       // Success!
@@ -135,20 +143,22 @@ export class PreviewService implements PreviewServiceInterface {
       };
     } catch (error) {
       // Catch-all for unexpected errors
-      return {
+      const result: PreviewResult = {
         success: false,
         error: {
           code: 'UNKNOWN',
           message: error instanceof Error ? error.message : 'Unknown error occurred'
         }
       };
+      this.logError(result.error, artifact);
+      return result;
     }
   }
 
   /**
    * Handle file read errors and map to appropriate error codes
    */
-  private handleFileError(error: unknown): PreviewResult {
+  private handleFileError(error: unknown, artifact: Artifact): PreviewResult {
     if (error instanceof Error) {
       const nodeError = error as NodeJS.ErrnoException;
 
@@ -191,6 +201,29 @@ export class PreviewService implements PreviewServiceInterface {
         message: 'Unknown error occurred while reading file'
       }
     };
+  }
+
+  /**
+   * Log preview errors to stderr with context
+   * Provides structured error information for debugging and monitoring
+   */
+  private logError(error: PreviewError, artifact: Artifact, url?: string): void {
+    const logContext: Record<string, unknown> = {
+      code: error.code,
+      path: artifact.path,
+      artifactName: artifact.name,
+      timestamp: new Date().toISOString()
+    };
+
+    if (url) {
+      logContext.url = url;
+    }
+
+    if (error.details) {
+      logContext.details = error.details;
+    }
+
+    console.error('Preview error:', logContext);
   }
 
   /**

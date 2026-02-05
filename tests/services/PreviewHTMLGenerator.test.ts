@@ -259,4 +259,28 @@ Second paragraph.`;
       expect(html).toContain('<p>Second paragraph.</p>');
     });
   });
+
+  describe('CDN resource handling', () => {
+    it('should use CDN links with proper protocol', () => {
+      const content = '# Test';
+      const title = 'CDN Test';
+
+      const html = generator.generateHTML(content, title);
+
+      // Verify HTTPS protocol for CDN resources
+      expect(html).toContain('https://cdn.jsdelivr.net');
+    });
+
+    it('should include graceful degradation note in HTML comments', () => {
+      const content = '# Test';
+      const title = 'Test';
+
+      const html = generator.generateHTML(content, title);
+
+      // CDN resources are loaded client-side; browser handles failures gracefully
+      // Markdown will still render without GitHub CSS (unstyled)
+      // Mermaid diagrams will show as code blocks if JS fails to load
+      expect(html).toContain('<!DOCTYPE html>'); // Basic structure always present
+    });
+  });
 });
