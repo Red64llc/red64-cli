@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:13:25.601Z",
+  "updatedAt": "2026-02-05T19:16:19.211Z",
   "history": [
     {
       "phase": {
@@ -183,6 +183,22 @@
       "timestamp": "2026-02-05T19:13:25.601Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-1-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:13:25.892Z",
+      "event": "TASK_START",
+      "subStep": "task-2-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:16:19.211Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2-completed"
     }
   ],
   "metadata": {
@@ -192,7 +208,8 @@
   },
   "taskProgress": {
     "completedGroups": [
-      1
+      1,
+      2
     ],
     "totalGroups": 3,
     "taskEntries": [
@@ -206,9 +223,9 @@
       {
         "id": "2",
         "title": "Create ContentCache service for artifact caching",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:13:25.891Z",
+        "completedAt": "2026-02-05T19:16:19.209Z",
+        "status": "completed"
       },
       {
         "id": "3",
@@ -302,7 +319,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "1"
+    "currentTaskId": "2"
   },
   "artifacts": [
     {
