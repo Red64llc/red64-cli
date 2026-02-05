@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:16:19.211Z",
+  "updatedAt": "2026-02-05T19:20:26.972Z",
   "history": [
     {
       "phase": {
@@ -199,6 +199,22 @@
       "timestamp": "2026-02-05T19:16:19.211Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-2-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:16:19.501Z",
+      "event": "TASK_START",
+      "subStep": "task-3-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:20:26.972Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3-completed"
     }
   ],
   "metadata": {
@@ -209,7 +225,8 @@
   "taskProgress": {
     "completedGroups": [
       1,
-      2
+      2,
+      3
     ],
     "totalGroups": 3,
     "taskEntries": [
@@ -230,9 +247,9 @@
       {
         "id": "3",
         "title": "Create PreviewHTMLGenerator service for markdown transformation",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:16:19.500Z",
+        "completedAt": "2026-02-05T19:20:26.971Z",
+        "status": "completed"
       },
       {
         "id": "4",
@@ -319,7 +336,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "2"
+    "currentTaskId": "3"
   },
   "artifacts": [
     {
