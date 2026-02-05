@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "design-validation",
+    "type": "tasks-generating",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:26:16.692Z",
+  "updatedAt": "2026-02-05T01:27:38.522Z",
   "history": [
     {
       "phase": {
@@ -34,6 +34,13 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:26:16.692Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:27:38.522Z"
     }
   ],
   "metadata": {
