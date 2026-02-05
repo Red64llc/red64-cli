@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "requirements-approval",
+    "type": "gap-analysis",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:31:20.342Z",
+  "updatedAt": "2026-02-05T10:42:41.665Z",
   "history": [
     {
       "phase": {
@@ -86,12 +86,20 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:31:20.342Z"
+    },
+    {
+      "phase": {
+        "type": "gap-analysis",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:42:41.665Z"
     }
   ],
   "metadata": {
     "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
+    "resolvedFeatureName": "preview-artifacts"
   },
   "artifacts": [
     {
