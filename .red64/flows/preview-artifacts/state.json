@@ -1,10 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "idle"
+    "type": "tasks-generating",
+    "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T00:34:38.533Z",
+  "updatedAt": "2026-02-05T00:37:45.459Z",
   "history": [],
   "metadata": {
     "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
