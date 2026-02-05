@@ -1,0 +1,181 @@
+{
+  "feature": "preview-artifacts",
+  "phase": {
+    "type": "implementing",
+    "feature": "preview-artifacts",
+    "currentTask": 1,
+    "totalTasks": 15
+  },
+  "createdAt": "2026-02-04T16:30:11.223Z",
+  "updatedAt": "2026-02-05T10:59:51.365Z",
+  "history": [
+    {
+      "phase": {
+        "type": "gap-analysis",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:20:30.195Z"
+    },
+    {
+      "phase": {
+        "type": "design-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:25:50.817Z"
+    },
+    {
+      "phase": {
+        "type": "design-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:26:03.771Z"
+    },
+    {
+      "phase": {
+        "type": "design-validation",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:26:16.692Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:27:38.522Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:29:58.935Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "preview-artifacts",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-05T01:30:15.401Z"
+    },
+    {
+      "phase": {
+        "type": "complete",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:30:15.407Z"
+    },
+    {
+      "phase": {
+        "type": "initializing",
+        "feature": "preview-artifacts",
+        "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
+      },
+      "timestamp": "2026-02-05T01:31:08.318Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:31:08.465Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:31:20.342Z"
+    },
+    {
+      "phase": {
+        "type": "gap-analysis",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:42:41.665Z"
+    },
+    {
+      "phase": {
+        "type": "design-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:47:47.105Z"
+    },
+    {
+      "phase": {
+        "type": "design-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:52:07.197Z"
+    },
+    {
+      "phase": {
+        "type": "design-validation",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:56:41.593Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:39.929Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:39.934Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "preview-artifacts",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-05T10:59:51.360Z"
+    },
+    {
+      "phase": {
+        "type": "complete",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T10:59:51.365Z"
+    }
+  ],
+  "metadata": {
+    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
+    "mode": "brownfield",
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
+    "resolvedFeatureName": "preview-artifacts"
+  },
+  "artifacts": [
+    {
+      "name": "Gap Analysis",
+      "filename": "gap-analysis.md",
+      "path": ".red64/specs/preview-artifacts/gap-analysis.md",
+      "phase": "gap-analysis",
+      "createdAt": "2026-02-05T01:25:47.346Z"
+    },
+    {
+      "name": "Design",
+      "filename": "design.md",
+      "path": ".red64/specs/preview-artifacts/design.md",
+      "phase": "design-generating",
+      "createdAt": "2026-02-05T01:26:03.769Z"
+    },
+    {
+      "name": "Tasks",
+      "filename": "tasks.md",
+      "path": ".red64/specs/preview-artifacts/tasks.md",
+      "phase": "tasks-generating",
+      "createdAt": "2026-02-05T01:29:58.933Z"
+    }
+  ],
+  "version": 2
+}

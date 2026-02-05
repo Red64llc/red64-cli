@@ -38,7 +38,7 @@ describe('FlowStateMachine', () => {
       expect(result.type).toBe('requirements-generating');
     });
 
-    it('should transition from requirements-generating to requirements-review on PHASE_COMPLETE', () => {
+    it('should transition from requirements-generating to requirements-approval on PHASE_COMPLETE', () => {
       const phase: FlowPhase = {
         type: 'requirements-generating',
         feature: 'test-feature'
@@ -47,12 +47,12 @@ describe('FlowStateMachine', () => {
 
       const result = transition(phase, event);
 
-      expect(result.type).toBe('requirements-review');
+      expect(result.type).toBe('requirements-approval');
     });
 
-    it('should transition from requirements-review to design-generating on APPROVE', () => {
+    it('should transition from requirements-approval to design-generating on APPROVE', () => {
       const phase: FlowPhase = {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'APPROVE' };
@@ -62,9 +62,9 @@ describe('FlowStateMachine', () => {
       expect(result.type).toBe('design-generating');
     });
 
-    it('should transition from requirements-review back to requirements-generating on REJECT', () => {
+    it('should transition from requirements-approval back to requirements-generating on REJECT', () => {
       const phase: FlowPhase = {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'REJECT' };
@@ -74,7 +74,7 @@ describe('FlowStateMachine', () => {
       expect(result.type).toBe('requirements-generating');
     });
 
-    it('should transition from design-generating to design-review on PHASE_COMPLETE', () => {
+    it('should transition from design-generating to design-approval on PHASE_COMPLETE', () => {
       const phase: FlowPhase = {
         type: 'design-generating',
         feature: 'test-feature'
@@ -83,12 +83,12 @@ describe('FlowStateMachine', () => {
 
       const result = transition(phase, event);
 
-      expect(result.type).toBe('design-review');
+      expect(result.type).toBe('design-approval');
     });
 
-    it('should transition from design-review to tasks-generating on APPROVE', () => {
+    it('should transition from design-approval to tasks-generating on APPROVE', () => {
       const phase: FlowPhase = {
-        type: 'design-review',
+        type: 'design-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'APPROVE' };
@@ -98,9 +98,9 @@ describe('FlowStateMachine', () => {
       expect(result.type).toBe('tasks-generating');
     });
 
-    it('should transition from design-review back to design-generating on REJECT', () => {
+    it('should transition from design-approval back to design-generating on REJECT', () => {
       const phase: FlowPhase = {
-        type: 'design-review',
+        type: 'design-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'REJECT' };
@@ -110,7 +110,7 @@ describe('FlowStateMachine', () => {
       expect(result.type).toBe('design-generating');
     });
 
-    it('should transition from tasks-generating to tasks-review on PHASE_COMPLETE', () => {
+    it('should transition from tasks-generating to tasks-approval on PHASE_COMPLETE', () => {
       const phase: FlowPhase = {
         type: 'tasks-generating',
         feature: 'test-feature'
@@ -119,12 +119,12 @@ describe('FlowStateMachine', () => {
 
       const result = transition(phase, event);
 
-      expect(result.type).toBe('tasks-review');
+      expect(result.type).toBe('tasks-approval');
     });
 
-    it('should transition from tasks-review to implementing on APPROVE', () => {
+    it('should transition from tasks-approval to implementing on APPROVE', () => {
       const phase: FlowPhase = {
-        type: 'tasks-review',
+        type: 'tasks-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'APPROVE' };
@@ -138,9 +138,9 @@ describe('FlowStateMachine', () => {
       }
     });
 
-    it('should transition from tasks-review back to tasks-generating on REJECT', () => {
+    it('should transition from tasks-approval back to tasks-generating on REJECT', () => {
       const phase: FlowPhase = {
-        type: 'tasks-review',
+        type: 'tasks-approval',
         feature: 'test-feature'
       };
       const event: FlowEvent = { type: 'REJECT' };
@@ -169,7 +169,7 @@ describe('FlowStateMachine', () => {
         { type: 'idle' },
         { type: 'initializing', feature: 'test', description: 'test' },
         { type: 'requirements-generating', feature: 'test' },
-        { type: 'requirements-review', feature: 'test' },
+        { type: 'requirements-approval', feature: 'test' },
         { type: 'implementing', feature: 'test', currentTask: 1, totalTasks: 5 }
       ];
 
@@ -228,12 +228,12 @@ describe('FlowStateMachine', () => {
 
     it('should create machine with custom initial phase', () => {
       const initialPhase: FlowPhase = {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'test-feature'
       };
       const machine = createFlowMachine(initialPhase);
 
-      expect(machine.getPhase().type).toBe('requirements-review');
+      expect(machine.getPhase().type).toBe('requirements-approval');
     });
 
     it('should update phase on send', () => {
@@ -298,7 +298,7 @@ describe('FlowStateMachine', () => {
 
     it('should return true for ERROR from any phase', () => {
       const machine = createFlowMachine({
-        type: 'design-review',
+        type: 'design-approval',
         feature: 'test'
       });
 

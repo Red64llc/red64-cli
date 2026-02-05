@@ -30,6 +30,19 @@ export interface MarkTaskCompleteResult {
 }
 
 /**
+ * Task group - collection of sub-tasks under a numbered group
+ * Requirement: Group-level tracking (1, 2, 3) not sub-task level (1.1, 1.2)
+ */
+export interface TaskGroup {
+  readonly groupId: number;           // Group number (1, 2, 3, etc.)
+  readonly title: string;             // Group title from tasks.md
+  readonly tasks: readonly Task[];    // Sub-tasks in this group
+  readonly completed: boolean;        // True if ALL sub-tasks complete
+  readonly taskCount: number;         // Total sub-tasks in group
+  readonly completedCount: number;    // Completed sub-tasks in group
+}
+
+/**
  * Task parser service interface
  * Requirements: 5.1
  */
@@ -42,14 +55,46 @@ export interface TaskParserService {
    * Updates checkbox from [ ] to [x]
    */
   markTaskComplete(specDir: string, taskId: string): Promise<MarkTaskCompleteResult>;
+  /**
+   * Parse tasks into groups (1, 2, 3, etc.)
+   * Requirement: Group-level tracking for progress visibility
+   */
+  parseGroups(specDir: string): Promise<readonly TaskGroup[]>;
+  /**
+   * Group tasks by their group ID (first number before the dot)
+   */
+  groupTasks(tasks: readonly Task[]): readonly TaskGroup[];
+  /**
+   * Check if a group is fully complete
+   */
+  isGroupComplete(tasks: readonly Task[], groupId: number): boolean;
+  /**
+   * Get all tasks in a specific group
+   */
+  getTasksInGroup(tasks: readonly Task[], groupId: number): readonly Task[];
+  /**
+   * Get completed groups from a task list
+   */
+  getCompletedGroups(tasks: readonly Task[]): readonly number[];
 }
 
 /**
  * Task line pattern
- * Matches: - [ ] 1.1 Task title or - [x] 1.1 Task title
+ * Matches both formats:
+ *   - [ ] 1.1 Task title  (subtask format)
+ *   - [ ] 1. Task title   (spec-tasks format with trailing dot)
+ *   - [ ] 1 Task title    (simple number format)
  * Also handles: - [ ]* 1.1 (P) Task title
  */
-const TASK_LINE_PATTERN = /^-\s+\[([ x])\](\*)?\s+(\d+\.\d+)\s+(?:\(P\)\s+)?(.+)$/;
+const TASK_LINE_PATTERN = /^-\s+\[([ x])\](\*)?\s+(\d+(?:\.\d+)?)\.?\s+(?:\(P\)\s+)?(.+)$/;
+
+/**
+ * Extract group ID from task ID (e.g., "1.2" -> 1)
+ */
+function getGroupIdFromTaskId(taskId: string): number {
+  const parts = taskId.split('.');
+  return parseInt(parts[0], 10);
+}
 
 /**
  * Check if a line is a task line (subtask with number like 1.1, 2.3, etc.)
@@ -227,6 +272,68 @@ export function createTaskParser(): TaskParserService {
           error: error instanceof Error ? error.message : 'Failed to write tasks.md'
         };
       }
+    },
+
+    /**
+     * Parse tasks into groups from tasks.md
+     * Requirement: Group-level tracking for progress visibility
+     */
+    async parseGroups(specDir: string): Promise<readonly TaskGroup[]> {
+      const tasks = await this.parse(specDir);
+      return this.groupTasks(tasks);
+    },
+
+    /**
+     * Group tasks by their group ID (first number before the dot)
+     * Also extracts group titles from tasks.md headers
+     */
+    groupTasks(tasks: readonly Task[]): readonly TaskGroup[] {
+      // Get unique group IDs
+      const groupIds = [...new Set(
+        tasks.map(t => getGroupIdFromTaskId(t.id))
+      )].sort((a, b) => a - b);
+
+      return groupIds.map(groupId => {
+        const groupTasks = tasks.filter(t => getGroupIdFromTaskId(t.id) === groupId);
+        const completedCount = groupTasks.filter(t => t.completed).length;
+
+        // Use first task's title as fallback group title
+        const groupTitle = groupTasks[0]?.title ?? `Group ${groupId}`;
+
+        return {
+          groupId,
+          title: groupTitle,
+          tasks: groupTasks,
+          completed: completedCount === groupTasks.length && groupTasks.length > 0,
+          taskCount: groupTasks.length,
+          completedCount
+        };
+      });
+    },
+
+    /**
+     * Check if a group is fully complete
+     */
+    isGroupComplete(tasks: readonly Task[], groupId: number): boolean {
+      const groupTasks = this.getTasksInGroup(tasks, groupId);
+      return groupTasks.length > 0 && groupTasks.every(t => t.completed);
+    },
+
+    /**
+     * Get all tasks in a specific group
+     */
+    getTasksInGroup(tasks: readonly Task[], groupId: number): readonly Task[] {
+      return tasks.filter(t => getGroupIdFromTaskId(t.id) === groupId);
+    },
+
+    /**
+     * Get completed groups from a task list
+     */
+    getCompletedGroups(tasks: readonly Task[]): readonly number[] {
+      const groups = this.groupTasks(tasks);
+      return groups
+        .filter(g => g.completed)
+        .map(g => g.groupId);
     }
   };
 }

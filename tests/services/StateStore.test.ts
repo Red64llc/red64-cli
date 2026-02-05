@@ -42,7 +42,7 @@ describe('StateStore', () => {
 
     it('should load saved flow state', async () => {
       const state = createTestState('test-feature', {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'test-feature'
       });
 
@@ -51,7 +51,7 @@ describe('StateStore', () => {
 
       expect(loaded).toBeDefined();
       expect(loaded?.feature).toBe('test-feature');
-      expect(loaded?.phase.type).toBe('requirements-review');
+      expect(loaded?.phase.type).toBe('requirements-approval');
     });
 
     it('should return undefined for non-existent feature', async () => {
@@ -89,14 +89,15 @@ describe('StateStore', () => {
     });
 
     it('should preserve history', async () => {
+      // Use new HistoryEntry format
       const state: FlowState = {
         ...createTestState('test-feature', {
-          type: 'requirements-review',
+          type: 'requirements-approval',
           feature: 'test-feature'
         }),
         history: [
-          { type: 'idle' },
-          { type: 'initializing', feature: 'test-feature', description: 'test' }
+          { phase: { type: 'idle' }, timestamp: new Date().toISOString() },
+          { phase: { type: 'initializing', feature: 'test-feature', description: 'test' }, timestamp: new Date().toISOString() }
         ]
       };
 
@@ -104,7 +105,7 @@ describe('StateStore', () => {
       const loaded = await stateStore.load('test-feature');
 
       expect(loaded?.history).toHaveLength(2);
-      expect(loaded?.history[0].type).toBe('idle');
+      expect(loaded?.history[0].phase.type).toBe('idle');
     });
 
     it('should update existing state', async () => {
@@ -165,7 +166,7 @@ describe('StateStore', () => {
     it('should return all saved flows', async () => {
       const state1 = createTestState('feature-1', { type: 'idle' });
       const state2 = createTestState('feature-2', {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'feature-2'
       });
 
@@ -258,7 +259,7 @@ describe('StateStore', () => {
     it('should preserve archived state content', async () => {
       const { readFile } = await import('node:fs/promises');
       const state = createTestState('test-feature', {
-        type: 'requirements-review',
+        type: 'requirements-approval',
         feature: 'test-feature'
       });
       await stateStore.save(state);
@@ -270,7 +271,7 @@ describe('StateStore', () => {
       const archived = JSON.parse(content);
 
       expect(archived.feature).toBe('test-feature');
-      expect(archived.phase.type).toBe('requirements-review');
+      expect(archived.phase.type).toBe('requirements-approval');
     });
   });
 });

@@ -96,17 +96,34 @@ export interface CLIConfig {
 /**
  * FlowPhase discriminated union covering all workflow states
  * Requirement: 1.1 - Deterministic state machine
+ * Updated: Unified with ExtendedFlowPhase to include all brownfield phases
  */
 export type FlowPhase =
   | { type: 'idle' }
   | { type: 'initializing'; feature: string; description: string }
+  // Requirements phases
   | { type: 'requirements-generating'; feature: string }
-  | { type: 'requirements-review'; feature: string }
+  | { type: 'requirements-approval'; feature: string }
+  // Brownfield: Gap analysis after requirements
+  | { type: 'gap-analysis'; feature: string }
+  | { type: 'gap-review'; feature: string }
+  // Design phases
   | { type: 'design-generating'; feature: string }
-  | { type: 'design-review'; feature: string }
+  | { type: 'design-approval'; feature: string }
+  // Brownfield: Design validation after design
+  | { type: 'design-validation'; feature: string }
+  | { type: 'design-validation-review'; feature: string }
+  // Tasks phases
   | { type: 'tasks-generating'; feature: string }
-  | { type: 'tasks-review'; feature: string }
+  | { type: 'tasks-approval'; feature: string }
+  // Implementation phases
   | { type: 'implementing'; feature: string; currentTask: number; totalTasks: number }
+  | { type: 'paused'; feature: string; pausedAt: number; totalTasks: number }
+  // Validation and PR phases
+  | { type: 'validation'; feature: string }
+  | { type: 'pr'; feature: string }
+  | { type: 'merge-decision'; feature: string; prUrl: string }
+  // Terminal phases
   | { type: 'complete'; feature: string }
   | { type: 'aborted'; feature: string; reason: string }
   | { type: 'error'; feature: string; error: string };
@@ -134,7 +151,35 @@ export interface PhaseMetric {
 }
 
 /**
+ * History entry for tracking phase transitions with fine-grained detail
+ * Requirement: Fine-grained state tracking for accurate resume
+ */
+export interface HistoryEntry {
+  readonly phase: FlowPhase;
+  readonly timestamp: string;           // ISO timestamp
+  readonly event?: string;              // Event that triggered transition (e.g., 'APPROVE', 'PHASE_COMPLETE')
+  readonly subStep?: string;            // Optional sub-step (e.g., 'generating-started', 'generating-completed')
+  readonly metadata?: Record<string, unknown>;  // Optional context (e.g., { taskId: '1.1' })
+}
+
+/**
+ * Grouped task progress tracking
+ * Tracks completion at group level (1, 2, 3) not sub-task (1.1, 1.2)
+ * Requirement: Track tasks at group level for cleaner progress visibility
+ */
+export interface GroupedTaskProgress {
+  readonly completedGroups: readonly number[];  // [1, 2] = groups 1 and 2 complete
+  readonly totalGroups: number;                 // Total number of task groups
+  readonly currentGroup?: number;               // Currently executing group
+  readonly subTasksInCurrentGroup?: {
+    readonly completed: readonly string[];      // ["3.1", "3.2"] within group 3
+    readonly total: number;
+  };
+}
+
+/**
  * Task progress tracking for implementation phase
+ * @deprecated Use GroupedTaskProgress instead. Kept for migration compatibility.
  */
 export interface TaskProgress {
   readonly completedTasks: readonly string[];  // ["1.1", "1.2", "2.1"]
@@ -154,15 +199,22 @@ export interface Artifact {
 }
 
 /**
+ * Current state schema version for migrations
+ */
+export const CURRENT_STATE_VERSION = 2;
+
+/**
  * FlowState interface with feature, phase, timestamps, history, and metadata
  * Requirement: 1.5 - State persistence
+ * Updated: Added version field and fine-grained history tracking
  */
 export interface FlowState {
   readonly feature: string;
   readonly phase: FlowPhase;
   readonly createdAt: string;
   readonly updatedAt: string;
-  readonly history: readonly FlowPhase[];
+  // Fine-grained history with timestamps and events
+  readonly history: readonly HistoryEntry[];
   readonly metadata: {
     readonly description: string;
     readonly mode: 'greenfield' | 'brownfield';
@@ -172,14 +224,16 @@ export interface FlowState {
     readonly prNumber?: number;
     readonly resolvedFeatureName?: string; // The actual spec directory name after spec-init
   };
-  // Task progress tracking (orchestrator-controlled)
-  readonly taskProgress?: TaskProgress;
+  // Task progress tracking at group level (orchestrator-controlled)
+  readonly taskProgress?: GroupedTaskProgress;
   // Phase completion metrics with timing
   readonly phaseMetrics?: {
     readonly [phaseType: string]: PhaseMetric;
   };
   // Artifacts generated during the flow
   readonly artifacts?: readonly Artifact[];
+  // Schema version for migrations (default: 1 for backwards compatibility)
+  readonly version?: number;
 }
 
 /**
