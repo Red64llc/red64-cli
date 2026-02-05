@@ -544,6 +544,16 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     return nextPhase;
   }, [services.flowMachine]);
 
+  // Clean up PreviewService on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup preview service when component unmounts
+      services.previewService.shutdownAll().catch(error => {
+        console.warn('Error shutting down preview service:', error);
+      });
+    };
+  }, [services.previewService]);
+
   // Check for existing flow on mount
   useEffect(() => {
     if (flowStartedRef.current) return;
