@@ -1,11 +1,12 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "tasks-generating",
-    "feature": "preview-artifacts"
+    "type": "initializing",
+    "feature": "preview-artifacts",
+    "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:27:38.522Z",
+  "updatedAt": "2026-02-05T01:31:08.318Z",
   "history": [
     {
       "phase": {
@@ -41,13 +42,43 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:27:38.522Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:29:58.935Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "preview-artifacts",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-05T01:30:15.401Z"
+    },
+    {
+      "phase": {
+        "type": "complete",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:30:15.407Z"
+    },
+    {
+      "phase": {
+        "type": "initializing",
+        "feature": "preview-artifacts",
+        "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram"
+      },
+      "timestamp": "2026-02-05T01:31:08.318Z"
     }
   ],
   "metadata": {
     "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
-    "resolvedFeatureName": "preview-artifacts"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts"
   },
   "artifacts": [
     {
@@ -63,6 +94,13 @@
       "path": ".red64/specs/preview-artifacts/design.md",
       "phase": "design-generating",
       "createdAt": "2026-02-05T01:26:03.769Z"
+    },
+    {
+      "name": "Tasks",
+      "filename": "tasks.md",
+      "path": ".red64/specs/preview-artifacts/tasks.md",
+      "phase": "tasks-generating",
+      "createdAt": "2026-02-05T01:29:58.933Z"
     }
   ],
   "version": 2
