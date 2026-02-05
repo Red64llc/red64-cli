@@ -19,10 +19,15 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase, TaskEntry } from '../../types/index.js';
 import { CURRENT_STATE_VERSION } from '../../types/index.js';
 import {
   createStateStore,
+  createTaskEntry,
+  markTaskStarted,
+  markTaskCompleted,
+  markTaskFailed,
+  getResumeTask,
   createAgentInvoker,
   createExtendedFlowMachine,
   createWorktreeService,
@@ -670,6 +675,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     workDir?: string,
     options?: {
       completedTasksOverride?: string[];
+      taskEntries?: readonly TaskEntry[];     // Individual task tracking with timestamps
+      currentTaskId?: string | null;          // Currently executing task
       event?: string;      // Event that triggered this save (e.g., 'APPROVE', 'PHASE_COMPLETE')
       subStep?: string;    // Sub-step within the phase (e.g., 'generating-started')
     }
@@ -748,11 +755,19 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         completedGroups,
         totalGroups,
         currentGroup,
-        subTasksInCurrentGroup
+        subTasksInCurrentGroup,
+        // Include task entries with timestamps if provided
+        taskEntries: options?.taskEntries ?? existingState?.taskProgress?.taskEntries,
+        currentTaskId: options?.currentTaskId ?? existingState?.taskProgress?.currentTaskId
       };
     } else if (existingState?.taskProgress) {
       // Preserve existing task progress if no new data
-      taskProgress = existingState.taskProgress;
+      taskProgress = {
+        ...existingState.taskProgress,
+        // Allow overriding taskEntries and currentTaskId even without other changes
+        taskEntries: options?.taskEntries ?? existingState.taskProgress.taskEntries,
+        currentTaskId: options?.currentTaskId ?? existingState.taskProgress.currentTaskId
+      };
     }
 
     const state: FlowState = {
@@ -832,12 +847,22 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         // Load task progress from state (source of truth)
         // Handle both old TaskProgress and new GroupedTaskProgress formats
+        // Prefer taskEntries if available (most accurate)
         const taskProgress = existingState.taskProgress;
         const completedTasks: string[] = [];
         let totalTasks = 0;
         if (taskProgress) {
-          // New format: GroupedTaskProgress
-          if ('completedGroups' in taskProgress) {
+          // New v2 format: taskEntries with individual tracking
+          if (taskProgress.taskEntries && taskProgress.taskEntries.length > 0) {
+            // Extract completed tasks from taskEntries (most accurate source)
+            for (const entry of taskProgress.taskEntries) {
+              if (entry.status === 'completed') {
+                completedTasks.push(entry.id);
+              }
+            }
+            totalTasks = taskProgress.taskEntries.length;
+          } else if ('completedGroups' in taskProgress) {
+            // v1 format: GroupedTaskProgress without taskEntries
             // We'll load actual task completion from tasks.md file later
             // For now just estimate count from groups
             totalTasks = taskProgress.totalGroups;
@@ -1670,43 +1695,101 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Run implementation - one task at a time with commits
   // ORCHESTRATOR-CONTROLLED: Marks tasks complete in both tasks.md and state.json
+  // Uses taskEntries for robust tracking with start/complete timestamps
   const runImplementation = async (workDir: string) => {
-    const { tasks, completedTasks: alreadyCompleted } = flowState;
     const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
     const specDir = join(workDir, '.red64', 'specs', effectiveName);
 
-    // Filter out already completed tasks (from state.json, source of truth)
-    const pendingTasks = tasks.filter(t => !alreadyCompleted.includes(t.id));
+    // Parse tasks directly from file - don't rely on flowState.tasks which may be stale
+    // due to React's async state batching
+    const tasks = await services.taskParser.parse(specDir);
 
-    if (pendingTasks.length === 0) {
+    // Load existing state to get taskEntries if resuming
+    const stateStore = createStateStore(workDir);
+    const existingState = await stateStore.load(featureName);
+    const existingTaskEntries = existingState?.taskProgress?.taskEntries;
+
+    // Initialize or resume taskEntries
+    // If we have existing entries, use them (for resume)
+    // Otherwise, create new entries from parsed tasks
+    let taskEntries: TaskEntry[] = existingTaskEntries
+      ? [...existingTaskEntries]
+      : tasks.map(t => createTaskEntry(t.id, t.title));
+
+    // Merge any new tasks that weren't in existing entries (edge case: tasks added after resume)
+    const existingIds = new Set(taskEntries.map(e => e.id));
+    for (const task of tasks) {
+      if (!existingIds.has(task.id)) {
+        taskEntries.push(createTaskEntry(task.id, task.title));
+      }
+    }
+
+    // Update state with fresh tasks (for UI display)
+    setFlowState(prev => ({ ...prev, tasks, totalTasks: tasks.length }));
+
+    // Find the task to resume: either in_progress (interrupted) or first pending
+    const resumeTask = getResumeTask(taskEntries);
+
+    if (!resumeTask) {
       addOutput('No tasks to implement');
       transitionPhase({ type: 'PHASE_COMPLETE' });
       await completeFlow(workDir);
       return;
     }
 
+    // Count completed and pending
+    const completedCount = taskEntries.filter(e => e.status === 'completed').length;
+    const pendingCount = taskEntries.filter(e => e.status === 'pending' || e.status === 'in_progress').length;
+
     addOutput('');
     addOutput('Starting implementation...');
-    addOutput(`Total tasks: ${tasks.length}, Pending: ${pendingTasks.length}`);
-    if (alreadyCompleted.length > 0) {
-      addOutput(`Already completed: ${alreadyCompleted.join(', ')}`);
+    addOutput(`Total tasks: ${tasks.length}, Pending: ${pendingCount}`);
+    if (completedCount > 0) {
+      const completedIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+      addOutput(`Already completed: ${completedIds.join(', ')}`);
+    }
+
+    // Check if resuming an in_progress task
+    if (resumeTask.status === 'in_progress') {
+      addOutput(`Resuming interrupted task: ${resumeTask.id}`);
     }
     addOutput('');
 
-    // Track completed tasks in this run
-    let currentCompleted = [...alreadyCompleted];
+    // Execute tasks starting from resumeTask
+    const resumeIndex = taskEntries.findIndex(e => e.id === resumeTask.id);
+    for (let i = resumeIndex; i < taskEntries.length; i++) {
+      const entry = taskEntries[i];
 
-    // Execute each pending task one at a time
-    for (let i = 0; i < pendingTasks.length; i++) {
-      const task = pendingTasks[i];
+      // Skip already completed tasks
+      if (entry.status === 'completed') {
+        continue;
+      }
+
+      const task = tasks.find(t => t.id === entry.id);
+      if (!task) {
+        addOutput(`Warning: Task ${entry.id} not found in tasks.md, skipping`);
+        continue;
+      }
+
       const overallIndex = tasks.findIndex(t => t.id === task.id);
       const taskNum = overallIndex + 1;
 
       setFlowState(prev => ({ ...prev, currentTask: taskNum }));
 
-      addOutput(`[${currentCompleted.length + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
+      // 1. Mark task as in_progress BEFORE execution (for crash recovery)
+      if (entry.status !== 'in_progress') {
+        taskEntries[i] = markTaskStarted(entry);
+        await saveFlowState(flowState.phase, workDir, {
+          taskEntries,
+          currentTaskId: task.id,
+          event: 'TASK_START',
+          subStep: `task-${task.id}-started`
+        });
+      }
 
-      // Run spec-impl for this specific task - use effective name
+      addOutput(`[${completedCount + (i - resumeIndex) + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
+
+      // 2. Run spec-impl for this specific task
       const result = await executeCommand(
         `/red64:spec-impl ${effectiveName} ${task.id} -y`,
         workDir
@@ -1714,31 +1797,41 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       if (!result.success) {
         addOutput(`Task ${task.id} failed: ${result.error}`);
-        // Save progress so far before continuing
-        await saveFlowState(flowState.phase, workDir, { completedTasksOverride: currentCompleted });
+        // Mark as failed and save progress
+        taskEntries[i] = markTaskFailed(taskEntries[i]);
+        await saveFlowState(flowState.phase, workDir, {
+          taskEntries,
+          currentTaskId: null,
+          event: 'TASK_FAILED',
+          subStep: `task-${task.id}-failed`
+        });
         // Continue to next task instead of failing entirely
         continue;
       }
 
-      // ORCHESTRATOR-CONTROLLED TASK COMPLETION:
-      // 1. Mark task complete in tasks.md
+      // 3. Mark task complete in tasks.md
       const markResult = await services.taskParser.markTaskComplete(specDir, task.id);
       if (!markResult.success) {
         addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
       }
 
-      // 2. Update state with completed task
-      currentCompleted = [...currentCompleted, task.id];
-      setFlowState(prev => ({ ...prev, completedTasks: currentCompleted }));
+      // 4. Mark task as completed with timestamp
+      taskEntries[i] = markTaskCompleted(taskEntries[i]);
 
-      // 3. Save state immediately (before commit, for crash recovery)
+      // 5. Update React state for UI
+      const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+      setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds }));
+
+      // 6. Save state immediately (before commit, for crash recovery)
       await saveFlowState(flowState.phase, workDir, {
-        completedTasksOverride: currentCompleted,
+        completedTasksOverride: completedTaskIds,
+        taskEntries,
+        currentTaskId: null,
         event: 'TASK_COMPLETE',
         subStep: `task-${task.id}-completed`
       });
 
-      // 4. Commit both tasks.md and state.json together
+      // 7. Commit both tasks.md and state.json together
       await commitChanges(
         services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
         workDir

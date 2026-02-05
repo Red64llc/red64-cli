@@ -10,6 +10,14 @@ export {
 
 export {
   createStateStore,
+  createTaskEntry,
+  markTaskStarted,
+  markTaskCompleted,
+  markTaskFailed,
+  updateTaskEntry,
+  getInProgressTask,
+  getNextPendingTask,
+  getResumeTask,
   type StateStoreService
 } from './StateStore.js';
 

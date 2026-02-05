@@ -6,8 +6,87 @@
 import { mkdir, readFile, writeFile, rm, readdir, rename, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress } from '../types/index.js';
+import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry } from '../types/index.js';
 import { CURRENT_STATE_VERSION } from '../types/index.js';
+
+/**
+ * Create a new task entry with pending status
+ */
+export function createTaskEntry(id: string, title: string): TaskEntry {
+  return {
+    id,
+    title,
+    startedAt: null,
+    completedAt: null,
+    status: 'pending'
+  };
+}
+
+/**
+ * Mark a task as started (in_progress)
+ */
+export function markTaskStarted(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    startedAt: new Date().toISOString(),
+    status: 'in_progress'
+  };
+}
+
+/**
+ * Mark a task as completed
+ */
+export function markTaskCompleted(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    completedAt: new Date().toISOString(),
+    status: 'completed'
+  };
+}
+
+/**
+ * Mark a task as failed
+ */
+export function markTaskFailed(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    status: 'failed'
+  };
+}
+
+/**
+ * Update a single task entry in the taskEntries array
+ */
+export function updateTaskEntry(
+  entries: readonly TaskEntry[],
+  taskId: string,
+  updater: (entry: TaskEntry) => TaskEntry
+): readonly TaskEntry[] {
+  return entries.map(entry =>
+    entry.id === taskId ? updater(entry) : entry
+  );
+}
+
+/**
+ * Get the first task that is in_progress (for resume)
+ */
+export function getInProgressTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return entries.find(entry => entry.status === 'in_progress');
+}
+
+/**
+ * Get the first pending task (for finding what to execute next)
+ */
+export function getNextPendingTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return entries.find(entry => entry.status === 'pending');
+}
+
+/**
+ * Get the task to resume: either in_progress or first pending
+ */
+export function getResumeTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return getInProgressTask(entries) ?? getNextPendingTask(entries);
+}
 import { sanitizeFeatureName } from './WorktreeService.js';
 
 /**
@@ -119,18 +198,22 @@ function migrateHistory(
 }
 
 /**
- * Migrate legacy TaskProgress to GroupedTaskProgress
+ * Migrate legacy TaskProgress to GroupedTaskProgress with taskEntries
+ * Note: Legacy format only has task IDs, not titles - titles will be populated
+ * when tasks.md is parsed during implementation
  */
 function migrateTaskProgress(
   taskProgress: { completedTasks?: readonly string[]; totalTasks?: number } | undefined
 ): GroupedTaskProgress | undefined {
-  if (!taskProgress?.completedTasks?.length) {
+  if (!taskProgress?.completedTasks?.length && !taskProgress?.totalTasks) {
     return undefined;
   }
 
+  const completedTasks = taskProgress.completedTasks ?? [];
+
   // Infer completed groups from sub-task IDs (e.g., "1.1", "1.2" -> group 1)
   const completedGroups = [...new Set(
-    taskProgress.completedTasks
+    completedTasks
       .map(id => parseInt(id.split('.')[0], 10))
       .filter(g => !isNaN(g))
   )].sort((a, b) => a - b);
@@ -139,11 +222,24 @@ function migrateTaskProgress(
   const maxCompletedGroup = Math.max(...completedGroups, 0);
   const estimatedTotalGroups = Math.max(maxCompletedGroup, 1);
 
+  // Create taskEntries from old completedTasks (titles unknown - will be filled later)
+  // Mark all known completed tasks as completed with migrated timestamp
+  const migratedTimestamp = new Date().toISOString();
+  const taskEntries: TaskEntry[] = completedTasks.map(id => ({
+    id,
+    title: '', // Will be populated when tasks.md is parsed
+    startedAt: migratedTimestamp, // Best guess for migration
+    completedAt: migratedTimestamp,
+    status: 'completed' as const
+  }));
+
   return {
     completedGroups,
     totalGroups: estimatedTotalGroups,
     currentGroup: undefined,
-    subTasksInCurrentGroup: undefined
+    subTasksInCurrentGroup: undefined,
+    taskEntries: taskEntries.length > 0 ? taskEntries : undefined,
+    currentTaskId: null
   };
 }
 

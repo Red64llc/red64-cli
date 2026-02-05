@@ -163,9 +163,21 @@ export interface HistoryEntry {
 }
 
 /**
- * Grouped task progress tracking
- * Tracks completion at group level (1, 2, 3) not sub-task (1.1, 1.2)
- * Requirement: Track tasks at group level for cleaner progress visibility
+ * Individual task entry with timestamps and status
+ * Requirement: Fine-grained task progress tracking for robust resume
+ */
+export interface TaskEntry {
+  readonly id: string;                          // Task ID (e.g., "1", "1.1", "2")
+  readonly title: string;                       // Task title from tasks.md
+  readonly startedAt: string | null;            // ISO timestamp when started
+  readonly completedAt: string | null;          // ISO timestamp when completed
+  readonly status: 'pending' | 'in_progress' | 'completed' | 'failed';
+}
+
+/**
+ * Grouped task progress tracking with individual task detail
+ * Tracks completion at group level (1, 2, 3) with detailed task entries
+ * Requirement: Track tasks at group level for cleaner progress visibility + individual timestamps
  */
 export interface GroupedTaskProgress {
   readonly completedGroups: readonly number[];  // [1, 2] = groups 1 and 2 complete
@@ -175,6 +187,9 @@ export interface GroupedTaskProgress {
     readonly completed: readonly string[];      // ["3.1", "3.2"] within group 3
     readonly total: number;
   };
+  // Individual task tracking with timestamps (v2 addition)
+  readonly taskEntries?: readonly TaskEntry[];  // Full list of tasks with status/timestamps
+  readonly currentTaskId?: string | null;       // Currently executing task ID
 }
 
 /**
