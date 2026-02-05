@@ -4,7 +4,7 @@
     "type": "idle"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T19:47:33.870Z",
+  "updatedAt": "2026-02-05T19:50:14.962Z",
   "history": [
     {
       "phase": {
@@ -295,6 +295,22 @@
       "timestamp": "2026-02-05T19:47:33.870Z",
       "event": "TASK_COMPLETE",
       "subStep": "task-8-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:47:34.152Z",
+      "event": "TASK_START",
+      "subStep": "task-9-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:50:14.962Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-9-completed"
     }
   ],
   "metadata": {
@@ -311,9 +327,10 @@
       5,
       6,
       7,
-      8
+      8,
+      9
     ],
-    "totalGroups": 8,
+    "totalGroups": 9,
     "taskEntries": [
       {
         "id": "1",
@@ -374,9 +391,9 @@
       {
         "id": "9",
         "title": "Write unit tests for ContentCache",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-05T19:47:34.152Z",
+        "completedAt": "2026-02-05T19:50:14.961Z",
+        "status": "completed"
       },
       {
         "id": "10",
@@ -421,7 +438,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "8"
+    "currentTaskId": "9"
   },
   "artifacts": [
     {
