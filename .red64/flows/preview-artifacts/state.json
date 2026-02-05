@@ -1,11 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "design-generating",
+    "type": "design-validation",
     "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T01:25:50.817Z",
+  "updatedAt": "2026-02-05T01:26:16.692Z",
   "history": [
     {
       "phase": {
@@ -20,6 +20,20 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T01:25:50.817Z"
+    },
+    {
+      "phase": {
+        "type": "design-approval",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:26:03.771Z"
+    },
+    {
+      "phase": {
+        "type": "design-validation",
+        "feature": "preview-artifacts"
+      },
+      "timestamp": "2026-02-05T01:26:16.692Z"
     }
   ],
   "metadata": {
@@ -35,6 +49,13 @@
       "path": ".red64/specs/preview-artifacts/gap-analysis.md",
       "phase": "gap-analysis",
       "createdAt": "2026-02-05T01:25:47.346Z"
+    },
+    {
+      "name": "Design",
+      "filename": "design.md",
+      "path": ".red64/specs/preview-artifacts/design.md",
+      "phase": "design-generating",
+      "createdAt": "2026-02-05T01:26:03.769Z"
     }
   ],
   "version": 2
