@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { ExtendedFlowPhase, WorkflowMode, CodingAgent } from '../../types/index.js';
+import type { ExtendedFlowPhase, WorkflowMode, CodingAgent, HistoryEntry } from '../../types/index.js';
 import { GREENFIELD_PHASES, BROWNFIELD_PHASES } from '../../types/index.js';
 
 export type { CodingAgent };
@@ -41,6 +41,7 @@ export interface FeatureSidebarProps {
   readonly commitCount: number;
   readonly agent?: CodingAgent;
   readonly model?: string;
+  readonly history?: readonly HistoryEntry[];  // History for determining phase completion
 }
 
 /**
@@ -97,12 +98,50 @@ function getStatusColor(status: PhaseStatus): string {
 }
 
 /**
- * Determine phase status relative to current phase
+ * Check if a phase was completed in history
+ * A phase is considered completed if a LATER phase appears in history
+ */
+function wasPhaseCompletedInHistory(
+  phase: ExtendedFlowPhase['type'],
+  history: readonly HistoryEntry[] | undefined,
+  phases: readonly ExtendedFlowPhase['type'][]
+): boolean {
+  if (!history || history.length === 0) return false;
+
+  const phaseIndex = phases.indexOf(phase);
+  if (phaseIndex === -1) return false;
+
+  // Check if any phase AFTER this one appears in history
+  // This means this phase was completed
+  for (const entry of history) {
+    const entryPhaseType = entry.phase.type;
+    const entryIndex = phases.indexOf(entryPhaseType);
+    if (entryIndex > phaseIndex) {
+      return true;
+    }
+    // Also check if this exact phase appears in history (means it was at least entered)
+    // And a later phase exists
+    if (entryPhaseType === phase) {
+      // Check if there's a later entry with a later phase
+      const laterEntries = history.filter(h => {
+        const laterIdx = phases.indexOf(h.phase.type);
+        return laterIdx > phaseIndex;
+      });
+      if (laterEntries.length > 0) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Determine phase status relative to current phase AND history
  */
 function getPhaseStatus(
   phase: ExtendedFlowPhase['type'],
   currentPhase: ExtendedFlowPhase['type'],
-  phases: readonly ExtendedFlowPhase['type'][]
+  phases: readonly ExtendedFlowPhase['type'][],
+  history?: readonly HistoryEntry[]
 ): PhaseStatus {
   // Handle terminal phases
   if (currentPhase === 'complete') {
@@ -127,13 +166,24 @@ function getPhaseStatus(
     return 'pending';
   }
 
+  // Check if this is the current phase
+  if (phaseIndex === currentIndex) {
+    return 'current';
+  }
+
+  // Check if phase is before current phase in sequence
   if (phaseIndex < currentIndex) {
     return 'completed';
-  } else if (phaseIndex === currentIndex) {
-    return 'current';
-  } else {
-    return 'pending';
   }
+
+  // Phase is after current in sequence - but check history!
+  // If this phase was completed in a previous run (appears in history
+  // with a later phase following), mark it as completed
+  if (wasPhaseCompletedInHistory(phase, history, phases)) {
+    return 'completed';
+  }
+
+  return 'pending';
 }
 
 /**
@@ -195,6 +245,7 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
   commitCount,
   agent = 'claude',
   model,
+  history,
 }) => {
   const displayName = truncate(featureName, 10);
   const allPhases = mode === 'greenfield' ? GREENFIELD_PHASES : BROWNFIELD_PHASES;
@@ -229,7 +280,7 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
       <Box flexDirection="column" marginTop={1}>
         <Text dimColor>─ Phases ─</Text>
         {sidebarPhases.map((phase) => {
-          const status = getPhaseStatus(phase, currentPhase, allPhases);
+          const status = getPhaseStatus(phase, currentPhase, allPhases, history);
           const indicator = getStatusIndicator(status);
           const color = getStatusColor(status);
           const name = getShortPhaseName(phase);

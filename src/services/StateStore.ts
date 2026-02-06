@@ -6,7 +6,87 @@
 import { mkdir, readFile, writeFile, rm, readdir, rename, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import type { FlowState } from '../types/index.js';
+import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry } from '../types/index.js';
+import { CURRENT_STATE_VERSION } from '../types/index.js';
+
+/**
+ * Create a new task entry with pending status
+ */
+export function createTaskEntry(id: string, title: string): TaskEntry {
+  return {
+    id,
+    title,
+    startedAt: null,
+    completedAt: null,
+    status: 'pending'
+  };
+}
+
+/**
+ * Mark a task as started (in_progress)
+ */
+export function markTaskStarted(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    startedAt: new Date().toISOString(),
+    status: 'in_progress'
+  };
+}
+
+/**
+ * Mark a task as completed
+ */
+export function markTaskCompleted(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    completedAt: new Date().toISOString(),
+    status: 'completed'
+  };
+}
+
+/**
+ * Mark a task as failed
+ */
+export function markTaskFailed(entry: TaskEntry): TaskEntry {
+  return {
+    ...entry,
+    status: 'failed'
+  };
+}
+
+/**
+ * Update a single task entry in the taskEntries array
+ */
+export function updateTaskEntry(
+  entries: readonly TaskEntry[],
+  taskId: string,
+  updater: (entry: TaskEntry) => TaskEntry
+): readonly TaskEntry[] {
+  return entries.map(entry =>
+    entry.id === taskId ? updater(entry) : entry
+  );
+}
+
+/**
+ * Get the first task that is in_progress (for resume)
+ */
+export function getInProgressTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return entries.find(entry => entry.status === 'in_progress');
+}
+
+/**
+ * Get the first pending task (for finding what to execute next)
+ */
+export function getNextPendingTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return entries.find(entry => entry.status === 'pending');
+}
+
+/**
+ * Get the task to resume: either in_progress or first pending
+ */
+export function getResumeTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return getInProgressTask(entries) ?? getNextPendingTask(entries);
+}
 import { sanitizeFeatureName } from './WorktreeService.js';
 
 /**
@@ -46,10 +126,10 @@ function getFeatureDir(baseDir: string, feature: string): string {
 }
 
 /**
- * Validate loaded state structure
+ * Validate loaded state structure (basic validation before migration)
  * Requirements: 1.7 - Validate state on load
  */
-function isValidFlowState(data: unknown): data is FlowState {
+function isValidFlowStateBasic(data: unknown): boolean {
   if (typeof data !== 'object' || data === null) {
     return false;
   }
@@ -67,6 +147,136 @@ function isValidFlowState(data: unknown): data is FlowState {
     typeof obj.metadata === 'object' &&
     obj.metadata !== null
   );
+}
+
+/**
+ * Map legacy phase names to new unified names
+ */
+const PHASE_NAME_MIGRATION: Record<string, string> = {
+  'requirements-review': 'requirements-approval',
+  'design-review': 'design-approval',
+  'tasks-review': 'tasks-approval'
+};
+
+/**
+ * Migrate legacy phase to new phase format
+ */
+function migratePhase(phase: Record<string, unknown>): FlowPhase {
+  const type = phase.type as string;
+  const newType = PHASE_NAME_MIGRATION[type] ?? type;
+  return { ...phase, type: newType } as FlowPhase;
+}
+
+/**
+ * Migrate legacy history (FlowPhase[]) to new format (HistoryEntry[])
+ */
+function migrateHistory(
+  history: readonly unknown[],
+  createdAt: string
+): readonly HistoryEntry[] {
+  return history.map((item) => {
+    // Check if already in new format (has timestamp field)
+    if (typeof item === 'object' && item !== null && 'timestamp' in item) {
+      // Already migrated - just ensure phase is migrated
+      const entry = item as Record<string, unknown>;
+      return {
+        ...entry,
+        phase: migratePhase(entry.phase as Record<string, unknown>)
+      } as HistoryEntry;
+    }
+
+    // Legacy format: just a FlowPhase
+    const phase = item as Record<string, unknown>;
+    return {
+      phase: migratePhase(phase),
+      timestamp: createdAt, // Best guess - use creation time
+      event: undefined,
+      subStep: undefined,
+      metadata: undefined
+    } as HistoryEntry;
+  });
+}
+
+/**
+ * Migrate legacy TaskProgress to GroupedTaskProgress with taskEntries
+ * Note: Legacy format only has task IDs, not titles - titles will be populated
+ * when tasks.md is parsed during implementation
+ */
+function migrateTaskProgress(
+  taskProgress: { completedTasks?: readonly string[]; totalTasks?: number } | undefined
+): GroupedTaskProgress | undefined {
+  if (!taskProgress?.completedTasks?.length && !taskProgress?.totalTasks) {
+    return undefined;
+  }
+
+  const completedTasks = taskProgress.completedTasks ?? [];
+
+  // Infer completed groups from sub-task IDs (e.g., "1.1", "1.2" -> group 1)
+  const completedGroups = [...new Set(
+    completedTasks
+      .map(id => parseInt(id.split('.')[0], 10))
+      .filter(g => !isNaN(g))
+  )].sort((a, b) => a - b);
+
+  // Estimate total groups from highest completed or totalTasks
+  const maxCompletedGroup = Math.max(...completedGroups, 0);
+  const estimatedTotalGroups = Math.max(maxCompletedGroup, 1);
+
+  // Create taskEntries from old completedTasks (titles unknown - will be filled later)
+  // Mark all known completed tasks as completed with migrated timestamp
+  const migratedTimestamp = new Date().toISOString();
+  const taskEntries: TaskEntry[] = completedTasks.map(id => ({
+    id,
+    title: '', // Will be populated when tasks.md is parsed
+    startedAt: migratedTimestamp, // Best guess for migration
+    completedAt: migratedTimestamp,
+    status: 'completed' as const
+  }));
+
+  return {
+    completedGroups,
+    totalGroups: estimatedTotalGroups,
+    currentGroup: undefined,
+    subTasksInCurrentGroup: undefined,
+    taskEntries: taskEntries.length > 0 ? taskEntries : undefined,
+    currentTaskId: null
+  };
+}
+
+/**
+ * Migrate state from older versions to current version
+ * Requirement: Backward compatibility with existing state.json files
+ */
+function migrateState(data: Record<string, unknown>): FlowState {
+  const version = (data.version as number) ?? 1;
+
+  // Already at current version
+  if (version >= CURRENT_STATE_VERSION) {
+    return data as unknown as FlowState;
+  }
+
+  // Migration from v1 to v2
+  if (version === 1 || !data.version) {
+    const phase = data.phase as Record<string, unknown>;
+    const migratedPhase = migratePhase(phase);
+
+    const history = data.history as readonly unknown[];
+    const migratedHistory = migrateHistory(history, data.createdAt as string);
+
+    const oldTaskProgress = data.taskProgress as { completedTasks?: readonly string[]; totalTasks?: number } | undefined;
+    const migratedTaskProgress = migrateTaskProgress(oldTaskProgress);
+
+    return {
+      ...data,
+      phase: migratedPhase,
+      history: migratedHistory,
+      taskProgress: migratedTaskProgress,
+      version: CURRENT_STATE_VERSION
+    } as unknown as FlowState;
+  }
+
+  // Unknown version - return as-is and hope for the best
+  return data as unknown as FlowState;
 }
 
 /**
@@ -104,8 +314,8 @@ export function createStateStore(baseDir: string): StateStoreService {
     },
 
     /**
-     * Load flow state
-     * Requirements: 1.5, 1.7 - Read and validate persisted state
+     * Load flow state with automatic migration
+     * Requirements: 1.5, 1.7 - Read, validate, and migrate persisted state
      */
     async load(feature: string): Promise<FlowState | undefined> {
       const statePath = getStatePath(baseDir, feature);
@@ -114,12 +324,13 @@ export function createStateStore(baseDir: string): StateStoreService {
         const content = await readFile(statePath, 'utf-8');
         const data = JSON.parse(content);
 
-        if (!isValidFlowState(data)) {
+        if (!isValidFlowStateBasic(data)) {
           // Invalid state file - treat as non-existent
           return undefined;
         }
 
-        return data;
+        // Migrate to current version if needed
+        return migrateState(data as Record<string, unknown>);
       } catch {
         // File doesn't exist or couldn't be read
         return undefined;

@@ -79,13 +79,13 @@ export function transition(phase: FlowPhase, event: FlowEvent): FlowPhase {
     case 'requirements-generating':
       if (event.type === 'PHASE_COMPLETE') {
         return {
-          type: 'requirements-review',
+          type: 'requirements-approval',
           feature: phase.feature
         };
       }
       break;
 
-    case 'requirements-review':
+    case 'requirements-approval':
       if (event.type === 'APPROVE') {
         return {
           type: 'design-generating',
@@ -103,13 +103,13 @@ export function transition(phase: FlowPhase, event: FlowEvent): FlowPhase {
     case 'design-generating':
       if (event.type === 'PHASE_COMPLETE') {
         return {
-          type: 'design-review',
+          type: 'design-approval',
           feature: phase.feature
         };
       }
       break;
 
-    case 'design-review':
+    case 'design-approval':
       if (event.type === 'APPROVE') {
         return {
           type: 'tasks-generating',
@@ -127,13 +127,13 @@ export function transition(phase: FlowPhase, event: FlowEvent): FlowPhase {
     case 'tasks-generating':
       if (event.type === 'PHASE_COMPLETE') {
         return {
-          type: 'tasks-review',
+          type: 'tasks-approval',
           feature: phase.feature
         };
       }
       break;
 
-    case 'tasks-review':
+    case 'tasks-approval':
       if (event.type === 'APPROVE') {
         return {
           type: 'implementing',

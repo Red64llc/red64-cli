@@ -19,9 +19,15 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase, TaskEntry } from '../../types/index.js';
+import { CURRENT_STATE_VERSION } from '../../types/index.js';
 import {
   createStateStore,
+  createTaskEntry,
+  markTaskStarted,
+  markTaskCompleted,
+  markTaskFailed,
+  getResumeTask,
   createAgentInvoker,
   createExtendedFlowMachine,
   createWorktreeService,
@@ -46,7 +52,7 @@ import { PreviewHTTPServer } from '../../services/PreviewHTTPServer.js';
 import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
-import { appendFile, mkdir, stat } from 'node:fs/promises';
+import { access, appendFile, mkdir, stat } from 'node:fs/promises';
 
 /**
  * Phase display information
@@ -114,6 +120,14 @@ const UNCOMMITTED_CHANGES_OPTIONS = [
 ];
 
 /**
+ * Options when completed/aborted flow is detected
+ */
+const COMPLETED_FLOW_OPTIONS = [
+  { value: 'restart', label: 'Start fresh (archive previous state)' },
+  { value: 'abort', label: 'Cancel' }
+];
+
+/**
  * Human-readable labels for Claude error codes
  */
 function getClaudeErrorLabel(code: string): string {
@@ -138,6 +152,7 @@ type PreStartStep =
   | { type: 'checking' }  // Checking for existing flow
   | { type: 'existing-flow-detected'; existingState: FlowState; gitStatus: GitStatus }
   | { type: 'uncommitted-changes'; existingState: FlowState; gitStatus: GitStatus }
+  | { type: 'completed-flow-detected'; existingState: FlowState }  // Flow already complete
   | { type: 'ready' }  // Ready to start/resume
   | { type: 'resuming'; fromPhase: string };  // Resuming from existing state
 
@@ -160,6 +175,7 @@ interface FlowScreenState {
   commitCount: number;  // Number of commits for this feature
   agent: CodingAgent;  // Coding agent from config
   artifacts: Artifact[];  // Generated artifacts for display
+  history: HistoryEntry[];  // Phase history for UI display
 }
 
 /**
@@ -276,7 +292,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     phaseMetrics: {},  // Phase timing metrics
     commitCount: 0,  // Number of commits for this feature
     agent: 'claude',  // Default, will be loaded from config
-    artifacts: []  // Generated artifacts
+    artifacts: [],  // Generated artifacts
+    history: []  // Phase history for sidebar display
   });
 
   // Track if sidebar is focused (for keyboard navigation)
@@ -319,6 +336,184 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       };
     });
   }, []);
+
+  // Artifact filenames for generating phases only (not validation phases)
+  const PHASE_ARTIFACTS: Record<string, string> = {
+    'requirements-generating': 'requirements.md',
+    'gap-analysis': 'gap-analysis.md',
+    'design-generating': 'design.md',
+    'tasks-generating': 'tasks.md'
+  };
+
+  // Phase order for brownfield and greenfield workflows
+  const BROWNFIELD_PHASE_ORDER = [
+    'initializing', 'requirements-generating', 'requirements-approval',
+    'gap-analysis', 'gap-review',
+    'design-generating', 'design-approval',
+    'design-validation', 'design-validation-review',
+    'tasks-generating', 'tasks-approval',
+    'implementing', 'complete'
+  ];
+  const GREENFIELD_PHASE_ORDER = [
+    'initializing', 'requirements-generating', 'requirements-approval',
+    'design-generating', 'design-approval',
+    'tasks-generating', 'tasks-approval',
+    'implementing', 'complete'
+  ];
+
+  // Check if a phase has an existing artifact that can be reused
+  const hasExistingArtifact = useCallback(async (phase: string, workDir: string, effectiveName: string): Promise<boolean> => {
+    const artifactFile = PHASE_ARTIFACTS[phase];
+    if (!artifactFile) return false;
+
+    const artifactPath = join(workDir, '.red64', 'specs', effectiveName, artifactFile);
+    try {
+      await access(artifactPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Check if a phase was completed in history
+  const wasPhaseCompletedInHistory = useCallback((phase: string): boolean => {
+    const history = flowState.history;
+    if (!history || history.length === 0) return false;
+
+    const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+    const phaseIndex = phaseOrder.indexOf(phase);
+    if (phaseIndex === -1) return false;
+
+    // Check if any phase AFTER this one appears in history
+    for (const entry of history) {
+      const entryIndex = phaseOrder.indexOf(entry.phase.type);
+      if (entryIndex > phaseIndex) {
+        return true;
+      }
+    }
+    return false;
+  }, [flowState.history, mode]);
+
+  // Check if phase can be skipped based on:
+  // 1. For generating phases: artifact exists AND phase was completed in history
+  // 2. For validation/approval phases: the NEXT generating phase's artifact exists
+  const canSkipPhase = useCallback(async (phase: string, workDir: string, effectiveName: string): Promise<boolean> => {
+    // For generating phases, check if artifact exists
+    if (PHASE_ARTIFACTS[phase]) {
+      const hasArtifact = await hasExistingArtifact(phase, workDir, effectiveName);
+      const wasCompleted = wasPhaseCompletedInHistory(phase);
+      return hasArtifact && wasCompleted;
+    }
+
+    // For validation phases (design-validation), check if the NEXT artifact (tasks.md) exists
+    // This allows skipping validation when we've already progressed past it
+    if (phase === 'design-validation') {
+      const hasTasksArtifact = await hasExistingArtifact('tasks-generating', workDir, effectiveName);
+      const tasksWasCompleted = wasPhaseCompletedInHistory('tasks-generating');
+      return hasTasksArtifact && tasksWasCompleted;
+    }
+
+    return false;
+  }, [hasExistingArtifact, wasPhaseCompletedInHistory]);
+
+  // Find the furthest phase we can skip to based on existing artifacts and history
+  // Returns the phase we should resume at (either an approval phase or implementing)
+  const findResumePhase = useCallback(async (currentPhase: string, workDir: string, effectiveName: string): Promise<string> => {
+    const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+    const currentIndex = phaseOrder.indexOf(currentPhase);
+    if (currentIndex === -1) return currentPhase;
+
+    let targetPhase = currentPhase;
+
+    // Walk forward through phases, checking what can be skipped
+    for (let i = currentIndex; i < phaseOrder.length; i++) {
+      const phase = phaseOrder[i];
+
+      // Stop at implementing - that's our target
+      if (phase === 'implementing') {
+        // Check if tasks.md exists and tasks-approval was completed
+        const hasTasksArtifact = await hasExistingArtifact('tasks-generating', workDir, effectiveName);
+        const tasksApprovalCompleted = wasPhaseCompletedInHistory('tasks-approval');
+        if (hasTasksArtifact && tasksApprovalCompleted) {
+          targetPhase = 'implementing';
+        }
+        break;
+      }
+
+      // Stop at complete
+      if (phase === 'complete') {
+        break;
+      }
+
+      // For generating phases, check if we can skip
+      if (PHASE_ARTIFACTS[phase]) {
+        const canSkip = await canSkipPhase(phase, workDir, effectiveName);
+        if (canSkip) {
+          // Find the next approval phase after this generating phase
+          const nextPhaseIndex = i + 1;
+          if (nextPhaseIndex < phaseOrder.length) {
+            targetPhase = phaseOrder[nextPhaseIndex];
+          }
+        } else {
+          // Can't skip this generating phase, stop here
+          break;
+        }
+      }
+      // For approval phases, check if the next generating phase can be skipped
+      else if (phase.endsWith('-approval') || phase.endsWith('-review')) {
+        const nextPhaseIndex = i + 1;
+        if (nextPhaseIndex < phaseOrder.length) {
+          const nextPhase = phaseOrder[nextPhaseIndex];
+          // Check if the next phase (generating or validation) can be skipped
+          if (PHASE_ARTIFACTS[nextPhase]) {
+            const canSkipNext = await canSkipPhase(nextPhase, workDir, effectiveName);
+            if (canSkipNext) {
+              // Skip to the approval after the next generating phase
+              targetPhase = phaseOrder[nextPhaseIndex + 1] ?? nextPhase;
+            } else {
+              // Can't skip the next generating phase, stay at this approval
+              targetPhase = phase;
+              break;
+            }
+          } else if (nextPhase === 'design-validation') {
+            // Check if we can skip design-validation by looking at tasks.md
+            const canSkipValidation = await canSkipPhase('design-validation', workDir, effectiveName);
+            if (canSkipValidation) {
+              // Skip design-validation and design-validation-review, go to tasks-approval
+              const tasksApprovalIndex = phaseOrder.indexOf('tasks-approval');
+              if (tasksApprovalIndex !== -1) {
+                targetPhase = 'tasks-approval';
+                i = tasksApprovalIndex - 1; // Continue from tasks-approval
+              }
+            } else {
+              // Can't skip design-validation
+              targetPhase = phase;
+              break;
+            }
+          } else if (nextPhase === 'implementing') {
+            // At tasks-approval, next is implementing
+            targetPhase = phase;
+            break;
+          }
+        }
+      }
+      // For validation phases (design-validation), check if we can skip
+      else if (phase === 'design-validation') {
+        const canSkip = await canSkipPhase(phase, workDir, effectiveName);
+        if (canSkip) {
+          // Skip to tasks-approval (skipping design-validation-review too)
+          targetPhase = 'tasks-approval';
+          const tasksApprovalIndex = phaseOrder.indexOf('tasks-approval');
+          i = tasksApprovalIndex - 1;
+        } else {
+          targetPhase = phase;
+          break;
+        }
+      }
+    }
+
+    return targetPhase;
+  }, [mode, hasExistingArtifact, wasPhaseCompletedInHistory, canSkipPhase]);
 
   // Get working directory (worktree or repo)
   const getWorkingDir = useCallback(() => {
@@ -489,11 +684,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     return true;
   }, [services.commitService, getWorkingDir, addOutput]);
 
-  // Save flow state with task progress and phase metrics
+  // Save flow state with task progress, phase metrics, and fine-grained history
   const saveFlowState = useCallback(async (
     phase: ExtendedFlowPhase,
     workDir?: string,
-    completedTasksOverride?: string[]
+    options?: {
+      completedTasksOverride?: string[];
+      taskEntries?: readonly TaskEntry[];     // Individual task tracking with timestamps
+      currentTaskId?: string | null;          // Currently executing task
+      event?: string;      // Event that triggered this save (e.g., 'APPROVE', 'PHASE_COMPLETE')
+      subStep?: string;    // Sub-step within the phase (e.g., 'generating-started')
+    }
   ) => {
     const dir = workDir ?? getWorkingDir();
     const stateStore = createStateStore(dir);
@@ -502,19 +703,94 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const existingState = await stateStore.load(featureName);
 
     // Use override if provided, otherwise use current state, otherwise preserve existing
-    const completedTasks = completedTasksOverride ?? flowState.completedTasks;
+    const completedTasks = options?.completedTasksOverride ?? flowState.completedTasks;
 
     // Use dir (resolved workDir) as worktreePath if it's different from repoPath
     // This fixes the race condition where flowState.worktreePath is still null due to async setFlowState
     // Also preserve worktreePath from existing state on resume to prevent losing it
     const effectiveWorktreePath = dir !== repoPath ? dir : (flowState.worktreePath ?? existingState?.metadata.worktreePath ?? undefined);
 
+    // Build history entry for this save (fine-grained tracking)
+    const historyEntry: HistoryEntry = {
+      phase: phase as unknown as FlowPhase,  // Safe cast - types are now structurally equivalent
+      timestamp: new Date().toISOString(),
+      event: options?.event,
+      subStep: options?.subStep
+    };
+
+    // Append to history (not replace) - only add if phase is different from last entry
+    // or if event/subStep is provided (indicating a meaningful state change)
+    const existingHistory = existingState?.history ?? [];
+    const lastEntry = existingHistory[existingHistory.length - 1];
+    const shouldAddToHistory = !lastEntry ||
+      lastEntry.phase.type !== phase.type ||
+      options?.event ||
+      options?.subStep;
+
+    const history: readonly HistoryEntry[] = shouldAddToHistory
+      ? [...existingHistory, historyEntry]
+      : existingHistory;
+
+    // Convert completedTasks to GroupedTaskProgress
+    let taskProgress: GroupedTaskProgress | undefined;
+    if (completedTasks.length > 0 || flowState.totalTasks > 0) {
+      // Infer completed groups from sub-task IDs
+      const completedGroups = [...new Set(
+        completedTasks
+          .map(id => parseInt(id.split('.')[0], 10))
+          .filter(g => !isNaN(g))
+      )].sort((a, b) => a - b);
+
+      // Estimate total groups from flowState.tasks or existing
+      const allGroupIds = flowState.tasks.length > 0
+        ? [...new Set(flowState.tasks.map(t => parseInt(t.id.split('.')[0], 10)))]
+        : [];
+      const totalGroups = Math.max(
+        ...completedGroups,
+        ...allGroupIds,
+        existingState?.taskProgress?.totalGroups ?? 0,
+        1
+      );
+
+      // Find current group (first incomplete group)
+      const currentGroup = allGroupIds.find(g => !completedGroups.includes(g));
+
+      // Track sub-tasks in current group
+      let subTasksInCurrentGroup: { completed: readonly string[]; total: number } | undefined;
+      if (currentGroup !== undefined) {
+        const tasksInGroup = flowState.tasks.filter(t => parseInt(t.id.split('.')[0], 10) === currentGroup);
+        const completedInGroup = completedTasks.filter(id => parseInt(id.split('.')[0], 10) === currentGroup);
+        subTasksInCurrentGroup = {
+          completed: completedInGroup,
+          total: tasksInGroup.length
+        };
+      }
+
+      taskProgress = {
+        completedGroups,
+        totalGroups,
+        currentGroup,
+        subTasksInCurrentGroup,
+        // Include task entries with timestamps if provided
+        taskEntries: options?.taskEntries ?? existingState?.taskProgress?.taskEntries,
+        currentTaskId: options?.currentTaskId ?? existingState?.taskProgress?.currentTaskId
+      };
+    } else if (existingState?.taskProgress) {
+      // Preserve existing task progress if no new data
+      taskProgress = {
+        ...existingState.taskProgress,
+        // Allow overriding taskEntries and currentTaskId even without other changes
+        taskEntries: options?.taskEntries ?? existingState.taskProgress.taskEntries,
+        currentTaskId: options?.currentTaskId ?? existingState.taskProgress.currentTaskId
+      };
+    }
+
     const state: FlowState = {
       feature: featureName,
-      phase: convertToFlowPhase(phase),
+      phase: phase as unknown as FlowPhase,  // Safe cast - types are now structurally equivalent
       createdAt: existingState?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      history: existingState?.history ?? [],
+      history,
       metadata: {
         description,
         mode,
@@ -522,11 +798,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         worktreePath: effectiveWorktreePath,
         resolvedFeatureName: flowState.resolvedFeatureName ?? undefined
       },
-      // Orchestrator-controlled task progress
-      taskProgress: completedTasks.length > 0 || flowState.totalTasks > 0 ? {
-        completedTasks,
-        totalTasks: flowState.totalTasks
-      } : existingState?.taskProgress,
+      taskProgress,
       // Phase timing metrics
       phaseMetrics: Object.keys(flowState.phaseMetrics).length > 0
         ? { ...existingState?.phaseMetrics, ...flowState.phaseMetrics }
@@ -534,11 +806,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // Persist artifacts to disk so they survive resume
       artifacts: flowState.artifacts.length > 0
         ? flowState.artifacts
-        : existingState?.artifacts
+        : existingState?.artifacts,
+      // Schema version for migrations
+      version: CURRENT_STATE_VERSION
     };
 
     await stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.phaseMetrics, getWorkingDir, repoPath]);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.tasks, flowState.phaseMetrics, flowState.artifacts, getWorkingDir, repoPath]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -591,15 +865,108 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         }
       }
 
-      if (existingState && existingState.phase.type !== 'complete' && existingState.phase.type !== 'aborted') {
-        // Found an in-progress flow - check for uncommitted changes
+      if (existingState) {
+        // Found an existing flow state
         const worktreePath = existingState.metadata.worktreePath ?? repoPath;
         const gitStatus = await services.gitStatusChecker.check(worktreePath);
 
         // Load task progress from state (source of truth)
-        const completedTasks = existingState.taskProgress?.completedTasks ?? [];
-        const totalTasks = existingState.taskProgress?.totalTasks ?? 0;
+        // Handle both old TaskProgress and new GroupedTaskProgress formats
+        // Prefer taskEntries if available (most accurate)
+        const taskProgress = existingState.taskProgress;
+        const completedTasks: string[] = [];
+        let totalTasks = 0;
+        if (taskProgress) {
+          // New v2 format: taskEntries with individual tracking
+          if (taskProgress.taskEntries && taskProgress.taskEntries.length > 0) {
+            // Extract completed tasks from taskEntries (most accurate source)
+            for (const entry of taskProgress.taskEntries) {
+              if (entry.status === 'completed') {
+                completedTasks.push(entry.id);
+              }
+            }
+            totalTasks = taskProgress.taskEntries.length;
+          } else if ('completedGroups' in taskProgress) {
+            // v1 format: GroupedTaskProgress without taskEntries
+            // We'll load actual task completion from tasks.md file later
+            // For now just estimate count from groups
+            totalTasks = taskProgress.totalGroups;
+            // Can't derive individual task IDs from groups - will be loaded from tasks.md
+          } else if ('completedTasks' in taskProgress) {
+            // Legacy format: TaskProgress (pre-migration)
+            const legacyProgress = taskProgress as unknown as { completedTasks: string[]; totalTasks: number };
+            completedTasks.push(...legacyProgress.completedTasks);
+            totalTasks = legacyProgress.totalTasks;
+          }
+        }
 
+        // Always load artifacts and history from existing state for UI display
+        const existingArtifacts = existingState.artifacts ? [...existingState.artifacts] : [];
+        const existingHistory = existingState.history ? [...existingState.history] : [];
+
+        // Check if flow is complete or aborted
+        if (existingState.phase.type === 'complete' || existingState.phase.type === 'aborted') {
+          // For "complete" flows, verify tasks are actually done by checking tasks.md
+          if (existingState.phase.type === 'complete') {
+            const effectiveName = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+            const specDir = join(worktreePath, '.red64', 'specs', effectiveName);
+            const tasks = await services.taskParser.parse(specDir);
+            const pendingTasks = services.taskParser.getPendingTasks(tasks);
+
+            // If there are pending tasks, the flow is NOT actually complete
+            // Resume at implementing phase instead
+            if (pendingTasks.length > 0) {
+              addOutput(`Found ${tasks.length} tasks, ${pendingTasks.length} pending - resuming implementation`);
+
+              // Update the saved state to reflect actual status (implementing, not complete)
+              const correctedPhase: FlowPhase = {
+                type: 'implementing',
+                feature: existingState.feature,
+                currentTask: tasks.length - pendingTasks.length + 1,
+                totalTasks: tasks.length
+              };
+              const correctedState: FlowState = {
+                ...existingState,
+                phase: correctedPhase
+              };
+
+              // Save the corrected state
+              await services.stateStore.save(correctedState);
+
+              // Treat as in-progress flow at implementing phase
+              setFlowState(prev => ({
+                ...prev,
+                preStartStep: { type: 'existing-flow-detected', existingState: correctedState, gitStatus },
+                existingFlowState: correctedState,
+                worktreePath: existingState.metadata.worktreePath ?? null,
+                resolvedFeatureName: effectiveName,
+                artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
+                history: existingHistory.length > 0 ? existingHistory : prev.history,
+                tasks,
+                totalTasks: tasks.length,
+                currentTask: tasks.length - pendingTasks.length
+              }));
+              return;
+            }
+          }
+
+          // Truly completed/aborted flow - prompt for action
+          setFlowState(prev => ({
+            ...prev,
+            preStartStep: { type: 'completed-flow-detected', existingState },
+            existingFlowState: existingState,
+            worktreePath: existingState.metadata.worktreePath ?? null,
+            resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
+            artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
+            history: existingHistory.length > 0 ? existingHistory : prev.history,
+            completedTasks: [...completedTasks],
+            totalTasks
+          }));
+          addOutput(`Found ${existingState.phase.type} flow for ${featureName}`);
+          return;
+        }
+
+        // In-progress flow
         if (gitStatus.hasChanges) {
           // Has uncommitted changes - prompt user first
           setFlowState(prev => ({
@@ -608,7 +975,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             existingFlowState: existingState,
             worktreePath: existingState.metadata.worktreePath ?? null,
             resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
-            artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts,
+            artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
+            history: existingHistory.length > 0 ? existingHistory : prev.history,
             completedTasks: [...completedTasks],
             totalTasks
           }));
@@ -627,7 +995,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           existingFlowState: existingState,
           worktreePath: existingState.metadata.worktreePath ?? null,
           resolvedFeatureName: existingState.metadata.resolvedFeatureName ?? null,
-          artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts,
+          artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
+          history: existingHistory.length > 0 ? existingHistory : prev.history,
           completedTasks: [...completedTasks],
           totalTasks
         }));
@@ -638,7 +1007,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         return;
       }
 
-      // No existing flow or flow is complete/aborted - proceed with fresh start
+      // No existing flow - proceed with fresh start
       setFlowState(prev => ({ ...prev, preStartStep: { type: 'ready' } }));
       await startFreshFlow();
     };
@@ -658,6 +1027,26 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       exit();
     }
   }, [exit]);
+
+  // Handle completed/aborted flow decision (restart vs cancel)
+  const handleCompletedFlowDecision = useCallback(async (decision: string) => {
+    if (decision === 'restart') {
+      // Archive the existing state and start fresh
+      const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+      await services.stateStore.archive(effectiveName);
+      setFlowState(prev => ({
+        ...prev,
+        preStartStep: { type: 'ready' },
+        existingFlowState: null,
+        artifacts: [],
+        history: []
+      }));
+      addOutput('Previous state archived. Starting fresh flow...');
+      await startFreshFlow();
+    } else if (decision === 'abort') {
+      exit();
+    }
+  }, [exit, flowState.resolvedFeatureName, featureName]);
 
   // Handle uncommitted changes decision
   const handleUncommittedChangesDecision = useCallback(async (decision: string) => {
@@ -816,74 +1205,81 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     // Set up flow machine to the current phase
     const effectiveName = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+    const savedMode = existingState.metadata.mode;
 
-    // Update state with existing flow info, restoring persisted artifacts
+    // Re-create flow machine initialized at the saved phase and mode
+    // This eliminates the need to replay transitions to catch up
+    const savedPhase = existingState.phase as unknown as ExtendedFlowPhase;
+    servicesRef.current!.flowMachine = createExtendedFlowMachine(savedPhase, savedMode);
+
+    // Update state with existing flow info, restoring persisted artifacts and history
     setFlowState(prev => ({
       ...prev,
+      phase: savedPhase,  // Set local state to match saved phase
       worktreePath: existingState.metadata.worktreePath ?? null,
       resolvedFeatureName: effectiveName,
-      artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts
+      artifacts: existingState.artifacts ? [...existingState.artifacts] : prev.artifacts,
+      history: existingState.history ? [...existingState.history] : prev.history
     }));
 
-    // Resume based on current phase
+    // Resume based on current phase - no need to replay transitions
     await resumeFromPhase(existingState.phase.type, workDir, effectiveName);
   }, [services.healthCheck, services.configService, services.projectDetector, services.testRunner, services.commitService, flags, featureName, repoPath, initLogFile, addOutput]);
 
   // Resume from a specific phase
+  // NOTE: State machine is already initialized at the correct phase by resumeExistingFlow
+  // Uses findResumePhase to skip ahead to the furthest phase based on existing artifacts
   const resumeFromPhase = async (phaseType: string, workDir: string, effectiveName: string) => {
-    addOutput(`Continuing from ${phaseType}...`);
+    // Find the furthest phase we can skip to based on existing artifacts
+    const targetPhase = await findResumePhase(phaseType, workDir, effectiveName);
 
-    switch (phaseType) {
-      case 'requirements-review':
+    // If we can skip ahead, transition to the target phase
+    if (targetPhase !== phaseType) {
+      addOutput(`Skipping to ${targetPhase} - artifacts already exist`);
+
+      // Load all skipped artifacts for display
+      const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+      const startIdx = phaseOrder.indexOf(phaseType);
+      const endIdx = phaseOrder.indexOf(targetPhase);
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const phase = phaseOrder[i];
+        const artifactFile = PHASE_ARTIFACTS[phase];
+        if (artifactFile) {
+          addArtifact({
+            name: artifactFile.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            filename: artifactFile,
+            path: `.red64/specs/${effectiveName}/${artifactFile}`,
+            phase,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Transition through phases to reach target
+      let currentPhase = services.flowMachine.getPhase();
+      while (currentPhase.type !== targetPhase && currentPhase.type !== 'complete' && currentPhase.type !== 'error') {
+        currentPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+      }
+      await saveFlowState(currentPhase, workDir, { event: 'SKIP_TO_PHASE', subStep: `skipped-to-${targetPhase}` });
+    } else {
+      addOutput(`Continuing from ${phaseType}...`);
+    }
+
+    // Now handle the target phase
+    switch (targetPhase) {
+      // === APPROVAL PHASES ===
+      // State machine at correct phase, UI will show approval controls
       case 'requirements-approval':
-        // Waiting for approval - show approval UI
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' }); // to requirements-generating
-        transitionPhase({ type: 'PHASE_COMPLETE' }); // to requirements-approval
-        break;
-
-      case 'design-generating':
-        // Resume design generation
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        await runDesignPhase(workDir);
-        break;
-
-      case 'design-review':
+      case 'gap-review':
       case 'design-approval':
-        // Waiting for design approval
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
+      case 'design-validation-review':
+        // Nothing to do - UI will show approval controls
         break;
 
-      case 'tasks-generating':
-        // Resume tasks generation
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        await runTasksPhase(workDir);
-        break;
-
-      case 'tasks-review':
       case 'tasks-approval':
-        // Waiting for tasks approval - load ALL tasks
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
+        // Load tasks for display
         {
-          // Load ALL tasks (not just pending by file checkbox)
           const specDir = join(workDir, '.red64', 'specs', effectiveName);
           const tasks = await services.taskParser.parse(specDir);
           setFlowState(prev => ({
@@ -894,22 +1290,60 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         }
         break;
 
+      // === GENERATING PHASES ===
+      case 'requirements-generating':
+        await runRequirementsPhase(workDir, effectiveName);
+        break;
+
+      case 'gap-analysis':
+        // Run gap analysis
+        {
+          addOutput('Running gap analysis...');
+          const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
+          if (gapResult.success) {
+            await commitChanges(`gap analysis`, workDir);
+            addArtifact({
+              name: 'Gap Analysis',
+              filename: 'gap-analysis.md',
+              path: `.red64/specs/${effectiveName}/gap-analysis.md`,
+              phase: 'gap-analysis',
+              createdAt: new Date().toISOString()
+            });
+          }
+          transitionPhase({ type: 'PHASE_COMPLETE' });
+          await saveFlowState(flowState.phase, workDir, { event: 'PHASE_COMPLETE', subStep: 'gap-analysis-completed' });
+        }
+        break;
+
+      case 'design-generating':
+        await runDesignPhase(workDir);
+        break;
+
+      case 'design-validation':
+        // Run design validation
+        {
+          addOutput('Validating design...');
+          const valResult = await executeCommand(`/red64:validate-design ${effectiveName} -y`, workDir);
+          if (valResult.success) {
+            await commitChanges(`design validation`, workDir);
+          }
+          transitionPhase({ type: 'PHASE_COMPLETE' });
+          await saveFlowState(flowState.phase, workDir, { event: 'PHASE_COMPLETE', subStep: 'design-validation-completed' });
+        }
+        break;
+
+      case 'tasks-generating':
+        await runTasksPhase(workDir);
+        break;
+
+      // === IMPLEMENTATION PHASE ===
       case 'implementing':
         // Resume implementation - use state.json.completedTasks as source of truth
-        transitionPhase({ type: 'START', feature: featureName, description, mode });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
-        transitionPhase({ type: 'PHASE_COMPLETE' });
-        transitionPhase({ type: 'APPROVE' });
         {
-          // Load ALL tasks from file
           const implSpecDir = join(workDir, '.red64', 'specs', effectiveName);
           const implTasks = await services.taskParser.parse(implSpecDir);
 
-          // Use state.json.completedTasks as source of truth (already loaded)
+          // Use state.json.completedTasks as source of truth (already loaded by resumeExistingFlow)
           const completedTaskIds = flowState.completedTasks;
 
           // Sync tasks.md checkboxes if out of sync with state.json
@@ -940,8 +1374,31 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         }
         break;
 
+      // === LEGACY PHASE NAMES ===
+      // Handle old state.json files that might have legacy names (before migration)
+      case 'requirements-review':
+        // Legacy name for requirements-approval
+        break;
+
+      case 'design-review':
+        // Legacy name for design-approval
+        break;
+
+      case 'tasks-review':
+        // Legacy name for tasks-approval - load tasks
+        {
+          const specDir = join(workDir, '.red64', 'specs', effectiveName);
+          const tasks = await services.taskParser.parse(specDir);
+          setFlowState(prev => ({
+            ...prev,
+            tasks,
+            totalTasks: tasks.length
+          }));
+        }
+        break;
+
       default:
-        // For other phases, start fresh
+        // For other phases (complete, error, etc.), log and do nothing
         addOutput(`Cannot resume from phase ${phaseType}, starting fresh...`);
         await startFreshFlow();
     }
@@ -1263,43 +1720,101 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
   // Run implementation - one task at a time with commits
   // ORCHESTRATOR-CONTROLLED: Marks tasks complete in both tasks.md and state.json
+  // Uses taskEntries for robust tracking with start/complete timestamps
   const runImplementation = async (workDir: string) => {
-    const { tasks, completedTasks: alreadyCompleted } = flowState;
     const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
     const specDir = join(workDir, '.red64', 'specs', effectiveName);
 
-    // Filter out already completed tasks (from state.json, source of truth)
-    const pendingTasks = tasks.filter(t => !alreadyCompleted.includes(t.id));
+    // Parse tasks directly from file - don't rely on flowState.tasks which may be stale
+    // due to React's async state batching
+    const tasks = await services.taskParser.parse(specDir);
 
-    if (pendingTasks.length === 0) {
+    // Load existing state to get taskEntries if resuming
+    const stateStore = createStateStore(workDir);
+    const existingState = await stateStore.load(featureName);
+    const existingTaskEntries = existingState?.taskProgress?.taskEntries;
+
+    // Initialize or resume taskEntries
+    // If we have existing entries, use them (for resume)
+    // Otherwise, create new entries from parsed tasks
+    let taskEntries: TaskEntry[] = existingTaskEntries
+      ? [...existingTaskEntries]
+      : tasks.map(t => createTaskEntry(t.id, t.title));
+
+    // Merge any new tasks that weren't in existing entries (edge case: tasks added after resume)
+    const existingIds = new Set(taskEntries.map(e => e.id));
+    for (const task of tasks) {
+      if (!existingIds.has(task.id)) {
+        taskEntries.push(createTaskEntry(task.id, task.title));
+      }
+    }
+
+    // Update state with fresh tasks (for UI display)
+    setFlowState(prev => ({ ...prev, tasks, totalTasks: tasks.length }));
+
+    // Find the task to resume: either in_progress (interrupted) or first pending
+    const resumeTask = getResumeTask(taskEntries);
+
+    if (!resumeTask) {
       addOutput('No tasks to implement');
       transitionPhase({ type: 'PHASE_COMPLETE' });
       await completeFlow(workDir);
       return;
     }
 
+    // Count completed and pending
+    const completedCount = taskEntries.filter(e => e.status === 'completed').length;
+    const pendingCount = taskEntries.filter(e => e.status === 'pending' || e.status === 'in_progress').length;
+
     addOutput('');
     addOutput('Starting implementation...');
-    addOutput(`Total tasks: ${tasks.length}, Pending: ${pendingTasks.length}`);
-    if (alreadyCompleted.length > 0) {
-      addOutput(`Already completed: ${alreadyCompleted.join(', ')}`);
+    addOutput(`Total tasks: ${tasks.length}, Pending: ${pendingCount}`);
+    if (completedCount > 0) {
+      const completedIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+      addOutput(`Already completed: ${completedIds.join(', ')}`);
+    }
+
+    // Check if resuming an in_progress task
+    if (resumeTask.status === 'in_progress') {
+      addOutput(`Resuming interrupted task: ${resumeTask.id}`);
     }
     addOutput('');
 
-    // Track completed tasks in this run
-    let currentCompleted = [...alreadyCompleted];
+    // Execute tasks starting from resumeTask
+    const resumeIndex = taskEntries.findIndex(e => e.id === resumeTask.id);
+    for (let i = resumeIndex; i < taskEntries.length; i++) {
+      const entry = taskEntries[i];
 
-    // Execute each pending task one at a time
-    for (let i = 0; i < pendingTasks.length; i++) {
-      const task = pendingTasks[i];
+      // Skip already completed tasks
+      if (entry.status === 'completed') {
+        continue;
+      }
+
+      const task = tasks.find(t => t.id === entry.id);
+      if (!task) {
+        addOutput(`Warning: Task ${entry.id} not found in tasks.md, skipping`);
+        continue;
+      }
+
       const overallIndex = tasks.findIndex(t => t.id === task.id);
       const taskNum = overallIndex + 1;
 
       setFlowState(prev => ({ ...prev, currentTask: taskNum }));
 
-      addOutput(`[${currentCompleted.length + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
+      // 1. Mark task as in_progress BEFORE execution (for crash recovery)
+      if (entry.status !== 'in_progress') {
+        taskEntries[i] = markTaskStarted(entry);
+        await saveFlowState(flowState.phase, workDir, {
+          taskEntries,
+          currentTaskId: task.id,
+          event: 'TASK_START',
+          subStep: `task-${task.id}-started`
+        });
+      }
 
-      // Run spec-impl for this specific task - use effective name
+      addOutput(`[${completedCount + (i - resumeIndex) + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
+
+      // 2. Run spec-impl for this specific task
       const result = await executeCommand(
         `/red64:spec-impl ${effectiveName} ${task.id} -y`,
         workDir
@@ -1307,27 +1822,41 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       if (!result.success) {
         addOutput(`Task ${task.id} failed: ${result.error}`);
-        // Save progress so far before continuing
-        await saveFlowState(flowState.phase, workDir, currentCompleted);
+        // Mark as failed and save progress
+        taskEntries[i] = markTaskFailed(taskEntries[i]);
+        await saveFlowState(flowState.phase, workDir, {
+          taskEntries,
+          currentTaskId: null,
+          event: 'TASK_FAILED',
+          subStep: `task-${task.id}-failed`
+        });
         // Continue to next task instead of failing entirely
         continue;
       }
 
-      // ORCHESTRATOR-CONTROLLED TASK COMPLETION:
-      // 1. Mark task complete in tasks.md
+      // 3. Mark task complete in tasks.md
       const markResult = await services.taskParser.markTaskComplete(specDir, task.id);
       if (!markResult.success) {
         addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
       }
 
-      // 2. Update state with completed task
-      currentCompleted = [...currentCompleted, task.id];
-      setFlowState(prev => ({ ...prev, completedTasks: currentCompleted }));
+      // 4. Mark task as completed with timestamp
+      taskEntries[i] = markTaskCompleted(taskEntries[i]);
 
-      // 3. Save state immediately (before commit, for crash recovery)
-      await saveFlowState(flowState.phase, workDir, currentCompleted);
+      // 5. Update React state for UI
+      const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+      setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds }));
 
-      // 4. Commit both tasks.md and state.json together
+      // 6. Save state immediately (before commit, for crash recovery)
+      await saveFlowState(flowState.phase, workDir, {
+        completedTasksOverride: completedTaskIds,
+        taskEntries,
+        currentTaskId: null,
+        event: 'TASK_COMPLETE',
+        subStep: `task-${task.id}-completed`
+      });
+
+      // 7. Commit both tasks.md and state.json together
       await commitChanges(
         services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
         workDir
@@ -1398,16 +1927,57 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const effectiveName = flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName);
 
     if (decision === 'approve') {
-      const nextPhase = transitionPhase({ type: 'APPROVE' });
+      let nextPhase = transitionPhase({ type: 'APPROVE' });
       await saveFlowState(nextPhase, workDir);
 
-      // Route to appropriate next phase
+      // Find the furthest phase we can skip to based on existing artifacts
+      const targetPhase = await findResumePhase(nextPhase.type, workDir, effectiveName);
+
+      // If we can skip ahead, transition to the target phase
+      if (targetPhase !== nextPhase.type) {
+        addOutput(`Skipping to ${targetPhase} - artifacts already exist`);
+
+        // Load all skipped artifacts for display
+        const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+        const startIdx = phaseOrder.indexOf(nextPhase.type);
+        const endIdx = phaseOrder.indexOf(targetPhase);
+
+        for (let i = startIdx; i < endIdx; i++) {
+          const phase = phaseOrder[i];
+          const artifactFile = PHASE_ARTIFACTS[phase];
+          if (artifactFile) {
+            addArtifact({
+              name: artifactFile.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              filename: artifactFile,
+              path: `.red64/specs/${effectiveName}/${artifactFile}`,
+              phase,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+
+        // Transition through phases to reach target
+        while (nextPhase.type !== targetPhase && nextPhase.type !== 'complete' && nextPhase.type !== 'error') {
+          nextPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+        }
+        await saveFlowState(nextPhase, workDir);
+      }
+
+      // Now handle the target phase
       switch (nextPhase.type) {
         case 'design-generating':
           await runDesignPhase(workDir);
           break;
         case 'tasks-generating':
           await runTasksPhase(workDir);
+          break;
+        case 'tasks-approval':
+          // Load tasks for display when skipping to tasks-approval
+          {
+            const specDir = join(workDir, '.red64', 'specs', effectiveName);
+            const tasks = await services.taskParser.parse(specDir);
+            setFlowState(prev => ({ ...prev, tasks, totalTasks: tasks.length }));
+          }
           break;
         case 'implementing':
           // Update spec.json to mark tasks as approved before implementation
@@ -1424,7 +1994,6 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
-            // Track gap analysis artifact
             addArtifact({
               name: 'Gap Analysis',
               filename: 'gap-analysis.md',
@@ -1446,6 +2015,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           break;
         case 'complete':
           await completeFlow(workDir);
+          break;
+        // Approval phases - UI will show approval controls, nothing to do
+        case 'gap-review':
+        case 'design-approval':
+        case 'design-validation-review':
           break;
         default:
           addOutput(`Unexpected phase: ${nextPhase.type}`);
@@ -1614,6 +2188,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           commitCount={flowState.commitCount}
           agent={flowState.agent}
           model={flags.model}
+          history={flowState.history}
         />
       )}
 
@@ -1695,6 +2270,31 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           </Box>
         )}
 
+        {/* Completed/aborted flow detected - prompt restart vs cancel */}
+        {flowState.preStartStep.type === 'completed-flow-detected' && (
+          <Box flexDirection="column" borderStyle="single" borderColor="green" paddingX={1}>
+            <Text bold color="green">
+              {flowState.preStartStep.existingState.phase.type === 'complete'
+                ? 'Flow Already Complete'
+                : 'Flow Was Aborted'}
+            </Text>
+            <Text dimColor>
+              Feature: {flowState.preStartStep.existingState.feature}
+            </Text>
+            <Text dimColor>
+              {flowState.preStartStep.existingState.phase.type === 'complete'
+                ? 'This feature has been fully implemented.'
+                : `Aborted: ${(flowState.preStartStep.existingState.phase as { reason?: string }).reason ?? 'Unknown reason'}`}
+            </Text>
+            <Box marginTop={1}>
+              <Select
+                options={COMPLETED_FLOW_OPTIONS}
+                onChange={handleCompletedFlowDecision}
+              />
+            </Box>
+          </Box>
+        )}
+
         {/* Approval UI */}
         {isApprovalPhase && !flowState.isExecuting && (
           <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'cyan'} paddingX={1}>
@@ -1727,44 +2327,3 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   );
 };
 
-/**
- * Convert ExtendedFlowPhase to FlowPhase for state persistence
- */
-function convertToFlowPhase(phase: ExtendedFlowPhase): import('../../types/index.js').FlowPhase {
-  switch (phase.type) {
-    case 'idle':
-      return { type: 'idle' };
-    case 'initializing':
-      return { type: 'initializing', feature: phase.feature, description: phase.description };
-    case 'requirements-generating':
-      return { type: 'requirements-generating', feature: phase.feature };
-    case 'requirements-approval':
-      return { type: 'requirements-review', feature: phase.feature };
-    case 'design-generating':
-      return { type: 'design-generating', feature: phase.feature };
-    case 'design-approval':
-      return { type: 'design-review', feature: phase.feature };
-    case 'tasks-generating':
-      return { type: 'tasks-generating', feature: phase.feature };
-    case 'tasks-approval':
-      return { type: 'tasks-review', feature: phase.feature };
-    case 'implementing':
-      return {
-        type: 'implementing',
-        feature: phase.feature,
-        currentTask: phase.currentTask,
-        totalTasks: phase.totalTasks
-      };
-    case 'complete':
-      return { type: 'complete', feature: phase.feature };
-    case 'aborted':
-      return { type: 'aborted', feature: phase.feature, reason: phase.reason };
-    case 'error':
-      return { type: 'error', feature: phase.feature, error: phase.error };
-    default:
-      if ('feature' in phase) {
-        return { type: 'idle' };
-      }
-      return { type: 'idle' };
-  }
-}
