@@ -119,16 +119,66 @@ Output ONLY the markdown content for RELEASE.md, nothing else. Use this format:
 Group commits logically. Skip empty sections. Be concise."
 
 print_step "Calling Claude to generate release notes..."
-RELEASE_CONTENT=$(echo "$RELEASE_PROMPT" | claude --print)
 
-if [[ -z "$RELEASE_CONTENT" ]]; then
-    print_error "Failed to generate release notes with Claude"
-    exit 1
+# Try to generate release notes with Claude, capture both output and exit code
+set +e  # Temporarily disable exit on error
+RELEASE_CONTENT=$(echo "$RELEASE_PROMPT" | claude --print 2>&1)
+CLAUDE_EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+CLAUDE_FAILED=false
+if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
+    CLAUDE_FAILED=true
+    print_error "Claude command failed (exit code: $CLAUDE_EXIT_CODE)"
+    if [[ "$RELEASE_CONTENT" == *"credit"* ]] || [[ "$RELEASE_CONTENT" == *"limit"* ]] || [[ "$RELEASE_CONTENT" == *"quota"* ]]; then
+        print_error "This appears to be a credit/quota issue. Check your Claude API credits."
+    fi
+    echo "Claude output: $RELEASE_CONTENT"
+elif [[ -z "$RELEASE_CONTENT" ]]; then
+    CLAUDE_FAILED=true
+    print_error "Claude returned empty response"
 fi
 
-# Write to RELEASE.md
-echo "$RELEASE_CONTENT" >> RELEASE.md
-print_step "RELEASE.md updated with generated notes"
+if [[ "$CLAUDE_FAILED" == "true" ]]; then
+    echo ""
+    print_warning "Unable to auto-generate release notes."
+    echo ""
+    echo "Options:"
+    echo "  1) Write release notes manually"
+    echo "  2) Abort release"
+    echo ""
+    read -p "Choose [1/2]: " -n 1 -r
+    echo
+
+    if [[ $REPLY == "1" ]]; then
+        # Create template for manual editing
+        RELEASE_CONTENT="# Release v$NEW_VERSION
+
+## New Features
+-
+
+## Bug Fixes
+-
+
+## Internal
+-
+
+---
+Commits since last release:
+$GIT_LOG"
+        echo "$RELEASE_CONTENT" > RELEASE.md
+        print_step "Opening RELEASE.md for manual editing..."
+        ${EDITOR:-vim} RELEASE.md
+    else
+        print_error "Release aborted."
+        git checkout package.json package-lock.json 2>/dev/null || true
+        exit 1
+    fi
+else
+    # Prepend Claude-generated content to RELEASE.md
+    echo "$RELEASE_CONTENT" >> RELEASE.md
+    print_step "RELEASE.md updated with generated notes"
+fi
 
 # Show generated content and ask for confirmation
 echo ""
