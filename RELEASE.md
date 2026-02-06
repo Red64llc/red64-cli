@@ -1,31 +1,18 @@
-# Release v0.9.0
+# Release v0.9.1
 
 ## New Features
-
-### Preview Artifacts
-A new feature allowing specification artifacts (markdown, design docs, etc.) to be previewed in a browser with live rendering.
-
-- **ContentCache service** - Caches artifact content for efficient preview rendering
-- **PreviewHTMLGenerator** - Transforms markdown to styled HTML with Mermaid diagram support
-- **PreviewHTTPServer** - Ephemeral HTTP server lifecycle management for local previews
-- **PreviewService** - Orchestration layer coordinating all preview components
-- **ArtifactsSidebar keyboard navigation** - Navigate artifacts using keyboard shortcuts
-- **StartScreen integration** - Preview functionality accessible from the main interface
-
-### Task Tracking Improvements
-- Detailed tracking of task start, end, and status timestamps
-- More granular resume capability (task-by-task level)
+- **Preview Artifacts**: Complete implementation of artifact preview functionality with markdown transformation, ephemeral HTTP server, content caching, and keyboard navigation in the artifacts sidebar
+- **LLM-powered Release Notes**: Automated release message generation using AI
+- **Detailed Task Tracking**: Enhanced tracking of task start time, end time, and status throughout the development workflow
+- **Granular Resume**: Task-by-task resume capability for more precise workflow control
 
 ## Bug Fixes
-
-- Fixed menu focus mode behavior
-- Fixed Mermaid diagram rendering issues
-- Fixed light/dark mode theme switching
+- Fixed menu focus mode issues and improved light/dark mode switching
+- Fixed Mermaid diagram rendering
 - Removed unnecessary optional package dependency
 
 ## Internal
-
-- Initialized red64 framework configuration
-- Added unit tests for PreviewHTMLGenerator
-- Added unit tests for ContentCache
-- Added comprehensive error handling and edge case coverage
+- Red64 framework initialization and configuration
+- Multiple specification workflows with gap analysis, design validation, and requirements generation
+- Comprehensive test coverage for PreviewHTMLGenerator and ContentCache services
+- Release documentation and scripting improvements
