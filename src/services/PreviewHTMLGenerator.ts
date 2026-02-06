@@ -47,20 +47,21 @@ export class PreviewHTMLGenerator implements PreviewHTMLGeneratorInterface {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${this.escapeHtml(title)}</title>
 
-  <!-- GitHub Markdown CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.7.0/github-markdown.min.css">
-
-  <!-- Mermaid.js for diagram rendering -->
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true, theme: 'default' });
-  </script>
+  <!-- GitHub Markdown CSS - Light theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.7.0/github-markdown-light.min.css" media="(prefers-color-scheme: light)">
+  <!-- GitHub Markdown CSS - Dark theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.7.0/github-markdown-dark.min.css" media="(prefers-color-scheme: dark)">
 
   <style>
+    /* Light mode (default) */
+    :root {
+      color-scheme: light dark;
+    }
     body {
       margin: 0;
       padding: 0;
       background-color: #ffffff;
+      color: #1f2328;
     }
     .container {
       max-width: 980px;
@@ -78,7 +79,55 @@ export class PreviewHTMLGenerator implements PreviewHTMLGeneratorInterface {
       min-width: 200px;
       background-color: #ffffff;
     }
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #0d1117;
+        color: #e6edf3;
+      }
+      .markdown-body {
+        background-color: #0d1117;
+      }
+    }
+    /* Mermaid diagram styling */
+    pre.mermaid {
+      background: transparent !important;
+      text-align: center;
+    }
   </style>
+
+  <!-- Mermaid.js for diagram rendering -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    // Detect color scheme and set Mermaid theme accordingly
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? 'dark' : 'default'
+    });
+
+    // Transform code blocks with language-mermaid to mermaid-compatible format
+    // marked outputs: <pre><code class="language-mermaid">...</code></pre>
+    // Mermaid expects: <pre class="mermaid">...</pre>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const mermaidBlocks = document.querySelectorAll('pre > code.language-mermaid');
+      for (const codeBlock of mermaidBlocks) {
+        const pre = codeBlock.parentElement;
+        if (pre) {
+          // Get the mermaid content
+          const content = codeBlock.textContent || '';
+          // Replace the pre element with a mermaid-ready pre
+          const newPre = document.createElement('pre');
+          newPre.className = 'mermaid';
+          newPre.textContent = content;
+          pre.replaceWith(newPre);
+        }
+      }
+      // Now run mermaid on all .mermaid elements
+      await mermaid.run();
+    });
+  </script>
 </head>
 <body>
   <div class="container">

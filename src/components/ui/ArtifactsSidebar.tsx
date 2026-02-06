@@ -14,7 +14,7 @@ export interface ArtifactsSidebarProps {
   readonly artifacts: readonly Artifact[];
   readonly worktreePath: string | null;
   readonly onPreview?: (artifact: Artifact) => void;
-  /** When false, keyboard input is disabled (e.g., when main menu is active) */
+  /** When true, keyboard input is enabled and visual focus indicator is shown */
   readonly isActive?: boolean;
 }
 
@@ -67,9 +67,10 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
   }, [validArtifacts.length, selectedIndex]);
 
   // Handle keyboard input for navigation and selection
+  // Use isActive option to properly disable input when sidebar is not focused
   useInput((input, key) => {
-    // Only handle input if sidebar is active and we have artifacts
-    if (!isActive || validArtifacts.length === 0) return;
+    // Guard for empty artifacts
+    if (validArtifacts.length === 0) return;
 
     // Arrow Up: Move selection up
     if (key.upArrow) {
@@ -94,19 +95,19 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
         onPreview(selected);
       }
     }
-  });
+  }, { isActive });
 
   return (
     <Box
       flexDirection="column"
       borderStyle="single"
-      borderColor="gray"
+      borderColor={isActive ? 'cyan' : 'gray'}
       paddingX={1}
       marginLeft={1}
       width={22}
     >
       {/* Header */}
-      <Text bold color="magenta">Artifacts</Text>
+      <Text bold color={isActive ? 'cyan' : 'magenta'}>Artifacts{isActive ? ' [Tab]' : ''}</Text>
 
       {/* Artifacts list */}
       <Box flexDirection="column" marginTop={1}>
@@ -135,6 +136,13 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
           <Text dimColor>─────────────────</Text>
           <Text dimColor italic>Path:</Text>
           <Text dimColor>{validArtifacts[0]?.path.split('/').slice(0, -1).join('/') + '/'}</Text>
+        </Box>
+      )}
+
+      {/* Tab hint when not focused */}
+      {!isActive && validArtifacts.length > 0 && (
+        <Box marginTop={1}>
+          <Text dimColor italic>Tab to preview</Text>
         </Box>
       )}
     </Box>

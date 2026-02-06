@@ -32,12 +32,21 @@ describe('PreviewService', () => {
   afterEach(async () => {
     // Cleanup
     await previewService.shutdownAll();
-    
+
     // Clean up test files
-    try {
-      await unlink(join(testDir, 'test-artifact.md'));
-    } catch {
-      // Ignore if file doesn't exist
+    const testFiles = [
+      'test-artifact.md',
+      'cached-artifact.md',
+      'permission-test.md',
+      'error-test.md'
+    ];
+
+    for (const file of testFiles) {
+      try {
+        await unlink(join(testDir, file));
+      } catch {
+        // Ignore if file doesn't exist
+      }
     }
   });
 

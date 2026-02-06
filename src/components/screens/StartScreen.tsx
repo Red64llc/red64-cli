@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Box, Text, useApp } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
 import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent } from '../../types/index.js';
@@ -278,6 +278,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     agent: 'claude',  // Default, will be loaded from config
     artifacts: []  // Generated artifacts
   });
+
+  // Track if sidebar is focused (for keyboard navigation)
+  const [sidebarFocused, setSidebarFocused] = useState(false);
 
   // Track if flow has been started
   const flowStartedRef = useRef(false);
@@ -1481,6 +1484,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     'merge-decision'
   ].includes(flowState.phase.type);
 
+  // Handle Tab key to toggle focus between main panel and sidebar
+  useInput((_input, key) => {
+    if (key.tab) {
+      setSidebarFocused(prev => !prev);
+    }
+  });
+
   // Render phase indicator
   const renderPhaseIndicator = () => {
     const phaseInfo = PHASE_LABELS[flowState.phase.type] ?? { label: flowState.phase.type, description: '' };
@@ -1655,13 +1665,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Existing flow detected - prompt resume vs restart */}
         {flowState.preStartStep.type === 'existing-flow-detected' && (
-          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'yellow'} paddingX={1}>
             <Text bold color="yellow">Existing Flow Detected</Text>
             <Text dimColor>Phase: {flowState.preStartStep.existingState.phase.type}</Text>
             <Box marginTop={1}>
               <Select
                 options={EXISTING_FLOW_OPTIONS}
                 onChange={handleExistingFlowDecision}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -1669,7 +1680,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Uncommitted changes - prompt commit/discard/abort */}
         {flowState.preStartStep.type === 'uncommitted-changes' && (
-          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'yellow'} paddingX={1}>
             <Text bold color="yellow">Uncommitted Changes Detected</Text>
             <Text dimColor>
               {flowState.preStartStep.gitStatus.staged} staged, {flowState.preStartStep.gitStatus.unstaged} unstaged, {flowState.preStartStep.gitStatus.untracked} untracked
@@ -1678,6 +1689,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Select
                 options={UNCOMMITTED_CHANGES_OPTIONS}
                 onChange={handleUncommittedChangesDecision}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -1685,7 +1697,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Approval UI */}
         {isApprovalPhase && !flowState.isExecuting && (
-          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'cyan'} paddingX={1}>
             <Text bold>Review Required</Text>
             <Text dimColor>
               Review output in .red64/specs/{flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}/
@@ -1695,6 +1707,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Select
                 options={APPROVAL_OPTIONS}
                 onChange={handleApproval}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -1707,7 +1720,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           artifacts={flowState.artifacts}
           worktreePath={flowState.worktreePath}
           onPreview={handleArtifactPreview}
-          isActive={!(isApprovalPhase && !flowState.isExecuting)}
+          isActive={sidebarFocused}
         />
       )}
     </Box>
