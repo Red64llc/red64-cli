@@ -127,7 +127,7 @@ if [[ -z "$RELEASE_CONTENT" ]]; then
 fi
 
 # Write to RELEASE.md
-echo "$RELEASE_CONTENT" > RELEASE.md
+echo "$RELEASE_CONTENT" >> RELEASE.md
 print_step "RELEASE.md updated with generated notes"
 
 # Show generated content and ask for confirmation
