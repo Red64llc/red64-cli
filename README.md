@@ -63,6 +63,10 @@ The solution is what I've been doing for 20 years: **Software Development Life C
 
 **The result:** Code that lives and evolves. We've rewritten features in another language in **days** because the documentation is so complete.
 
+<img width="1920" height="1080" alt="Screenshot 2026-02-06 at 3 23 08 AM" src="https://github.com/user-attachments/assets/d76f2e0d-691a-4148-860f-122df3b43611" />
+
+_**Legend**: work in parallel in two seperate worktrees, preview generated documentation with markdown and diagram rendering_
+
 ---
 
 ## 🚀 Quick Start
