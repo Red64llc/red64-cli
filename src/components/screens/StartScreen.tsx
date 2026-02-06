@@ -1356,7 +1356,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   const handleArtifactPreview = useCallback(async (artifact: Artifact) => {
     addOutput(`Opening preview: ${artifact.name}...`);
 
-    const result = await services.previewService.previewArtifact(artifact);
+    // Resolve relative artifact path to absolute path using worktree
+    const workDir = getWorkingDir();
+    const resolvedArtifact: Artifact = {
+      ...artifact,
+      path: artifact.path.startsWith('/') ? artifact.path : join(workDir, artifact.path)
+    };
+
+    const result = await services.previewService.previewArtifact(resolvedArtifact);
 
     if (result.success) {
       addOutput(`Preview opened at: ${result.url}`);
@@ -1380,7 +1387,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           addOutput(`Error: ${error.message}`);
       }
     }
-  }, [services.previewService, addOutput]);
+  }, [services.previewService, addOutput, getWorkingDir]);
 
   // Handle approval decision
   const handleApproval = useCallback(async (decision: string) => {
@@ -1700,6 +1707,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           artifacts={flowState.artifacts}
           worktreePath={flowState.worktreePath}
           onPreview={handleArtifactPreview}
+          isActive={!(isApprovalPhase && !flowState.isExecuting)}
         />
       )}
     </Box>

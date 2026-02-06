@@ -7,14 +7,14 @@ This plan implements artifact preview functionality for the red64-cli terminal a
 
 ## Tasks
 
-- [ ] 1. (P) Install required dependencies
+- [x] 1. (P) Install required dependencies
   - Install `marked` v14.1.3+ for markdown parsing
   - Install `github-markdown-css` v5.7.0+ for GitHub-style CSS
   - Install `open` v11.0.0+ for cross-platform browser launching
   - Add all dependencies to package.json with correct versions
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.1, 3.2, 4.1_
 
-- [ ] 2. (P) Create ContentCache service for artifact caching
+- [x] 2. (P) Create ContentCache service for artifact caching
   - Implement in-memory cache using JavaScript Map with 5-minute TTL
   - Create ContentCacheInterface with get, set, clear, and prune methods
   - Store entries as objects with content (string) and timestamp (number)
@@ -22,7 +22,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Return null for cache miss or stale entries
   - _Requirements: 8.3_
 
-- [ ] 3. (P) Create PreviewHTMLGenerator service for markdown transformation
+- [x] 3. (P) Create PreviewHTMLGenerator service for markdown transformation
   - Implement generateHTML method accepting markdown content and artifact title
   - Use marked library to parse markdown to HTML with default options
   - Generate complete HTML5 document with DOCTYPE, head, and body structure
@@ -33,7 +33,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Wrap rendered markdown in `<article class="markdown-body">` semantic element
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.1, 3.4, 3.5, 4.6, 6.1, 6.2, 6.3_
 
-- [ ] 4. (P) Create PreviewHTTPServer service for ephemeral server lifecycle
+- [x] 4. (P) Create PreviewHTTPServer service for ephemeral server lifecycle
   - Implement start method with HTML content and optional preferred port parameters
   - Use Node.js http module to create server serving HTML on GET / request
   - Implement random port selection in range 3000-3999 with availability check
@@ -47,7 +47,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Bind server to localhost only (127.0.0.1) to prevent external network access
   - _Requirements: 7.1, 7.2, 7.4_
 
-- [ ] 5. Create PreviewService orchestration layer
+- [x] 5. Create PreviewService orchestration layer
   - Implement previewArtifact method accepting Artifact interface parameter
   - Validate artifact.path is absolute and within worktree bounds using path.resolve
   - Check ContentCache for artifact content with cache hit optimization
@@ -61,7 +61,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Implement shutdownAll method delegating to PreviewHTTPServer.shutdownAll
   - _Requirements: 1.4, 1.5, 5.1, 5.2, 5.3, 8.1, 8.3_
 
-- [ ] 6. Enhance ArtifactsSidebar with keyboard navigation
+- [x] 6. Enhance ArtifactsSidebar with keyboard navigation
   - Add local state for selectedIndex using useState with default value 0
   - Implement useInput hook from Ink for Arrow Up, Arrow Down, Enter, and Space key handling
   - Update selectedIndex on Arrow Up by decrementing with wrap to last item
@@ -72,7 +72,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Maintain existing artifact display logic including icons, names, and timestamps
   - _Requirements: 1.1, 1.2, 1.6_
 
-- [ ] 7. Integrate PreviewService into StartScreen component
+- [x] 7. Integrate PreviewService into StartScreen component
   - Instantiate PreviewService singleton with ContentCache, PreviewHTMLGenerator, and PreviewHTTPServer instances
   - Pass onPreview callback prop to ArtifactsSidebar component
   - Implement onPreview handler calling PreviewService.previewArtifact with artifact parameter
@@ -85,7 +85,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Clean up PreviewService on StartScreen unmount by calling shutdownAll
   - _Requirements: 1.1, 1.5, 5.2, 5.3_
 
-- [ ] 8. Add error handling and edge case coverage
+- [x] 8. Add error handling and edge case coverage
   - Validate artifact.path exists before file read attempt
   - Handle permission errors for file access with clear user message
   - Handle port exhaustion after 3 retries with actionable error message
@@ -95,7 +95,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Verify graceful degradation when CDN resources unavailable
   - _Requirements: 1.5, 5.2, 5.3_
 
-- [ ] 9. (P) Write unit tests for ContentCache
+- [x] 9. (P) Write unit tests for ContentCache
   - Test cache hit returns stored content
   - Test cache miss returns null
   - Test stale entry older than 5 minutes returns null after pruning
@@ -104,7 +104,7 @@ This plan implements artifact preview functionality for the red64-cli terminal a
   - Test prune removes only stale entries
   - _Requirements: 8.3_
 
-- [ ] 10. (P) Write unit tests for PreviewHTMLGenerator
+- [x] 10. (P) Write unit tests for PreviewHTMLGenerator
   - Test generateHTML returns valid HTML5 document structure
   - Test markdown headings h1-h6 render correctly with appropriate hierarchy
   - Test markdown lists (ordered and unordered) render with proper nesting

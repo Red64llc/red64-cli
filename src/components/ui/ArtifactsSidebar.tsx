@@ -14,6 +14,8 @@ export interface ArtifactsSidebarProps {
   readonly artifacts: readonly Artifact[];
   readonly worktreePath: string | null;
   readonly onPreview?: (artifact: Artifact) => void;
+  /** When false, keyboard input is disabled (e.g., when main menu is active) */
+  readonly isActive?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
   artifacts,
   worktreePath: _worktreePath,  // Reserved for future use (terminal hyperlinks)
   onPreview,
+  isActive = true,  // Default to active for backward compatibility
 }) => {
   // Filter out any invalid artifacts
   const validArtifacts = artifacts.filter(a => a && a.name && a.path);
@@ -65,8 +68,8 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
 
   // Handle keyboard input for navigation and selection
   useInput((input, key) => {
-    // Only handle input if we have artifacts and a preview callback
-    if (validArtifacts.length === 0) return;
+    // Only handle input if sidebar is active and we have artifacts
+    if (!isActive || validArtifacts.length === 0) return;
 
     // Arrow Up: Move selection up
     if (key.upArrow) {
