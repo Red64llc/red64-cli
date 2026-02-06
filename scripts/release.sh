@@ -80,15 +80,72 @@ npm version "$VERSION_TYPE" --no-git-tag-version
 NEW_VERSION=$(node -p "require('./package.json').version")
 print_step "New version: v$NEW_VERSION"
 
-# Check if RELEASE.md needs to be updated
-if ! grep -q "# Release v$NEW_VERSION" RELEASE.md 2>/dev/null; then
-    print_warning "RELEASE.md doesn't have notes for v$NEW_VERSION"
-    echo "Please update RELEASE.md with release notes before continuing."
-    read -p "Open RELEASE.md in editor? (Y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        ${EDITOR:-vim} RELEASE.md
-    fi
+# Generate release notes using Claude
+print_step "Generating release notes with Claude..."
+
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [[ -z "$LAST_TAG" ]]; then
+    print_warning "No previous tag found, using all commits"
+    GIT_LOG=$(git log --oneline --no-merges | grep -v "WIP:" | grep -v "auto-commit")
+else
+    print_step "Getting commits since $LAST_TAG..."
+    GIT_LOG=$(git log "$LAST_TAG"..HEAD --oneline --no-merges | grep -v "WIP:" | grep -v "auto-commit")
+fi
+
+if [[ -z "$GIT_LOG" ]]; then
+    print_warning "No meaningful commits found since last release"
+    GIT_LOG="No changes recorded"
+fi
+
+# Generate release notes with Claude
+RELEASE_PROMPT="Generate release notes for version v$NEW_VERSION based on these git commits:
+
+$GIT_LOG
+
+Output ONLY the markdown content for RELEASE.md, nothing else. Use this format:
+# Release v$NEW_VERSION
+
+## New Features
+- feature descriptions (if any)
+
+## Bug Fixes
+- bug fix descriptions (if any)
+
+## Internal
+- internal changes (if any)
+
+Group commits logically. Skip empty sections. Be concise."
+
+print_step "Calling Claude to generate release notes..."
+RELEASE_CONTENT=$(echo "$RELEASE_PROMPT" | claude --print)
+
+if [[ -z "$RELEASE_CONTENT" ]]; then
+    print_error "Failed to generate release notes with Claude"
+    exit 1
+fi
+
+# Write to RELEASE.md
+echo "$RELEASE_CONTENT" > RELEASE.md
+print_step "RELEASE.md updated with generated notes"
+
+# Show generated content and ask for confirmation
+echo ""
+echo "--- Generated RELEASE.md ---"
+cat RELEASE.md
+echo "-----------------------------"
+echo ""
+
+read -p "Accept these release notes? (Y/n/e[dit]) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ee]$ ]]; then
+    ${EDITOR:-vim} RELEASE.md
+elif [[ $REPLY =~ ^[Nn]$ ]]; then
+    print_error "Release notes rejected. Aborting."
+    git checkout RELEASE.md 2>/dev/null || true
+    git checkout package.json package-lock.json 2>/dev/null || true
+    exit 1
 fi
 
 # Commit version bump
