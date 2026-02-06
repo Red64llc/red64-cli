@@ -1,13 +1,11 @@
 {
   "feature": "preview-artifacts",
   "phase": {
-    "type": "implementing",
-    "feature": "preview-artifacts",
-    "currentTask": 1,
-    "totalTasks": 15
+    "type": "complete",
+    "feature": "preview-artifacts"
   },
   "createdAt": "2026-02-04T16:30:11.223Z",
-  "updatedAt": "2026-02-05T10:59:51.365Z",
+  "updatedAt": "2026-02-05T21:34:10.185Z",
   "history": [
     {
       "phase": {
@@ -146,13 +144,327 @@
         "feature": "preview-artifacts"
       },
       "timestamp": "2026-02-05T10:59:51.365Z"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T13:04:25.238Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-1-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T13:06:56.220Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T13:09:37.079Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:11:18.316Z",
+      "event": "TASK_START",
+      "subStep": "task-1-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:13:25.601Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-1-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:13:25.892Z",
+      "event": "TASK_START",
+      "subStep": "task-2-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:16:19.211Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:16:19.501Z",
+      "event": "TASK_START",
+      "subStep": "task-3-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:20:26.972Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:20:27.230Z",
+      "event": "TASK_START",
+      "subStep": "task-4-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:23:42.556Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-4-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:23:42.822Z",
+      "event": "TASK_START",
+      "subStep": "task-5-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:28:54.064Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-5-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:28:54.340Z",
+      "event": "TASK_START",
+      "subStep": "task-6-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:37:57.115Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-6-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:37:57.402Z",
+      "event": "TASK_START",
+      "subStep": "task-7-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:43:34.221Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-7-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:43:34.510Z",
+      "event": "TASK_START",
+      "subStep": "task-8-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:47:33.870Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-8-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:47:34.152Z",
+      "event": "TASK_START",
+      "subStep": "task-9-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:50:14.962Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-9-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T19:50:15.245Z",
+      "event": "TASK_START",
+      "subStep": "task-10-started"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T21:25:10.509Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-10-completed"
+    },
+    {
+      "phase": {
+        "type": "idle"
+      },
+      "timestamp": "2026-02-05T21:25:10.738Z",
+      "event": "TASK_START",
+      "subStep": "task-11-started"
     }
   ],
   "metadata": {
     "description": "user should be able to click on the artifact name and preview it in a new window that renders the markdown and the mermaid diagram",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts",
-    "resolvedFeatureName": "preview-artifacts"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/preview-artifacts"
+  },
+  "taskProgress": {
+    "completedGroups": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "totalGroups": 10,
+    "taskEntries": [
+      {
+        "id": "1",
+        "title": "Install required dependencies",
+        "startedAt": "2026-02-05T19:11:18.315Z",
+        "completedAt": "2026-02-05T19:13:25.600Z",
+        "status": "completed"
+      },
+      {
+        "id": "2",
+        "title": "Create ContentCache service for artifact caching",
+        "startedAt": "2026-02-05T19:13:25.891Z",
+        "completedAt": "2026-02-05T19:16:19.209Z",
+        "status": "completed"
+      },
+      {
+        "id": "3",
+        "title": "Create PreviewHTMLGenerator service for markdown transformation",
+        "startedAt": "2026-02-05T19:16:19.500Z",
+        "completedAt": "2026-02-05T19:20:26.971Z",
+        "status": "completed"
+      },
+      {
+        "id": "4",
+        "title": "Create PreviewHTTPServer service for ephemeral server lifecycle",
+        "startedAt": "2026-02-05T19:20:27.229Z",
+        "completedAt": "2026-02-05T19:23:42.555Z",
+        "status": "completed"
+      },
+      {
+        "id": "5",
+        "title": "Create PreviewService orchestration layer",
+        "startedAt": "2026-02-05T19:23:42.822Z",
+        "completedAt": "2026-02-05T19:28:54.062Z",
+        "status": "completed"
+      },
+      {
+        "id": "6",
+        "title": "Enhance ArtifactsSidebar with keyboard navigation",
+        "startedAt": "2026-02-05T19:28:54.339Z",
+        "completedAt": "2026-02-05T19:37:57.114Z",
+        "status": "completed"
+      },
+      {
+        "id": "7",
+        "title": "Integrate PreviewService into StartScreen component",
+        "startedAt": "2026-02-05T19:37:57.402Z",
+        "completedAt": "2026-02-05T19:43:34.220Z",
+        "status": "completed"
+      },
+      {
+        "id": "8",
+        "title": "Add error handling and edge case coverage",
+        "startedAt": "2026-02-05T19:43:34.510Z",
+        "completedAt": "2026-02-05T19:47:33.870Z",
+        "status": "completed"
+      },
+      {
+        "id": "9",
+        "title": "Write unit tests for ContentCache",
+        "startedAt": "2026-02-05T19:47:34.152Z",
+        "completedAt": "2026-02-05T19:50:14.961Z",
+        "status": "completed"
+      },
+      {
+        "id": "10",
+        "title": "Write unit tests for PreviewHTMLGenerator",
+        "startedAt": "2026-02-05T19:50:15.244Z",
+        "completedAt": "2026-02-05T21:25:10.506Z",
+        "status": "completed"
+      },
+      {
+        "id": "11",
+        "title": "Write unit tests for PreviewHTTPServer",
+        "startedAt": "2026-02-05T21:25:10.738Z",
+        "completedAt": null,
+        "status": "in_progress"
+      },
+      {
+        "id": "12",
+        "title": "Write unit tests for PreviewService",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "13",
+        "title": "Write integration tests for ArtifactsSidebar",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "14",
+        "title": "Write integration tests for full preview flow",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      },
+      {
+        "id": "15",
+        "title": "Write baseline rendering and accessibility tests",
+        "startedAt": null,
+        "completedAt": null,
+        "status": "pending"
+      }
+    ],
+    "currentTaskId": "11"
   },
   "artifacts": [
     {
@@ -176,6 +488,5 @@
       "phase": "tasks-generating",
       "createdAt": "2026-02-05T01:29:58.933Z"
     }
-  ],
-  "version": 2
+  ]
 }

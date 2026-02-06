@@ -166,3 +166,27 @@ export {
   type TestResult,
   type TestRunnerOptions
 } from './TestRunner.js';
+
+export {
+  ContentCache,
+  type ContentCacheInterface
+} from './ContentCache.js';
+
+export {
+  PreviewHTMLGenerator,
+  type PreviewHTMLGeneratorInterface
+} from './PreviewHTMLGenerator.js';
+
+export {
+  PreviewHTTPServer,
+  type PreviewHTTPServerInterface,
+  type ServerStartResult
+} from './PreviewHTTPServer.js';
+
+export {
+  PreviewService,
+  type PreviewServiceInterface,
+  type PreviewResult,
+  type PreviewError,
+  type PreviewErrorCode
+} from './PreviewService.js';

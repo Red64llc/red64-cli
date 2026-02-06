@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Box, Text, useApp } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
 import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase, TaskEntry } from '../../types/index.js';
@@ -45,6 +45,10 @@ import {
   type ClaudeError,
   type GitStatus
 } from '../../services/index.js';
+import { PreviewService } from '../../services/PreviewService.js';
+import { ContentCache } from '../../services/ContentCache.js';
+import { PreviewHTMLGenerator } from '../../services/PreviewHTMLGenerator.js';
+import { PreviewHTTPServer } from '../../services/PreviewHTTPServer.js';
 import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
@@ -202,6 +206,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     configService: ReturnType<typeof createConfigService>;
     projectDetector: ReturnType<typeof createProjectDetector>;
     testRunner: ReturnType<typeof createTestRunner>;
+    previewService: PreviewService;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -218,6 +223,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const projectDetector = createProjectDetector();
     const testRunner = createTestRunner();
 
+    // Initialize preview service with dependencies
+    const contentCache = new ContentCache();
+    const htmlGenerator = new PreviewHTMLGenerator();
+    const httpServer = new PreviewHTTPServer();
+    const previewService = new PreviewService(contentCache, htmlGenerator, httpServer);
+
     servicesRef.current = {
       stateStore,
       agentInvoker,
@@ -230,7 +241,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       gitStatusChecker,
       configService,
       projectDetector,
-      testRunner
+      testRunner,
+      previewService
     };
   }
 
@@ -283,6 +295,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     artifacts: [],  // Generated artifacts
     history: []  // Phase history for sidebar display
   });
+
+  // Track if sidebar is focused (for keyboard navigation)
+  const [sidebarFocused, setSidebarFocused] = useState(false);
 
   // Track if flow has been started
   const flowStartedRef = useRef(false);
@@ -805,6 +820,16 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     setFlowState(prev => ({ ...prev, phase: nextPhase }));
     return nextPhase;
   }, [services.flowMachine]);
+
+  // Clean up PreviewService on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup preview service when component unmounts
+      services.previewService.shutdownAll().catch(error => {
+        console.warn('Error shutting down preview service:', error);
+      });
+    };
+  }, [services.previewService]);
 
   // Check for existing flow on mount
   useEffect(() => {
@@ -1859,6 +1884,43 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
   };
 
+  // Handle artifact preview
+  const handleArtifactPreview = useCallback(async (artifact: Artifact) => {
+    addOutput(`Opening preview: ${artifact.name}...`);
+
+    // Resolve relative artifact path to absolute path using worktree
+    const workDir = getWorkingDir();
+    const resolvedArtifact: Artifact = {
+      ...artifact,
+      path: artifact.path.startsWith('/') ? artifact.path : join(workDir, artifact.path)
+    };
+
+    const result = await services.previewService.previewArtifact(resolvedArtifact);
+
+    if (result.success) {
+      addOutput(`Preview opened at: ${result.url}`);
+    } else {
+      // Display error based on error code
+      const { error } = result;
+      switch (error.code) {
+        case 'FILE_NOT_FOUND':
+          addOutput(`Error: Artifact not found: ${artifact.path}`);
+          break;
+        case 'FILE_READ_ERROR':
+          addOutput(`Error: Cannot read artifact: ${artifact.path}. Check permissions.`);
+          break;
+        case 'PORT_UNAVAILABLE':
+          addOutput('Error: Cannot start preview server. All ports busy.');
+          break;
+        case 'BROWSER_LAUNCH_ERROR':
+          addOutput(`Error: Cannot open browser. Preview available at: ${error.details ?? ''}`);
+          break;
+        default:
+          addOutput(`Error: ${error.message}`);
+      }
+    }
+  }, [services.previewService, addOutput, getWorkingDir]);
+
   // Handle approval decision
   const handleApproval = useCallback(async (decision: string) => {
     const workDir = getWorkingDir();
@@ -1995,6 +2057,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     'design-validation-review',
     'merge-decision'
   ].includes(flowState.phase.type);
+
+  // Handle Tab key to toggle focus between main panel and sidebar
+  useInput((_input, key) => {
+    if (key.tab) {
+      setSidebarFocused(prev => !prev);
+    }
+  });
 
   // Render phase indicator
   const renderPhaseIndicator = () => {
@@ -2171,13 +2240,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Existing flow detected - prompt resume vs restart */}
         {flowState.preStartStep.type === 'existing-flow-detected' && (
-          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'yellow'} paddingX={1}>
             <Text bold color="yellow">Existing Flow Detected</Text>
             <Text dimColor>Phase: {flowState.preStartStep.existingState.phase.type}</Text>
             <Box marginTop={1}>
               <Select
                 options={EXISTING_FLOW_OPTIONS}
                 onChange={handleExistingFlowDecision}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -2185,7 +2255,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Uncommitted changes - prompt commit/discard/abort */}
         {flowState.preStartStep.type === 'uncommitted-changes' && (
-          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'yellow'} paddingX={1}>
             <Text bold color="yellow">Uncommitted Changes Detected</Text>
             <Text dimColor>
               {flowState.preStartStep.gitStatus.staged} staged, {flowState.preStartStep.gitStatus.unstaged} unstaged, {flowState.preStartStep.gitStatus.untracked} untracked
@@ -2194,6 +2264,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Select
                 options={UNCOMMITTED_CHANGES_OPTIONS}
                 onChange={handleUncommittedChangesDecision}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -2226,7 +2297,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
         {/* Approval UI */}
         {isApprovalPhase && !flowState.isExecuting && (
-          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'cyan'} paddingX={1}>
             <Text bold>Review Required</Text>
             <Text dimColor>
               Review output in .red64/specs/{flowState.resolvedFeatureName ?? sanitizeFeatureName(featureName)}/
@@ -2236,6 +2307,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Select
                 options={APPROVAL_OPTIONS}
                 onChange={handleApproval}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>
@@ -2247,6 +2319,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         <ArtifactsSidebar
           artifacts={flowState.artifacts}
           worktreePath={flowState.worktreePath}
+          onPreview={handleArtifactPreview}
+          isActive={sidebarFocused}
         />
       )}
     </Box>

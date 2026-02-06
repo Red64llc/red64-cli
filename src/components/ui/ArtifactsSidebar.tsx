@@ -1,10 +1,10 @@
 /**
  * ArtifactsSidebar Component
- * Right-side panel showing generated artifacts with clickable links
+ * Right-side panel showing generated artifacts with keyboard navigation and preview
  */
 
-import React from 'react';
-import { Box, Text } from 'ink';
+import React, { useState, useEffect } from 'react';
+import { Box, Text, useInput } from 'ink';
 import type { Artifact } from '../../types/index.js';
 
 /**
@@ -13,6 +13,9 @@ import type { Artifact } from '../../types/index.js';
 export interface ArtifactsSidebarProps {
   readonly artifacts: readonly Artifact[];
   readonly worktreePath: string | null;
+  readonly onPreview?: (artifact: Artifact) => void;
+  /** When true, keyboard input is enabled and visual focus indicator is shown */
+  readonly isActive?: boolean;
 }
 
 /**
@@ -42,26 +45,69 @@ function getArtifactColor(filename: string): string {
 
 /**
  * ArtifactsSidebar Component
- * Displays generated artifacts with clickable file links
+ * Displays generated artifacts with keyboard navigation and preview support
  */
 export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
   artifacts,
   worktreePath: _worktreePath,  // Reserved for future use (terminal hyperlinks)
+  onPreview,
+  isActive = true,  // Default to active for backward compatibility
 }) => {
   // Filter out any invalid artifacts
   const validArtifacts = artifacts.filter(a => a && a.name && a.path);
+
+  // Track selected artifact index for keyboard navigation
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Clamp selectedIndex when artifacts change to ensure it stays within valid range
+  useEffect(() => {
+    if (validArtifacts.length > 0 && selectedIndex >= validArtifacts.length) {
+      setSelectedIndex(validArtifacts.length - 1);
+    }
+  }, [validArtifacts.length, selectedIndex]);
+
+  // Handle keyboard input for navigation and selection
+  // Use isActive option to properly disable input when sidebar is not focused
+  useInput((input, key) => {
+    // Guard for empty artifacts
+    if (validArtifacts.length === 0) return;
+
+    // Arrow Up: Move selection up
+    if (key.upArrow) {
+      setSelectedIndex(prev => {
+        if (prev === 0) return validArtifacts.length - 1; // Wrap to last
+        return prev - 1;
+      });
+    }
+
+    // Arrow Down: Move selection down
+    if (key.downArrow) {
+      setSelectedIndex(prev => {
+        if (prev === validArtifacts.length - 1) return 0; // Wrap to first
+        return prev + 1;
+      });
+    }
+
+    // Enter or Space: Trigger preview
+    if ((key.return || input === ' ') && onPreview) {
+      const selected = validArtifacts[selectedIndex];
+      if (selected) {
+        onPreview(selected);
+      }
+    }
+  }, { isActive });
 
   return (
     <Box
       flexDirection="column"
       borderStyle="single"
-      borderColor="gray"
+      borderColor={isActive ? 'cyan' : 'gray'}
       paddingX={1}
       marginLeft={1}
       width={22}
     >
       {/* Header */}
-      <Text bold color="magenta">Artifacts</Text>
+      <Text bold color={isActive ? 'cyan' : 'magenta'}>Artifacts{isActive ? ' [Tab]' : ''}</Text>
 
       {/* Artifacts list */}
       <Box flexDirection="column" marginTop={1}>
@@ -71,10 +117,13 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
           validArtifacts.map((artifact, index) => {
             const icon = getArtifactIcon(artifact.filename);
             const color = getArtifactColor(artifact.filename);
+            const isSelected = index === selectedIndex;
 
             return (
               <Box key={`${artifact.path}-${index}`} marginBottom={index < validArtifacts.length - 1 ? 1 : 0}>
-                <Text color={color}>{icon} {artifact.filename}</Text>
+                <Text color={color} inverse={isSelected} bold={isSelected}>
+                  {isSelected ? '▶ ' : '  '}{icon} {artifact.filename}
+                </Text>
               </Box>
             );
           })
@@ -87,6 +136,13 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
           <Text dimColor>─────────────────</Text>
           <Text dimColor italic>Path:</Text>
           <Text dimColor>{validArtifacts[0]?.path.split('/').slice(0, -1).join('/') + '/'}</Text>
+        </Box>
+      )}
+
+      {/* Tab hint when not focused */}
+      {!isActive && validArtifacts.length > 0 && (
+        <Box marginTop={1}>
+          <Text dimColor italic>Tab to preview</Text>
         </Box>
       )}
     </Box>
