@@ -16,3 +16,14 @@
 - Multiple specification workflows with gap analysis, design validation, and requirements generation
 - Comprehensive test coverage for PreviewHTMLGenerator and ContentCache services
 - Release documentation and scripting improvements
+# Release v0.10.0
+
+## New Features
+- Add support for Terraform in the release workflow
+
+## Bug Fixes
+- Fix release notes prepending to ensure correct ordering
+- Improve error handling in release script
+
+## Internal
+- Update README.md documentation
