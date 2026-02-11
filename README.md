@@ -228,6 +228,42 @@ red64 init --agent gemini   # Google Gemini
 red64 init --agent codex    # OpenAI Codex
 ```
 
+### Local Development Stack (Ollama)
+
+Run Red64 with local open-source models via [Ollama](https://ollama.com) — no API costs, full privacy:
+
+```bash
+# One-time setup
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3-coder-next  # ~46GB, runs on 64GB MacBook
+
+# Use with Red64
+red64 start "feature" "description" --model qwen3-coder-next --ollama
+```
+
+The `--ollama` flag configures Red64 to use your local Ollama instance at `localhost:11434`.
+
+**Works with sandbox mode:**
+
+```bash
+red64 start "feature" "description" --model qwen3-coder-next --ollama --sandbox -y
+```
+
+**Or set environment variables directly:**
+
+```bash
+export ANTHROPIC_BASE_URL="http://localhost:11434"
+export ANTHROPIC_AUTH_TOKEN="ollama"
+red64 start "feature" "description" --model qwen3-coder-next
+```
+
+**Recommended local models:**
+- `qwen3-coder-next` — 80B MoE, 3B active params (best quality)
+- `deepseek-coder-v2` — Strong coding performance
+- `codellama` — Meta's code-focused Llama
+
+> **Note:** Local models are slower than cloud APIs (~10-30 tok/s vs instant) and have smaller context windows (32K-64K vs 200K). Best for cost-sensitive development or air-gapped environments.
+
 ### Smart Resume
 
 Interrupted? Just run `start` again:
@@ -301,6 +337,7 @@ red64 mcp remove <name>       # Remove an MCP server
 | `--local-image` | Build and use local sandbox image instead of GHCR (init only) |
 | `-m, --model` | Override AI model |
 | `-a, --agent` | Set coding agent (claude/gemini/codex) |
+| `--ollama` | Use local Ollama backend (localhost:11434) |
 | `--verbose` | Show detailed logs |
 
 ---

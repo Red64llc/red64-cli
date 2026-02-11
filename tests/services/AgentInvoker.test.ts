@@ -133,6 +133,123 @@ describe('AgentInvoker', () => {
       );
     });
 
+    it('should set ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN when ollama is enabled', async () => {
+      const { spawn } = await import('node:child_process');
+      const mockSpawn = spawn as ReturnType<typeof vi.fn>;
+
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, callback) => {
+          if (event === 'close') callback(0);
+        }),
+        kill: vi.fn()
+      };
+
+      mockSpawn.mockReturnValue(mockProcess as any);
+
+      const options: AgentInvokeOptions = {
+        prompt: 'Test prompt',
+        workingDirectory: '/test',
+        skipPermissions: false,
+        tier: undefined,
+        ollama: true
+      };
+
+      await invoker.invoke(options);
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'claude',
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            ANTHROPIC_BASE_URL: 'http://localhost:11434',
+            ANTHROPIC_AUTH_TOKEN: 'ollama'
+          })
+        })
+      );
+    });
+
+    it('should not set Ollama env vars when ollama is false', async () => {
+      const { spawn } = await import('node:child_process');
+      const mockSpawn = spawn as ReturnType<typeof vi.fn>;
+
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, callback) => {
+          if (event === 'close') callback(0);
+        }),
+        kill: vi.fn()
+      };
+
+      mockSpawn.mockReturnValue(mockProcess as any);
+
+      const options: AgentInvokeOptions = {
+        prompt: 'Test prompt',
+        workingDirectory: '/test',
+        skipPermissions: false,
+        tier: undefined,
+        ollama: false
+      };
+
+      await invoker.invoke(options);
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const env = spawnCall[2].env;
+
+      // Should not have Ollama-specific env vars set (unless already in process.env)
+      expect(env.ANTHROPIC_BASE_URL).toBeUndefined();
+      expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
+    });
+
+    it('should respect existing ANTHROPIC_BASE_URL when ollama is enabled', async () => {
+      const { spawn } = await import('node:child_process');
+      const mockSpawn = spawn as ReturnType<typeof vi.fn>;
+
+      // Set custom base URL in environment
+      const originalBaseUrl = process.env.ANTHROPIC_BASE_URL;
+      process.env.ANTHROPIC_BASE_URL = 'http://custom-ollama:8080';
+
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, callback) => {
+          if (event === 'close') callback(0);
+        }),
+        kill: vi.fn()
+      };
+
+      mockSpawn.mockReturnValue(mockProcess as any);
+
+      const options: AgentInvokeOptions = {
+        prompt: 'Test prompt',
+        workingDirectory: '/test',
+        skipPermissions: false,
+        tier: undefined,
+        ollama: true
+      };
+
+      await invoker.invoke(options);
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'claude',
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            ANTHROPIC_BASE_URL: 'http://custom-ollama:8080'
+          })
+        })
+      );
+
+      // Restore original env
+      if (originalBaseUrl) {
+        process.env.ANTHROPIC_BASE_URL = originalBaseUrl;
+      } else {
+        delete process.env.ANTHROPIC_BASE_URL;
+      }
+    });
+
     it('should capture stderr', async () => {
       const { spawn } = await import('node:child_process');
       const mockSpawn = spawn as ReturnType<typeof vi.fn>;

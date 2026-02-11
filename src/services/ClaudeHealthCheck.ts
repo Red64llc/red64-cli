@@ -27,9 +27,12 @@ export interface HealthCheckOptions {
   readonly sandbox?: boolean;
   readonly timeoutMs?: number;
   readonly agent?: CodingAgent;
+  readonly ollama?: boolean;
+  readonly model?: string;
+  readonly sandboxImage?: string;
 }
 
-const SANDBOX_IMAGE = 'red64-sandbox:latest';
+const DEFAULT_SANDBOX_IMAGE = 'ghcr.io/red64llc/red64-sandbox:latest';
 
 /**
  * Agent setup instructions per coding agent
@@ -154,20 +157,38 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
         env.CLAUDE_CONFIG_DIR = `${homeDir}/.claude-${options.tier}`;
       }
 
+      // Set Ollama backend environment variables (claude-specific)
+      if (options?.ollama && (options?.agent ?? 'claude') === 'claude') {
+        env.ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL ?? 'http://localhost:11434';
+        env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN ?? 'ollama';
+        // Set dummy API key to bypass Claude CLI validation (Ollama doesn't use it)
+        env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ollama-placeholder';
+      }
+
       // Minimal prompt that should succeed quickly if API is healthy
       const healthPrompt = 'Reply with exactly: OK';
       const agent = options?.agent ?? 'claude';
 
       // Build agent-specific health check command
       const getHealthArgs = (): { binary: string; args: string[] } => {
+        const model = options?.model;
         switch (agent) {
-          case 'gemini':
-            return { binary: 'gemini', args: ['-p', healthPrompt] };
-          case 'codex':
-            return { binary: 'codex', args: ['exec', healthPrompt] };
+          case 'gemini': {
+            const args = ['-p', healthPrompt];
+            if (model) args.push('-m', model);
+            return { binary: 'gemini', args };
+          }
+          case 'codex': {
+            const args = ['exec', healthPrompt];
+            if (model) args.push('--model', model);
+            return { binary: 'codex', args };
+          }
           case 'claude':
-          default:
-            return { binary: 'claude', args: ['-p', healthPrompt] };
+          default: {
+            const args = ['-p', healthPrompt];
+            if (model) args.push('--model', model);
+            return { binary: 'claude', args };
+          }
         }
       };
 
@@ -180,7 +201,6 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
 
         // Use Docker sandbox if enabled
         if (options?.sandbox) {
-          const apiKey = getApiKey(options?.tier, agent);
           const dockerArgs: string[] = [
             'run',
             '--rm',
@@ -188,14 +208,27 @@ export function createClaudeHealthCheck(): ClaudeHealthCheckService {
             '-v', `${process.cwd()}:/workspace`,
           ];
 
-          if (apiKey) {
-            const envKey = agent === 'gemini' ? 'GEMINI_API_KEY'
-              : agent === 'codex' ? 'CODEX_API_KEY'
-              : 'ANTHROPIC_API_KEY';
-            dockerArgs.push('-e', `${envKey}=${apiKey}`);
+          // Handle Ollama backend for Docker (claude-specific)
+          if (options?.ollama && agent === 'claude') {
+            // Use host.docker.internal to reach host's Ollama (works on macOS/Windows Docker Desktop)
+            const baseUrl = process.env.ANTHROPIC_BASE_URL ?? 'http://host.docker.internal:11434';
+            const authToken = process.env.ANTHROPIC_AUTH_TOKEN ?? 'ollama';
+            dockerArgs.push('-e', `ANTHROPIC_BASE_URL=${baseUrl}`);
+            dockerArgs.push('-e', `ANTHROPIC_AUTH_TOKEN=${authToken}`);
+            // Set dummy API key to bypass Claude CLI validation
+            dockerArgs.push('-e', `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ?? 'sk-ollama-placeholder'}`);
+          } else {
+            // Use real API key for non-Ollama mode
+            const apiKey = getApiKey(options?.tier, agent);
+            if (apiKey) {
+              const envKey = agent === 'gemini' ? 'GEMINI_API_KEY'
+                : agent === 'codex' ? 'CODEX_API_KEY'
+                : 'ANTHROPIC_API_KEY';
+              dockerArgs.push('-e', `${envKey}=${apiKey}`);
+            }
           }
 
-          dockerArgs.push(SANDBOX_IMAGE);
+          dockerArgs.push(options?.sandboxImage ?? DEFAULT_SANDBOX_IMAGE);
           dockerArgs.push(binary, ...healthArgs);
 
           proc = spawn('docker', dockerArgs, { stdio: ['pipe', 'pipe', 'pipe'] });

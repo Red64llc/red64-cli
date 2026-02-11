@@ -41,6 +41,7 @@ const COMMAND_HELP: Record<string, { usage: string; description: string; options
       '-s, --skip-permissions Pass --dangerously-skip-permissions to Claude CLI',
       '-t, --tier <name>      Use specific Claude config directory',
       '--sandbox              Run in Docker isolation',
+      '--ollama               Use local Ollama backend (localhost:11434)',
       '--verbose              Show detailed execution logs',
       '-h, --help             Show this help'
     ]
@@ -116,6 +117,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ helpCommand }) => {
       <Text>  -g, --greenfield          Greenfield mode (default)</Text>
       <Text>  -t, --tier {'<name>'}         Use specified Claude config directory</Text>
       <Text>  --sandbox                 Run in Docker container for isolation</Text>
+      <Text>  --ollama                  Use local Ollama backend (localhost:11434)</Text>
       <Text>  -h, --help                Show help (use with command for details)</Text>
       <Text>  -v, --version             Show version</Text>
       <Text></Text>

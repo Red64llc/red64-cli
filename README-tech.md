@@ -150,6 +150,7 @@ This means you can always use `red64 start <feature>` to continue working—no s
 - `-s, --skip-permissions` — Pass to Claude CLI
 - `-t, --tier <name>` — Use specific Claude config tier
 - `--sandbox` — Run in Docker isolation
+- `--ollama` — Use local Ollama backend (localhost:11434)
 - `--verbose` — Show detailed execution logs
 
 <img width="1164" height="255" alt="Screenshot 2026-01-30 at 9 48 53 PM" src="https://github.com/user-attachments/assets/9ccbd92a-245b-4a79-9644-9cd9a93ce4d2" />
@@ -389,6 +390,89 @@ red64 start "feature" "desc" --model o1
 | Claude | `claude-3-5-haiku-latest` | `claude-sonnet-4-20250514` |
 | Gemini | `gemini-2.0-flash` | `gemini-2.5-pro` |
 | Codex | `gpt-4o-mini` | `o1` |
+
+### Local Development Stack (Ollama)
+
+Red64 supports running with local open-source models via [Ollama](https://ollama.com). This enables zero-cost, fully private development without any cloud API dependencies.
+
+#### Prerequisites
+
+1. **Install Ollama:**
+   ```bash
+   # macOS/Linux
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # Or via Homebrew on macOS
+   brew install ollama
+   ```
+
+2. **Pull a coding model:**
+   ```bash
+   ollama pull qwen3-coder-next  # Recommended (~46GB)
+   ```
+
+3. **Start Ollama server** (runs automatically on install, or manually):
+   ```bash
+   ollama serve
+   ```
+
+#### Usage
+
+Use the `--ollama` flag to route requests through your local Ollama instance:
+
+```bash
+# Basic usage
+red64 start "feature" "description" --model qwen3-coder-next --ollama
+
+# With sandbox mode (Docker isolation)
+red64 start "feature" "description" --model qwen3-coder-next --ollama --sandbox -y
+
+# YOLO mode with local model
+red64 start "feature" "description" --model qwen3-coder-next --ollama --sandbox -s -y
+```
+
+#### How It Works
+
+The `--ollama` flag sets the following environment variables before invoking Claude Code:
+
+| Variable | Value |
+|----------|-------|
+| `ANTHROPIC_BASE_URL` | `http://localhost:11434` |
+| `ANTHROPIC_AUTH_TOKEN` | `ollama` |
+
+Claude Code's OpenAI-compatible backend support handles the rest transparently.
+
+For Docker sandbox mode, Red64 automatically:
+- Adds `--add-host=host.docker.internal:host-gateway` for Linux host networking
+- Remaps `localhost:11434` to `host.docker.internal:11434` inside the container
+
+#### Manual Configuration (Alternative)
+
+Instead of `--ollama`, you can set environment variables directly:
+
+```bash
+export ANTHROPIC_BASE_URL="http://localhost:11434"
+export ANTHROPIC_AUTH_TOKEN="ollama"
+red64 start "feature" "description" --model qwen3-coder-next
+```
+
+This is useful for custom Ollama configurations or remote Ollama servers.
+
+#### Recommended Models
+
+| Model | Size | Notes |
+|-------|------|-------|
+| `qwen3-coder-next` | ~46GB | 80B MoE, 3B active params. Best quality for coding. |
+| `deepseek-coder-v2` | ~8GB | Strong coding performance, smaller footprint. |
+| `codellama:34b` | ~19GB | Meta's code-focused Llama variant. |
+| `starcoder2:15b` | ~9GB | Lightweight, good for quick iterations. |
+
+#### Limitations
+
+- **Speed:** Local inference is slower (~10-30 tokens/sec on M-series Macs) compared to cloud APIs
+- **Context Window:** Typically 32K-64K tokens vs 200K with Claude API
+- **Quality:** Benchmark-competitive but may have gaps in complex reasoning tasks
+- **Hardware:** Requires sufficient RAM (64GB recommended for larger models)
 
 ### Claude Tiers
 

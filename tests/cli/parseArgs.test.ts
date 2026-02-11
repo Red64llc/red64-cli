@@ -168,6 +168,28 @@ describe('parseArgs', () => {
       const result = parseArgs(['start', 'feature', 'desc', '--model=gemini-2.0-flash']);
       expect(result.flags.model).toBe('gemini-2.0-flash');
     });
+
+    it('should parse --ollama flag', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--ollama']);
+      expect(result.flags.ollama).toBe(true);
+    });
+
+    it('should have ollama false by default', () => {
+      const result = parseArgs(['start', 'feature', 'desc']);
+      expect(result.flags.ollama).toBe(false);
+    });
+
+    it('should parse --ollama with --model for local models', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--model', 'qwen3-coder-next', '--ollama']);
+      expect(result.flags.ollama).toBe(true);
+      expect(result.flags.model).toBe('qwen3-coder-next');
+    });
+
+    it('should parse --ollama with --sandbox', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--ollama', '--sandbox']);
+      expect(result.flags.ollama).toBe(true);
+      expect(result.flags.sandbox).toBe(true);
+    });
   });
 
   describe('CLIConfig structure', () => {

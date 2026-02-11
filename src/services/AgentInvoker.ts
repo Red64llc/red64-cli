@@ -179,6 +179,14 @@ export function createAgentInvoker(): AgentInvokerService {
           env.CLAUDE_CONFIG_DIR = `${homeDir}/.claude-${options.tier}`;
         }
 
+        // Set Ollama backend environment variables (claude-specific)
+        if (options.ollama && (options.agent ?? 'claude') === 'claude') {
+          env.ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL ?? 'http://localhost:11434';
+          env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN ?? 'ollama';
+          // Set dummy API key to bypass Claude CLI validation (Ollama doesn't use it)
+          env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ollama-placeholder';
+        }
+
         // Spawn agent CLI
         // Requirements: 7.2 - Use spawn() for streaming output
         currentProcess = spawn(agentConfig.binary, args, {
@@ -315,13 +323,28 @@ async function invokeInDocker(
       '-v', `${options.workingDirectory}:/workspace`,  // Mount workspace
     ];
 
+    // No special networking needed - host.docker.internal works on macOS/Windows Docker Desktop
+
     const agentConfig = getAgentCliConfig(options.agent);
 
-    // Get API key from env or config files
-    const apiKey = getApiKey(options.tier, options.agent);
-    if (apiKey) {
-      const envKeyName = agentConfig.envKeyName ?? 'ANTHROPIC_API_KEY';
-      dockerArgs.push('-e', `${envKeyName}=${apiKey}`);
+    // Get API key from env or config files (skip if using Ollama)
+    if (!options.ollama) {
+      const apiKey = getApiKey(options.tier, options.agent);
+      if (apiKey) {
+        const envKeyName = agentConfig.envKeyName ?? 'ANTHROPIC_API_KEY';
+        dockerArgs.push('-e', `${envKeyName}=${apiKey}`);
+      }
+    }
+
+    // Set Ollama backend environment variables for Docker (claude-specific)
+    if (options.ollama && (options.agent ?? 'claude') === 'claude') {
+      // Use host.docker.internal to reach host's Ollama (works on macOS/Windows Docker Desktop)
+      const baseUrl = process.env.ANTHROPIC_BASE_URL ?? 'http://host.docker.internal:11434';
+      const authToken = process.env.ANTHROPIC_AUTH_TOKEN ?? 'ollama';
+      dockerArgs.push('-e', `ANTHROPIC_BASE_URL=${baseUrl}`);
+      dockerArgs.push('-e', `ANTHROPIC_AUTH_TOKEN=${authToken}`);
+      // Set dummy API key to bypass Claude CLI validation (Ollama doesn't use it)
+      dockerArgs.push('-e', `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ?? 'sk-ollama-placeholder'}`);
     }
 
     // Add image

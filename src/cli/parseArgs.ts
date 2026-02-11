@@ -33,6 +33,7 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     yes: false,
     sandbox: false,
     model: undefined,
+    ollama: false,
     // Init-specific flags
     stack: undefined,
     'skip-guided': undefined,
@@ -102,6 +103,8 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { 'skip-tests': boolean })['skip-tests'] = true;
     } else if (arg === '--local-image') {
       (flags as { 'local-image': boolean })['local-image'] = true;
+    } else if (arg === '--ollama') {
+      (flags as { ollama: boolean }).ollama = true;
     } else if (arg === '--agent' || arg === '-a') {
       const value = argValue ?? argv[i + 1];
       if (value && !value.startsWith('-') && VALID_AGENTS.includes(value as CodingAgent)) {
@@ -161,6 +164,7 @@ Global Options:
   -g, --greenfield          Greenfield mode (default)
   -t, --tier <name>         Use specified Claude config directory
   --sandbox                 Run Claude in Docker container for isolation
+  --ollama                  Use local Ollama backend (localhost:11434)
   -h, --help                Show help
   -v, --version             Show version
 `.trim();

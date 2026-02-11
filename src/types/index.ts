@@ -47,7 +47,7 @@ export interface McpServerConfig {
 export const AGENT_MODELS: Record<CodingAgent, { cheap: string; best: string; all: readonly string[] }> = {
   claude: {
     cheap: 'claude-3-5-haiku-latest',
-    best: 'claude-sonnet-4-20250514',
+    best: 'claude-opus-4-6',
     all: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest', 'claude-sonnet-4-20250514', 'claude-opus-4-20250514']
   },
   gemini: {
@@ -73,6 +73,7 @@ export interface GlobalFlags {
   readonly yes: boolean;
   readonly sandbox: boolean;
   readonly model?: string;  // Model override (validated against agent)
+  readonly ollama?: boolean;  // Use local Ollama backend
   // Init command specific flags
   readonly stack?: string;
   readonly 'skip-guided'?: boolean;
@@ -264,6 +265,7 @@ export interface AgentInvokeOptions {
   readonly model?: string;  // Model override (e.g., claude-3-5-haiku-latest)
   readonly sandbox?: boolean;  // Run in Docker sandbox
   readonly sandboxImage?: string;  // Override sandbox Docker image
+  readonly ollama?: boolean;  // Use local Ollama backend
   readonly mcpServers?: Record<string, McpServerConfig>;
   readonly onOutput?: (chunk: string) => void;
   readonly onError?: (chunk: string) => void;
@@ -279,6 +281,7 @@ export type ClaudeErrorCode =
   | 'AUTH_FAILED'          // Invalid API key or authentication error
   | 'CLI_NOT_FOUND'        // Agent CLI binary not found on PATH
   | 'MODEL_UNAVAILABLE'    // Model not available or overloaded
+  | 'MODEL_CRASHED'        // Model process crashed (OOM, killed)
   | 'CONTEXT_EXCEEDED'     // Context length exceeded
   | 'NETWORK_ERROR'        // Network connectivity issues
   | 'PERMISSION_DENIED'    // Permission/safety refusal

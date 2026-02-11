@@ -137,6 +137,7 @@ function getClaudeErrorLabel(code: string): string {
     AUTH_FAILED: 'Authentication Failed',
     CLI_NOT_FOUND: 'CLI Not Found',
     MODEL_UNAVAILABLE: 'Service Unavailable',
+    MODEL_CRASHED: 'Model Crashed',
     CONTEXT_EXCEEDED: 'Context Too Large',
     NETWORK_ERROR: 'Network Error',
     PERMISSION_DENIED: 'Request Blocked',
@@ -575,6 +576,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       model: flags.model,
       sandbox: flags.sandbox ?? false,
       sandboxImage: sandboxImageRef.current,
+      ollama: flags.ollama ?? false,
       onOutput: (chunk) => {
         // Stream output in real-time
         const lines = chunk.split('\n').filter(l => l.trim());
@@ -1131,7 +1133,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       tier: flags.tier,
       sandbox: flags.sandbox,
       timeoutMs: 30000,
-      agent: agentRef.current
+      agent: agentRef.current,
+      ollama: flags.ollama,
+      model: flags.model,
+      sandboxImage: sandboxImageRef.current
     });
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));
@@ -1420,7 +1425,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       tier: flags.tier,
       sandbox: flags.sandbox,
       timeoutMs: 30000,
-      agent: agentRef.current
+      agent: agentRef.current,
+      ollama: flags.ollama,
+      model: flags.model,
+      sandboxImage: sandboxImageRef.current
     });
 
     setFlowState(prev => ({ ...prev, isHealthChecking: false }));

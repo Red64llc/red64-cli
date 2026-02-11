@@ -12,6 +12,7 @@ export type ClaudeErrorCode =
   | 'AUTH_FAILED'          // Invalid API key or authentication error
   | 'CLI_NOT_FOUND'        // Agent CLI binary not found on PATH
   | 'MODEL_UNAVAILABLE'    // Model not available or overloaded
+  | 'MODEL_CRASHED'        // Model process crashed (OOM, killed)
   | 'CONTEXT_EXCEEDED'     // Context length exceeded
   | 'NETWORK_ERROR'        // Network connectivity issues
   | 'PERMISSION_DENIED'    // Permission/safety refusal
@@ -127,6 +128,38 @@ const ERROR_PATTERNS: Array<{
     code: 'MODEL_UNAVAILABLE',
     recoverable: true,
     suggestion: 'Service temporarily unavailable. Will retry automatically.'
+  },
+
+  // Ollama-specific errors
+  {
+    pattern: /llama runner process has terminated.*signal:\s*killed/i,
+    code: 'MODEL_CRASHED',
+    recoverable: false,
+    suggestion: 'Model crashed (likely out of memory). Try a smaller model or increase system RAM.'
+  },
+  {
+    pattern: /llama runner process has terminated/i,
+    code: 'MODEL_CRASHED',
+    recoverable: false,
+    suggestion: 'Model process crashed. Check Ollama logs for details.'
+  },
+  {
+    pattern: /model.*not found/i,
+    code: 'MODEL_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Model not found. Run "ollama pull <model-name>" to download it.'
+  },
+  {
+    pattern: /failed to load model/i,
+    code: 'MODEL_CRASHED',
+    recoverable: false,
+    suggestion: 'Failed to load model. Check available RAM/VRAM and Ollama logs.'
+  },
+  {
+    pattern: /out of memory|OOM|cannot allocate memory/i,
+    code: 'MODEL_CRASHED',
+    recoverable: false,
+    suggestion: 'Out of memory. Try a smaller/quantized model or close other applications.'
   },
 
   // Context length
@@ -272,6 +305,7 @@ const ERROR_CODE_LABELS: Record<ClaudeErrorCode, string> = {
   AUTH_FAILED: 'Authentication Failed',
   CLI_NOT_FOUND: 'CLI Not Found',
   MODEL_UNAVAILABLE: 'Service Unavailable',
+  MODEL_CRASHED: 'Model Crashed',
   CONTEXT_EXCEEDED: 'Context Too Large',
   NETWORK_ERROR: 'Network Error',
   PERMISSION_DENIED: 'Request Blocked',
