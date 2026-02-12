@@ -1194,10 +1194,31 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             : `Tests failed (exit code: ${testResult.exitCode})`;
           await logToFile(`Test check failed: ${errorMsg}`);
 
+          // Log test output to help diagnose failures
+          if (testResult.stdout) {
+            await logToFile('--- stdout ---');
+            await logToFile(testResult.stdout);
+          }
+          if (testResult.stderr) {
+            await logToFile('--- stderr ---');
+            await logToFile(testResult.stderr);
+          }
+
+          // Show error preview in terminal (last few meaningful lines)
+          const errorOutput = testResult.stderr || testResult.stdout || '';
+          const errorLines = errorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
+          if (errorLines.length > 0) {
+            addOutput('');
+            addOutput('Error output (last 5 lines):');
+            for (const line of errorLines) {
+              addOutput(`  ${line}`);
+            }
+          }
+
           setFlowState(prev => ({
             ...prev,
             error: errorMsg,
-            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Use --skip-tests to bypass.` }
+            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
           }));
           return;
         }
@@ -1494,10 +1515,31 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             : `Tests failed (exit code: ${testResult.exitCode})`;
           await logToFile(`Test check failed: ${errorMsg}`);
 
+          // Log test output to help diagnose failures
+          if (testResult.stdout) {
+            await logToFile('--- stdout ---');
+            await logToFile(testResult.stdout);
+          }
+          if (testResult.stderr) {
+            await logToFile('--- stderr ---');
+            await logToFile(testResult.stderr);
+          }
+
+          // Show error preview in terminal (last few meaningful lines)
+          const errorOutput = testResult.stderr || testResult.stdout || '';
+          const errorLines = errorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
+          if (errorLines.length > 0) {
+            addOutput('');
+            addOutput('Error output (last 5 lines):');
+            for (const line of errorLines) {
+              addOutput(`  ${line}`);
+            }
+          }
+
           setFlowState(prev => ({
             ...prev,
             error: errorMsg,
-            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Use --skip-tests to bypass.` }
+            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
           }));
           return;
         }
