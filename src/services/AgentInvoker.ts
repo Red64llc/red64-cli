@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import type { AgentInvokeOptions, AgentResult, CodingAgent } from '../types/index.js';
 import { createClaudeErrorDetector } from './ClaudeErrorDetector.js';
 import { createMcpConfigWriter } from './McpConfigWriter.js';
+import { createTokenUsageParser } from './TokenUsageParser.js';
 
 /**
  * Agent CLI configuration per coding agent
@@ -142,6 +143,7 @@ export function createAgentInvoker(): AgentInvokerService {
   let aborted = false;
   const errorDetector = createClaudeErrorDetector();
   const mcpConfigWriter = createMcpConfigWriter();
+  const tokenUsageParser = createTokenUsageParser();
 
   return {
     /**
@@ -154,7 +156,7 @@ export function createAgentInvoker(): AgentInvokerService {
 
       // Use Docker sandbox if enabled
       if (options.sandbox) {
-        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted, errorDetector, mcpConfigWriter);
+        return invokeInDocker(options, () => currentProcess, (p) => { currentProcess = p; }, () => aborted, errorDetector, mcpConfigWriter, tokenUsageParser);
       }
 
       // Inject MCP configs before spawning
@@ -247,6 +249,9 @@ export function createAgentInvoker(): AgentInvokerService {
             ? errorDetector.detect(stdout, stderr)
             : undefined;
 
+          // Parse token usage from stdout
+          const tokenUsage = tokenUsageParser.parse(stdout);
+
           // Cleanup injected MCP configs
           if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
             mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
@@ -259,7 +264,8 @@ export function createAgentInvoker(): AgentInvokerService {
             stdout,
             stderr,
             timedOut,
-            claudeError: claudeError ?? undefined
+            claudeError: claudeError ?? undefined,
+            tokenUsage
           });
 
           currentProcess = null;
@@ -305,7 +311,8 @@ async function invokeInDocker(
   setProcess: (p: ChildProcess | null) => void,
   isAborted: () => boolean,
   errorDetector: ReturnType<typeof createClaudeErrorDetector>,
-  mcpConfigWriter?: ReturnType<typeof createMcpConfigWriter>
+  mcpConfigWriter?: ReturnType<typeof createMcpConfigWriter>,
+  tokenUsageParser?: ReturnType<typeof createTokenUsageParser>
 ): Promise<AgentResult> {
   const agent = options.agent ?? 'claude';
 
@@ -406,6 +413,9 @@ async function invokeInDocker(
         ? errorDetector.detect(stdout, stderr)
         : undefined;
 
+      // Parse token usage from stdout
+      const tokenUsage = tokenUsageParser?.parse(stdout);
+
       // Cleanup injected MCP configs
       if (mcpConfigWriter && options.mcpServers && Object.keys(options.mcpServers).length > 0) {
         mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
@@ -417,7 +427,8 @@ async function invokeInDocker(
         stdout,
         stderr,
         timedOut,
-        claudeError: claudeError ?? undefined
+        claudeError: claudeError ?? undefined,
+        tokenUsage
       });
 
       setProcess(null);

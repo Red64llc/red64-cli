@@ -147,6 +147,11 @@ export {
 } from './ClaudeErrorDetector.js';
 
 export {
+  createTokenUsageParser,
+  type TokenUsageParserService
+} from './TokenUsageParser.js';
+
+export {
   createClaudeHealthCheck,
   getAgentSetupInstructions,
   type ClaudeHealthCheckService,

@@ -6,7 +6,7 @@
 import { mkdir, readFile, writeFile, rm, readdir, rename, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry } from '../types/index.js';
+import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry, TokenUsage } from '../types/index.js';
 import { CURRENT_STATE_VERSION } from '../types/index.js';
 
 /**
@@ -34,13 +34,14 @@ export function markTaskStarted(entry: TaskEntry): TaskEntry {
 }
 
 /**
- * Mark a task as completed
+ * Mark a task as completed with optional token usage
  */
-export function markTaskCompleted(entry: TaskEntry): TaskEntry {
+export function markTaskCompleted(entry: TaskEntry, tokenUsage?: TokenUsage): TaskEntry {
   return {
     ...entry,
     completedAt: new Date().toISOString(),
-    status: 'completed'
+    status: 'completed',
+    ...(tokenUsage && { tokenUsage })
   };
 }
 

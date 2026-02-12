@@ -164,6 +164,19 @@ export interface HistoryEntry {
 }
 
 /**
+ * Token usage tracking for agent invocations
+ * Tracks input/output tokens consumed by Claude or other agents
+ */
+export interface TokenUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly totalTokens: number;
+  readonly model?: string;              // Model that was used (e.g., "claude-sonnet-4-20250514")
+  readonly cacheReadTokens?: number;    // Tokens read from cache (if applicable)
+  readonly cacheCreationTokens?: number; // Tokens written to cache (if applicable)
+}
+
+/**
  * Individual task entry with timestamps and status
  * Requirement: Fine-grained task progress tracking for robust resume
  */
@@ -173,6 +186,7 @@ export interface TaskEntry {
   readonly startedAt: string | null;            // ISO timestamp when started
   readonly completedAt: string | null;          // ISO timestamp when completed
   readonly status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  readonly tokenUsage?: TokenUsage;             // Token usage for this task execution
 }
 
 /**
@@ -309,6 +323,7 @@ export interface AgentResult {
   readonly stderr: string;
   readonly timedOut: boolean;
   readonly claudeError?: ClaudeError;  // Detected Claude-specific error
+  readonly tokenUsage?: TokenUsage;    // Token usage for this invocation
 }
 
 // Re-export extended flow types
