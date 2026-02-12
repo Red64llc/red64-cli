@@ -27,3 +27,14 @@
 
 ## Internal
 - Update README.md documentation
+# Release v0.11.0
+
+## New Features
+- Add support for running local models with Ollama
+- Add adjustable sidebar width for improved customization
+- Add token usage tracking for better visibility into API consumption
+
+## Internal
+- Cleanup sidebar UI implementation
+- Improve test failure UX with better error messaging
+- Enhance resume capabilities with more robust state management
