@@ -153,6 +153,19 @@ export {
 } from './TokenUsageParser.js';
 
 export {
+  getModelConfig,
+  supports1MContext,
+  isInPremiumRange,
+  MODEL_CONTEXT_CONFIGS,
+  type ModelContextConfig
+} from './ModelConfig.js';
+
+export {
+  createContextUsageCalculator,
+  type ContextUsageCalculatorService
+} from './ContextUsageCalculator.js';
+
+export {
   createClaudeHealthCheck,
   getAgentSetupInstructions,
   type ClaudeHealthCheckService,

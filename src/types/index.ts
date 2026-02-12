@@ -177,6 +177,18 @@ export interface TokenUsage {
 }
 
 /**
+ * Context usage metrics for a single task/session
+ * Extends token tracking with context-aware calculations for smart session management
+ */
+export interface ContextUsage extends TokenUsage {
+  readonly contextWindowSize: number;      // Model's context window (e.g., 200000 or 1000000)
+  readonly utilizationPercent: number;     // inputTokens / contextWindowSize * 100
+  readonly cumulativeInputTokens: number;  // Running total if tasks shared session
+  readonly cumulativeUtilization: number;  // cumulativeInputTokens / contextWindowSize * 100
+  readonly modelFamily: string;            // e.g., "opus-4.6", "sonnet-4.5"
+}
+
+/**
  * Individual task entry with timestamps and status
  * Requirement: Fine-grained task progress tracking for robust resume
  */
@@ -187,6 +199,7 @@ export interface TaskEntry {
   readonly completedAt: string | null;          // ISO timestamp when completed
   readonly status: 'pending' | 'in_progress' | 'completed' | 'failed';
   readonly tokenUsage?: TokenUsage;             // Token usage for this task execution
+  readonly contextUsage?: ContextUsage;         // Context-aware metrics for this task
 }
 
 /**

@@ -20,3 +20,4 @@ export {
   type ErrorType
 } from './ErrorRecoveryPrompt.js';
 export { ErrorBoundary, type ErrorBoundaryProps } from './ErrorBoundary.js';
+export { TokenUsageGraph } from './TokenUsageGraph.js';

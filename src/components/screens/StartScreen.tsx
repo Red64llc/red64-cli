@@ -19,7 +19,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { Spinner, Select } from '@inkjs/ui';
 import type { ScreenProps } from './ScreenProps.js';
-import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase, TaskEntry } from '../../types/index.js';
+import type { FlowState, ExtendedFlowPhase, WorkflowMode, PhaseMetric, CodingAgent, HistoryEntry, GroupedTaskProgress, FlowPhase, TaskEntry, TokenUsage } from '../../types/index.js';
 import { CURRENT_STATE_VERSION } from '../../types/index.js';
 import {
   createStateStore,
@@ -41,6 +41,7 @@ import {
   createProjectDetector,
   createTestRunner,
   sanitizeFeatureName,
+  createContextUsageCalculator,
   type Task,
   type ClaudeError,
   type GitStatus
@@ -49,10 +50,11 @@ import { PreviewService } from '../../services/PreviewService.js';
 import { ContentCache } from '../../services/ContentCache.js';
 import { PreviewHTMLGenerator } from '../../services/PreviewHTMLGenerator.js';
 import { PreviewHTTPServer } from '../../services/PreviewHTTPServer.js';
-import { FeatureSidebar, ArtifactsSidebar } from '../ui/index.js';
+import { FeatureSidebar, ArtifactsSidebar, TokenUsageGraph } from '../ui/index.js';
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
 import { access, appendFile, mkdir, stat } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 
 /**
  * Phase display information
@@ -128,6 +130,14 @@ const COMPLETED_FLOW_OPTIONS = [
 ];
 
 /**
+ * Options for next steps after successful completion
+ */
+const COMPLETION_NEXT_STEPS_OPTIONS = [
+  { value: 'push', label: 'Push branch to origin' },
+  { value: 'exit', label: 'Exit' }
+];
+
+/**
  * Human-readable labels for Claude error codes
  */
 function getClaudeErrorLabel(code: string): string {
@@ -144,6 +154,39 @@ function getClaudeErrorLabel(code: string): string {
     UNKNOWN: 'Unknown Error'
   };
   return labels[code] ?? code;
+}
+
+/**
+ * Push branch to origin
+ */
+function pushBranch(
+  branchName: string,
+  cwd: string
+): Promise<{ success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn('git', ['push', '-u', 'origin', branchName], {
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stderr = '';
+
+    proc.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve({ success: true });
+      } else {
+        resolve({ success: false, error: stderr || 'Failed to push branch' });
+      }
+    });
+
+    proc.on('error', (error) => {
+      resolve({ success: false, error: error.message });
+    });
+  });
 }
 
 /**
@@ -172,6 +215,7 @@ interface FlowScreenState {
   resolvedFeatureName: string | null; // The actual feature name after spec-init
   existingFlowState: FlowState | null;  // Existing flow state if detected
   completedTasks: string[];  // Orchestrator-tracked completed task IDs
+  taskEntries: readonly TaskEntry[];  // Full task entries with usage metrics
   phaseMetrics: Record<string, PhaseMetric>;  // Phase timing metrics
   commitCount: number;  // Number of commits for this feature
   agent: CodingAgent;  // Coding agent from config
@@ -208,6 +252,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     projectDetector: ReturnType<typeof createProjectDetector>;
     testRunner: ReturnType<typeof createTestRunner>;
     previewService: PreviewService;
+    contextUsageCalculator: ReturnType<typeof createContextUsageCalculator>;
   } | null>(null);
 
   if (!servicesRef.current) {
@@ -223,6 +268,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const configService = createConfigService();
     const projectDetector = createProjectDetector();
     const testRunner = createTestRunner();
+    const contextUsageCalculator = createContextUsageCalculator();
 
     // Initialize preview service with dependencies
     const contentCache = new ContentCache();
@@ -243,7 +289,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       configService,
       projectDetector,
       testRunner,
-      previewService
+      previewService,
+      contextUsageCalculator
     };
   }
 
@@ -290,6 +337,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     resolvedFeatureName: null,
     existingFlowState: null,
     completedTasks: [],  // Orchestrator-tracked completed task IDs
+    taskEntries: [],  // Full task entries with token/context usage
     phaseMetrics: {},  // Phase timing metrics
     commitCount: 0,  // Number of commits for this feature
     agent: 'claude',  // Default, will be loaded from config
@@ -561,7 +609,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   }, [flowState.worktreePath, repoPath]);
 
   // Execute a Claude command
-  const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string; claudeError?: ClaudeError }> => {
+  const executeCommand = useCallback(async (prompt: string, workDir?: string): Promise<{ success: boolean; output: string; error?: string; claudeError?: ClaudeError; tokenUsage?: TokenUsage }> => {
     const dir = workDir ?? getWorkingDir();
 
     // Build tier config dir path
@@ -676,7 +724,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       if (result.claudeError) {
         const errorMsg = `${getClaudeErrorLabel(result.claudeError.code)}: ${result.claudeError.suggestion}`;
         setFlowState(prev => ({ ...prev, error: errorMsg, claudeError: result.claudeError ?? null }));
-        return { success: false, output: result.stdout, error: errorMsg, claudeError: result.claudeError };
+        return { success: false, output: result.stdout, error: errorMsg, claudeError: result.claudeError, tokenUsage: result.tokenUsage };
       }
 
       // Build generic error message
@@ -698,10 +746,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
 
       setFlowState(prev => ({ ...prev, error: errorMsg }));
-      return { success: false, output: result.stdout, error: errorMsg };
+      return { success: false, output: result.stdout, error: errorMsg, tokenUsage: result.tokenUsage };
     }
 
-    return { success: true, output: result.stdout };
+    return { success: true, output: result.stdout, tokenUsage: result.tokenUsage };
   }, [services.agentInvoker, flags, verbose, getWorkingDir, addOutput, logToFile]);
 
   // Commit changes with formatted message
@@ -1091,6 +1139,29 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       exit();
     }
   }, [exit, flowState.resolvedFeatureName, featureName]);
+
+  // Handle completion next step (push or exit)
+  const handleCompletionNextStep = useCallback(async (step: string) => {
+    if (step === 'push') {
+      const branchName = `feature/${sanitizeFeatureName(featureName)}`;
+      const workDir = flowState.worktreePath ?? repoPath;
+      addOutput(`Pushing ${branchName} to origin...`);
+
+      const result = await pushBranch(branchName, workDir);
+      if (result.success) {
+        addOutput('Branch pushed successfully!');
+        addOutput('');
+        addOutput('Next steps:');
+        addOutput('  1. Create a Pull Request on GitHub');
+        addOutput('  2. Review and merge the PR');
+        addOutput('  3. Pull changes back to main');
+      } else {
+        addOutput(`Push failed: ${result.error}`);
+      }
+    } else if (step === 'exit') {
+      exit();
+    }
+  }, [exit, featureName, flowState.worktreePath, repoPath, addOutput]);
 
   // Handle uncommitted changes decision
   const handleUncommittedChangesDecision = useCallback(async (decision: string) => {
@@ -1972,14 +2043,23 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
       }
 
-      // 4. Mark task as completed with timestamp
-      taskEntries[i] = markTaskCompleted(taskEntries[i]);
+      // 4. Calculate context usage if token usage is available
+      const contextUsage = result.tokenUsage
+        ? services.contextUsageCalculator.calculate(
+            result.tokenUsage,
+            flags.model,
+            taskEntries.filter(e => e.status === 'completed')
+          )
+        : undefined;
 
-      // 5. Update React state for UI
+      // 5. Mark task as completed with timestamp and usage metrics
+      taskEntries[i] = markTaskCompleted(taskEntries[i], result.tokenUsage, contextUsage);
+
+      // 6. Update React state for UI (including taskEntries for usage graph)
       const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
-      setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds }));
+      setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds, taskEntries: [...taskEntries] }));
 
-      // 6. Save state immediately (before commit, for crash recovery)
+      // 7. Save state immediately (before commit, for crash recovery)
       await saveFlowState(services.flowMachine.getPhase(), workDir, {
         completedTasksOverride: completedTaskIds,
         taskEntries,
@@ -1988,7 +2068,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         subStep: `task-${task.id}-completed`
       });
 
-      // 7. Commit both tasks.md and state.json together
+      // 8. Commit both tasks.md and state.json together
       await commitChanges(
         services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
         workDir
@@ -2226,8 +2306,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           {flowState.worktreePath && (
             <Text dimColor>Worktree: {flowState.worktreePath}</Text>
           )}
+          <Box marginTop={1} flexDirection="column">
+            <Text bold>Next steps:</Text>
+            <Text dimColor>  1. Push the feature branch to origin</Text>
+            <Text dimColor>  2. Create a Pull Request on GitHub</Text>
+            <Text dimColor>  3. Review, merge, and pull changes to main</Text>
+          </Box>
           <Box marginTop={1}>
-            <Text>Next: Review changes and create a PR</Text>
+            <Select
+              options={COMPLETION_NEXT_STEPS_OPTIONS}
+              onChange={handleCompletionNextStep}
+            />
           </Box>
         </Box>
       </Box>
@@ -2444,6 +2533,11 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               />
             </Box>
           </Box>
+        )}
+
+        {/* Token/Context usage graph - shown during implementation phase */}
+        {flowState.taskEntries.length > 0 && (
+          <TokenUsageGraph taskEntries={flowState.taskEntries} />
         )}
       </Box>
 
