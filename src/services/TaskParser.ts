@@ -218,6 +218,10 @@ export function createTaskParser(): TaskParserService {
      * Mark a task as complete in tasks.md
      * Orchestrator-controlled: updates checkbox from [ ] to [x]
      * Uses atomic write pattern (temp file + rename)
+     *
+     * Handles gracefully:
+     * - Task already marked complete (returns success, no-op)
+     * - Task not found (returns error)
      */
     async markTaskComplete(specDir: string, taskId: string): Promise<MarkTaskCompleteResult> {
       const tasksPath = join(specDir, 'tasks.md');
@@ -231,25 +235,44 @@ export function createTaskParser(): TaskParserService {
 
       const lines = content.split('\n');
       let found = false;
+      let alreadyComplete = false;
 
-      // Find and update the task line
+      // Escape taskId for regex (handle dots in task IDs like "1.2")
+      const escapedTaskId = taskId.replace('.', '\\.');
+
+      // Find the task line - match both unchecked [ ] and checked [x]
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        // Match: - [ ] taskId or - [ ]* taskId (with optional asterisk)
-        // Pattern: starts with "- [ ]" optionally followed by "*", then the task ID
-        const taskPattern = new RegExp(`^(-\\s+\\[) (\\]\\*?\\s+${taskId.replace('.', '\\.')}\\s)`);
-        const match = line.match(taskPattern);
+        // Match: - [ ] taskId or - [x] taskId (with optional asterisk after bracket)
+        // Pattern: "- [" + space or x + "]" + optional asterisk + whitespace + task ID
+        const taskFinderPattern = new RegExp(`^-\\s+\\[([x ]?)\\]\\*?\\s+${escapedTaskId}(?:\\.|\\s)`);
+        const match = line.match(taskFinderPattern);
 
         if (match) {
-          // Replace [ ] with [x]
-          lines[i] = line.replace(taskPattern, '$1x$2');
           found = true;
+          const checkmark = match[1];
+
+          if (checkmark === 'x') {
+            // Task already marked complete - success but no-op
+            alreadyComplete = true;
+            break;
+          }
+
+          // Task is unchecked - mark it complete
+          // Replace [ ] with [x], preserving rest of line
+          const updatePattern = new RegExp(`^(-\\s+\\[) (\\]\\*?\\s+${escapedTaskId}(?:\\.|\\s))`);
+          lines[i] = line.replace(updatePattern, '$1x$2');
           break;
         }
       }
 
       if (!found) {
         return { success: false, error: `Task ${taskId} not found in tasks.md` };
+      }
+
+      // If already complete, return success without writing
+      if (alreadyComplete) {
+        return { success: true };
       }
 
       // Atomic write: temp file + rename

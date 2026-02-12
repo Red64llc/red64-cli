@@ -60,6 +60,11 @@ File patterns to read:
 TDD Mode: strict (test-first)
 UI Mode: {enabled if UI-related, disabled otherwise}
 
+## CRITICAL: Task Tracking Rules
+- **DO NOT modify tasks.md checkboxes** - The orchestrator (CLI layer) handles task completion tracking
+- Focus only on implementing the code for each task
+- Report task completion status in your response, the orchestrator will update tasks.md
+
 ## Feedback Requirements
 After EVERY implementation change:
 1. Run project tests: Use command from .red64/steering/feedback.md
