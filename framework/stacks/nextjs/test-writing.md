@@ -352,6 +352,109 @@ export default defineConfig({
 });
 ```
 
+### Preventing Flaky Tests from Browser Popups
+
+The most common cause of flaky E2E tests is Chrome's Password Manager and related popups interfering with user interactions. Configure Playwright to disable these features:
+
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from "@playwright/test";
+
+// Chrome arguments to disable popups and ensure deterministic behavior
+const CHROMIUM_ARGS = [
+  // Password manager popups - THE ROOT CAUSE OF MOST FLAKY TESTS
+  "--disable-save-password-bubble",
+  "--disable-features=PasswordLeakDetection,PasswordCheck,PasswordImport",
+  // Prevent other popups and background activity
+  "--disable-component-update",
+  "--disable-sync",
+  "--disable-background-networking",
+];
+
+export default defineConfig({
+  testDir: "./tests/e2e",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: "html",
+  use: {
+    baseURL: "http://localhost:3000",
+    trace: "on-first-retry",
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          args: CHROMIUM_ARGS,
+        },
+        // Disable credential-related context options
+        contextOptions: {
+          ignoreHTTPSErrors: true,
+        },
+      },
+    },
+    {
+      name: "mobile",
+      use: {
+        ...devices["iPhone 14"],
+        launchOptions: {
+          args: CHROMIUM_ARGS,
+        },
+      },
+    },
+  ],
+  webServer: {
+    command: "pnpm dev",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+### Chrome Arguments Reference
+
+| Argument | Purpose |
+|----------|---------|
+| `--disable-save-password-bubble` | Prevent "Save password?" popup |
+| `--disable-features=PasswordLeakDetection,PasswordCheck,PasswordImport` | Disable password breach detection |
+| `--disable-component-update` | Prevent Chrome component updates during tests |
+| `--disable-sync` | Disable Chrome sync (prevents account popups) |
+| `--disable-background-networking` | Disable background network requests |
+
+### Additional Flakiness Prevention
+
+```typescript
+// tests/e2e/helpers/auth.ts
+import { Page } from "@playwright/test";
+
+/**
+ * Login helper that handles potential flakiness
+ */
+export async function login(page: Page, email: string, password: string) {
+  await page.goto("/login");
+
+  // Wait for form to be fully interactive (React hydration)
+  await page.waitForSelector('form[data-hydrated="true"]', { timeout: 5000 }).catch(() => {
+    // Fallback: wait for button to be enabled
+  });
+
+  // Use fill() instead of type() for more reliable input
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+
+  // Wait for button to be enabled before clicking
+  const submitButton = page.getByRole("button", { name: "Sign in" });
+  await submitButton.waitFor({ state: "visible" });
+  await submitButton.click();
+
+  // Wait for navigation to complete
+  await page.waitForURL("/dashboard", { timeout: 10000 });
+}
+```
+
 ### E2E Test Pattern
 
 ```typescript
@@ -463,12 +566,14 @@ pnpm vitest run && pnpm playwright test
 
 | Anti-Pattern | Problem | Correct Approach |
 |---|---|---|
+| Not disabling Chrome password manager | Random popups cause flaky E2E tests | Use CHROMIUM_ARGS to disable password features |
 | Testing implementation details | Brittle, breaks on refactor | Test behavior: what the user sees and does |
 | Snapshot tests for everything | Meaningless diffs, rubber-stamp approvals | Use snapshots sparingly; prefer explicit assertions |
 | No MSW for API calls | Tests depend on real API, flaky | Mock at the network level with MSW |
 | Slow unit tests (> 100ms each) | Developers stop running them | Mock I/O, no database in unit tests |
 | Testing third-party libraries | Wasted effort | Trust the library; test your integration |
 | No E2E for critical paths | Bugs in user flows slip through | E2E test login, signup, and primary workflows |
+| Not waiting for React hydration | Interactions fail before JS is ready | Wait for hydration markers or use reliable selectors |
 
 ---
 

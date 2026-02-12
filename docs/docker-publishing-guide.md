@@ -5,7 +5,60 @@
 1. **Where is the image hosted?** (a registry — stores the image)
 2. **Where does the image run?** (a runtime — executes the image)
 
-This guide focuses on #1 and introduces #2.
+This guide covers building the image locally, publishing to a registry, and introduces runtime options.
+
+---
+
+## Part 0: Building the Image Locally
+
+### Build Command
+
+```bash
+# From the repository root
+docker build -f Dockerfile.sandbox -t red64-sandbox:latest .
+```
+
+### What's Included
+
+The sandbox image (`Dockerfile.sandbox`) provides a multi-stack development environment:
+
+| Toolchain | Version | Included Tools |
+|-----------|---------|----------------|
+| **Ruby** | 3.4.1 | ruby, bundler |
+| **Python** | 3.12 | python3, pip, virtualenv |
+| **Node.js** | 22 LTS | node, npm |
+| **Rust** | stable | rustc, cargo |
+| **Go** | 1.23.5 | go |
+| **AI Agents** | latest | claude, codex, gemini |
+| **Browser** | — | agent-browser (Playwright) |
+
+### Build Options
+
+```bash
+# Build with no cache (clean rebuild)
+docker build -f Dockerfile.sandbox -t red64-sandbox:latest --no-cache .
+
+# Build with progress output
+docker build -f Dockerfile.sandbox -t red64-sandbox:latest --progress=plain .
+
+# Build for a specific platform
+docker build -f Dockerfile.sandbox -t red64-sandbox:latest --platform linux/amd64 .
+```
+
+### Test the Build
+
+```bash
+# Run interactively
+docker run -it --rm red64-sandbox:latest
+
+# Verify toolchains inside container
+ruby --version && python3 --version && node --version && rustc --version && go version
+```
+
+### Build Time
+
+First build: ~10-15 minutes (downloads all toolchains)
+Subsequent builds: ~1-2 minutes (cached layers)
 
 ---
 
