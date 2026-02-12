@@ -220,6 +220,26 @@ const ERROR_PATTERNS: Array<{
     code: 'PERMISSION_DENIED',
     recoverable: false,
     suggestion: 'Content was flagged by safety systems'
+  },
+
+  // Claude CLI internal errors
+  {
+    pattern: /No messages returned/i,
+    code: 'MODEL_CRASHED',
+    recoverable: true,
+    suggestion: 'Claude CLI returned no response. This may be a transient error - retry the task.'
+  },
+  {
+    pattern: /unhandled.*promise.*reject/i,
+    code: 'MODEL_CRASHED',
+    recoverable: true,
+    suggestion: 'Claude CLI encountered an internal error. Retry the task.'
+  },
+  {
+    pattern: /promise.*rejected.*reason/i,
+    code: 'MODEL_CRASHED',
+    recoverable: true,
+    suggestion: 'Claude CLI internal error. The task will be retried.'
   }
 ];
 

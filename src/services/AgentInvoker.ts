@@ -237,10 +237,47 @@ export function createAgentInvoker(): AgentInvokerService {
           }
         });
 
+        // Track if we've already resolved to prevent double-resolution
+        let resolved = false;
+        const resolveOnce = (result: AgentResult) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeoutId);
+            currentProcess = null;
+
+            // Cleanup injected MCP configs
+            if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+              mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
+            }
+
+            resolve(result);
+          }
+        };
+
+        // Handle process exit (fires when process terminates, before close)
+        currentProcess.on('exit', (code, signal) => {
+          // If killed by signal or non-zero exit, resolve immediately
+          if (signal || (code !== null && code !== 0)) {
+            const exitCode = code ?? -1;
+            const claudeError = (options.agent ?? 'claude') === 'claude'
+              ? errorDetector.detect(stdout, stderr)
+              : undefined;
+            const tokenUsage = tokenUsageParser.parse(stdout);
+
+            resolveOnce({
+              success: false,
+              exitCode,
+              stdout,
+              stderr: stderr || (signal ? `Process killed by signal: ${signal}` : ''),
+              timedOut,
+              claudeError: claudeError ?? undefined,
+              tokenUsage
+            });
+          }
+        });
+
         // Handle process close
         currentProcess.on('close', (code) => {
-          clearTimeout(timeoutId);
-
           const exitCode = code ?? -1;
           const success = exitCode === 0 && !timedOut && !aborted;
 
@@ -252,13 +289,8 @@ export function createAgentInvoker(): AgentInvokerService {
           // Parse token usage from stdout
           const tokenUsage = tokenUsageParser.parse(stdout);
 
-          // Cleanup injected MCP configs
-          if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
-            mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
-          }
-
           // Requirements: 7.6 - Return typed result indicating success/failure
-          resolve({
+          resolveOnce({
             success,
             exitCode,
             stdout,
@@ -267,23 +299,17 @@ export function createAgentInvoker(): AgentInvokerService {
             claudeError: claudeError ?? undefined,
             tokenUsage
           });
-
-          currentProcess = null;
         });
 
         // Handle spawn errors
         currentProcess.on('error', (error) => {
-          clearTimeout(timeoutId);
-
-          resolve({
+          resolveOnce({
             success: false,
             exitCode: -1,
             stdout,
             stderr: stderr || error.message,
             timedOut: false
           });
-
-          currentProcess = null;
         });
       });
     },
@@ -402,9 +428,48 @@ async function invokeInDocker(
       }
     });
 
-    // Handle process close
+    // Track if we've already resolved to prevent double-resolution
+    let resolved = false;
+    const resolveOnce = (result: AgentResult) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        setProcess(null);
+
+        // Cleanup injected MCP configs
+        if (mcpConfigWriter && options.mcpServers && Object.keys(options.mcpServers).length > 0) {
+          mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
+        }
+
+        resolve(result);
+      }
+    };
+
+    // Handle process exit (fires when process terminates, before close)
+    proc.on('exit', (code, signal) => {
+      // If killed by signal or non-zero exit, resolve immediately
+      // Don't wait for close event which may not fire in some edge cases
+      if (signal || (code !== null && code !== 0)) {
+        const exitCode = code ?? -1;
+        const claudeError = (options.agent ?? 'claude') === 'claude'
+          ? errorDetector.detect(stdout, stderr)
+          : undefined;
+        const tokenUsage = tokenUsageParser?.parse(stdout);
+
+        resolveOnce({
+          success: false,
+          exitCode,
+          stdout,
+          stderr: stderr || (signal ? `Process killed by signal: ${signal}` : ''),
+          timedOut,
+          claudeError: claudeError ?? undefined,
+          tokenUsage
+        });
+      }
+    });
+
+    // Handle process close (fires after all stdio streams close)
     proc.on('close', (code) => {
-      clearTimeout(timeoutId);
       const exitCode = code ?? -1;
       const success = exitCode === 0 && !timedOut && !isAborted();
 
@@ -416,12 +481,7 @@ async function invokeInDocker(
       // Parse token usage from stdout
       const tokenUsage = tokenUsageParser?.parse(stdout);
 
-      // Cleanup injected MCP configs
-      if (mcpConfigWriter && options.mcpServers && Object.keys(options.mcpServers).length > 0) {
-        mcpConfigWriter.cleanup(agent, options.workingDirectory).catch(() => {});
-      }
-
-      resolve({
+      resolveOnce({
         success,
         exitCode,
         stdout,
@@ -430,23 +490,17 @@ async function invokeInDocker(
         claudeError: claudeError ?? undefined,
         tokenUsage
       });
-
-      setProcess(null);
     });
 
     // Handle spawn errors
     proc.on('error', (error) => {
-      clearTimeout(timeoutId);
-
-      resolve({
+      resolveOnce({
         success: false,
         exitCode: -1,
         stdout,
         stderr: stderr || `Docker error: ${error.message}`,
         timedOut: false
       });
-
-      setProcess(null);
     });
   });
 }

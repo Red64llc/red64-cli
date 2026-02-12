@@ -418,6 +418,44 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     return false;
   }, [hasExistingArtifact, wasPhaseCompletedInHistory]);
 
+  // Determine the appropriate phase based on existing artifacts (for recovery when state is corrupted)
+  const determinePhaseFromArtifacts = useCallback(async (workDir: string, effectiveName: string): Promise<string> => {
+    const specDir = join(workDir, '.red64', 'specs', effectiveName);
+    const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+
+    // Check artifacts in reverse order (most complete first)
+    // For each artifact found, return the phase that comes AFTER it
+    const artifactChecks: Array<{ artifact: string; completedPhase: string }> = [
+      { artifact: 'tasks.md', completedPhase: 'tasks-approval' },
+      { artifact: 'design.md', completedPhase: 'design-approval' },
+      { artifact: 'gap-analysis.md', completedPhase: 'gap-review' },
+      { artifact: 'requirements.md', completedPhase: 'requirements-approval' },
+      { artifact: 'spec.json', completedPhase: 'initializing' },
+    ];
+
+    for (const { artifact, completedPhase } of artifactChecks) {
+      try {
+        await access(join(specDir, artifact));
+        // Artifact exists - find the NEXT phase after the completed one
+        const completedIdx = phaseOrder.indexOf(completedPhase);
+        if (completedIdx >= 0 && completedIdx + 1 < phaseOrder.length) {
+          const nextPhase = phaseOrder[completedIdx + 1];
+          // If tasks.md exists and we're past tasks-approval, go to implementing
+          if (artifact === 'tasks.md') {
+            return 'implementing';
+          }
+          return nextPhase;
+        }
+        return completedPhase;
+      } catch {
+        continue;
+      }
+    }
+
+    // No artifacts found - start fresh from initializing
+    return 'initializing';
+  }, [mode]);
+
   // Find the furthest phase we can skip to based on existing artifacts and history
   // Returns the phase we should resume at (either an approval phase or implementing)
   const findResumePhase = useCallback(async (currentPhase: string, workDir: string, effectiveName: string): Promise<string> => {
@@ -1260,6 +1298,46 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // NOTE: State machine is already initialized at the correct phase by resumeExistingFlow
   // Uses findResumePhase to skip ahead to the furthest phase based on existing artifacts
   const resumeFromPhase = async (phaseType: string, workDir: string, effectiveName: string) => {
+    const phaseOrder = mode === 'brownfield' ? BROWNFIELD_PHASE_ORDER : GREENFIELD_PHASE_ORDER;
+
+    // Validate phase - if invalid or 'idle', recover from artifacts
+    let needsRecovery = phaseType === 'idle' || !phaseOrder.includes(phaseType);
+    let recoveryReason = '';
+
+    if (phaseType === 'idle') {
+      needsRecovery = true;
+      recoveryReason = 'State corrupted (idle phase)';
+    } else if (!phaseOrder.includes(phaseType)) {
+      needsRecovery = true;
+      recoveryReason = `Unknown phase '${phaseType}'`;
+    } else {
+      // Phase is valid, but check if artifacts indicate we're further along
+      // This catches cases where state was corrupted by stale closure bug
+      const artifactPhase = await determinePhaseFromArtifacts(workDir, effectiveName);
+      const savedPhaseIdx = phaseOrder.indexOf(phaseType);
+      const artifactPhaseIdx = phaseOrder.indexOf(artifactPhase);
+
+      if (artifactPhaseIdx > savedPhaseIdx) {
+        needsRecovery = true;
+        recoveryReason = `State outdated (saved: ${phaseType}, artifacts indicate: ${artifactPhase})`;
+      }
+    }
+
+    if (needsRecovery) {
+      addOutput(`${recoveryReason}, recovering from artifacts...`);
+
+      // Use artifact-based recovery
+      phaseType = await determinePhaseFromArtifacts(workDir, effectiveName);
+      addOutput(`Recovered phase: ${phaseType}`);
+
+      // Reinitialize flow machine at the recovered phase
+      const recoveredPhase = { type: phaseType } as ExtendedFlowPhase;
+      servicesRef.current!.flowMachine = createExtendedFlowMachine(recoveredPhase, mode);
+
+      // Update React state so UI reflects the recovered phase
+      setFlowState(prev => ({ ...prev, phase: recoveredPhase }));
+    }
+
     // Find the furthest phase we can skip to based on existing artifacts
     const targetPhase = await findResumePhase(phaseType, workDir, effectiveName);
 
@@ -1340,8 +1418,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               createdAt: new Date().toISOString()
             });
           }
-          transitionPhase({ type: 'PHASE_COMPLETE' });
-          await saveFlowState(flowState.phase, workDir, { event: 'PHASE_COMPLETE', subStep: 'gap-analysis-completed' });
+          const gapCompletePhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+          await saveFlowState(gapCompletePhase, workDir, { event: 'PHASE_COMPLETE', subStep: 'gap-analysis-completed' });
         }
         break;
 
@@ -1357,8 +1435,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           if (valResult.success) {
             await commitChanges(`design validation`, workDir);
           }
-          transitionPhase({ type: 'PHASE_COMPLETE' });
-          await saveFlowState(flowState.phase, workDir, { event: 'PHASE_COMPLETE', subStep: 'design-validation-completed' });
+          const validationCompletePhase = transitionPhase({ type: 'PHASE_COMPLETE' });
+          await saveFlowState(validationCompletePhase, workDir, { event: 'PHASE_COMPLETE', subStep: 'design-validation-completed' });
         }
         break;
 
@@ -1858,7 +1936,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // 1. Mark task as in_progress BEFORE execution (for crash recovery)
       if (entry.status !== 'in_progress') {
         taskEntries[i] = markTaskStarted(entry);
-        await saveFlowState(flowState.phase, workDir, {
+        await saveFlowState(services.flowMachine.getPhase(), workDir, {
           taskEntries,
           currentTaskId: task.id,
           event: 'TASK_START',
@@ -1878,7 +1956,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         addOutput(`Task ${task.id} failed: ${result.error}`);
         // Mark as failed and save progress
         taskEntries[i] = markTaskFailed(taskEntries[i]);
-        await saveFlowState(flowState.phase, workDir, {
+        await saveFlowState(services.flowMachine.getPhase(), workDir, {
           taskEntries,
           currentTaskId: null,
           event: 'TASK_FAILED',
@@ -1902,7 +1980,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds }));
 
       // 6. Save state immediately (before commit, for crash recovery)
-      await saveFlowState(flowState.phase, workDir, {
+      await saveFlowState(services.flowMachine.getPhase(), workDir, {
         completedTasksOverride: completedTaskIds,
         taskEntries,
         currentTaskId: null,

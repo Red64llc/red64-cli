@@ -94,6 +94,12 @@ export class PreviewHTMLGenerator implements PreviewHTMLGeneratorInterface {
       background: transparent !important;
       text-align: center;
     }
+    /* Force decimal numbers for all ordered list levels (override GitHub CSS roman numerals) */
+    .markdown-body ol,
+    .markdown-body ol ol,
+    .markdown-body ol ol ol {
+      list-style-type: decimal;
+    }
   </style>
 
   <!-- Mermaid.js for diagram rendering -->
