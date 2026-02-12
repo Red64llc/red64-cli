@@ -110,7 +110,8 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
       flexDirection="column"
       borderStyle="single"
       borderColor={isActive ? 'cyan' : 'gray'}
-      paddingX={1}
+      paddingLeft={1}
+      paddingRight={0}
       marginLeft={1}
       width={width}
     >
@@ -130,7 +131,7 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
             return (
               <Box key={`${artifact.path}-${index}`}>
                 <Text color={color} inverse={isSelected} bold={isSelected}>
-                  {isSelected ? '▶ ' : '  '}{icon} {artifact.filename}
+                  {isSelected ? '▶' : ' '}{icon} {artifact.filename}
                 </Text>
               </Box>
             );
