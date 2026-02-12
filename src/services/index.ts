@@ -119,7 +119,8 @@ export {
   createConfigService,
   type ConfigService,
   type InitConfig,
-  type ProjectType
+  type ProjectType,
+  type UIConfig
 } from './ConfigService.js';
 
 export {

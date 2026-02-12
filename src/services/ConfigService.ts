@@ -13,6 +13,14 @@ import type { CodingAgent, McpServerConfig } from '../types/index.js';
 export type ProjectType = 'web-app' | 'cli-tool' | 'library' | 'api' | 'other';
 
 /**
+ * UI configuration settings
+ */
+export interface UIConfig {
+  readonly leftSidebarWidth?: number;
+  readonly rightSidebarWidth?: number;
+}
+
+/**
  * Init configuration structure
  * Task 4.1: Configuration read/write operations
  */
@@ -30,6 +38,7 @@ export interface InitConfig {
   readonly testCommand?: string;
   readonly sandboxImage?: string;
   readonly mcpServers?: Record<string, McpServerConfig>;
+  readonly ui?: UIConfig;
 }
 
 /**

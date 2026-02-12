@@ -8,6 +8,11 @@ import { Box, Text, useInput } from 'ink';
 import type { Artifact } from '../../types/index.js';
 
 /**
+ * Default width for right sidebar
+ */
+export const DEFAULT_RIGHT_SIDEBAR_WIDTH = 28;
+
+/**
  * Props for ArtifactsSidebar
  */
 export interface ArtifactsSidebarProps {
@@ -16,6 +21,8 @@ export interface ArtifactsSidebarProps {
   readonly onPreview?: (artifact: Artifact) => void;
   /** When true, keyboard input is enabled and visual focus indicator is shown */
   readonly isActive?: boolean;
+  /** Configurable sidebar width */
+  readonly width?: number;
 }
 
 /**
@@ -52,6 +59,7 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
   worktreePath: _worktreePath,  // Reserved for future use (terminal hyperlinks)
   onPreview,
   isActive = true,  // Default to active for backward compatibility
+  width = DEFAULT_RIGHT_SIDEBAR_WIDTH,
 }) => {
   // Filter out any invalid artifacts
   const validArtifacts = artifacts.filter(a => a && a.name && a.path);
@@ -104,7 +112,7 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
       borderColor={isActive ? 'cyan' : 'gray'}
       paddingX={1}
       marginLeft={1}
-      width={22}
+      width={width}
     >
       {/* Header */}
       <Text bold color={isActive ? 'cyan' : 'magenta'}>Artifacts{isActive ? ' [Tab]' : ''}</Text>
@@ -120,7 +128,7 @@ export const ArtifactsSidebar: React.FC<ArtifactsSidebarProps> = ({
             const isSelected = index === selectedIndex;
 
             return (
-              <Box key={`${artifact.path}-${index}`} marginBottom={index < validArtifacts.length - 1 ? 1 : 0}>
+              <Box key={`${artifact.path}-${index}`}>
                 <Text color={color} inverse={isSelected} bold={isSelected}>
                   {isSelected ? '▶ ' : '  '}{icon} {artifact.filename}
                 </Text>

@@ -29,6 +29,11 @@ const AGENT_INFO: Record<CodingAgent, AgentInfo> = {
 };
 
 /**
+ * Default width for left sidebar
+ */
+export const DEFAULT_LEFT_SIDEBAR_WIDTH = 20;
+
+/**
  * Props for FeatureSidebar
  */
 export interface FeatureSidebarProps {
@@ -42,6 +47,7 @@ export interface FeatureSidebarProps {
   readonly agent?: CodingAgent;
   readonly model?: string;
   readonly history?: readonly HistoryEntry[];  // History for determining phase completion
+  readonly width?: number;  // Configurable sidebar width
 }
 
 /**
@@ -246,8 +252,11 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
   agent = 'claude',
   model,
   history,
+  width = DEFAULT_LEFT_SIDEBAR_WIDTH,
 }) => {
-  const displayName = truncate(featureName, 10);
+  // Calculate max display name length based on width (accounting for padding and border)
+  const maxNameLen = Math.max(6, width - 6);
+  const displayName = truncate(featureName, maxNameLen);
   const allPhases = mode === 'greenfield' ? GREENFIELD_PHASES : BROWNFIELD_PHASES;
   const sidebarPhases = getSidebarPhases(mode);
   const agentInfo = AGENT_INFO[agent];
@@ -260,7 +269,7 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
       borderStyle="single"
       borderColor="gray"
       paddingX={1}
-      width={16}
+      width={width}
     >
       {/* Feature name header */}
       <Text bold color="cyan">{displayName}</Text>

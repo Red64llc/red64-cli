@@ -8,5 +8,9 @@
   "initializedAt": "2026-02-04T16:19:19.723Z",
   "customValues": {},
   "agent": "claude",
-  "testCommand": "npm ci && CI=true npm test"
+  "testCommand": "npm ci && CI=true npm test",
+  "ui": {
+    "leftSidebarWidth": 20,
+    "rightSidebarWidth": 28
+  }
 }

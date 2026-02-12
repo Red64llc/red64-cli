@@ -309,6 +309,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Ref to hold agent for use in callbacks (avoids stale closure from React state)
   const agentRef = useRef<CodingAgent>(flowState.agent as CodingAgent);
   const sandboxImageRef = useRef<string | undefined>(undefined);
+  const uiConfigRef = useRef<{ leftSidebarWidth?: number; rightSidebarWidth?: number }>({});
 
   // Keep refs in sync with state
   existingFlowStateRef.current = flowState.existingFlowState;
@@ -847,6 +848,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
       if (config?.sandboxImage) {
         sandboxImageRef.current = config.sandboxImage;
+      }
+      if (config?.ui) {
+        uiConfigRef.current = config.ui;
       }
 
       addOutput('Checking for existing flow...');
@@ -2239,6 +2243,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           agent={flowState.agent}
           model={flags.model}
           history={flowState.history}
+          width={uiConfigRef.current.leftSidebarWidth}
         />
       )}
 
@@ -2371,6 +2376,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           worktreePath={flowState.worktreePath}
           onPreview={handleArtifactPreview}
           isActive={sidebarFocused}
+          width={uiConfigRef.current.rightSidebarWidth}
         />
       )}
     </Box>
