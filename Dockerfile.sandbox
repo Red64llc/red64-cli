@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# Red64 Agent Sandbox
-# Isolated Docker environment for running agent CLI commands safely
-# Supports: Claude, Gemini, Codex
+# Red64 Agent Sandbox - Multi-Stack Toolchain Support
+# Isolated Docker environment for running AI coding agents with comprehensive
+# language support for testing and verification.
+#
+# Includes: Ruby, Python, Node.js, Rust, Go toolchains plus AI agent CLIs
 # =============================================================================
 
 FROM ubuntu:22.04
@@ -10,46 +12,162 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install base dependencies
+# =============================================================================
+# System Build Dependencies
+# =============================================================================
+
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
+    # Build essentials
     git \
     curl \
+    wget \
+    make \
+    gcc \
+    g++ \
     ca-certificates \
     openssh-client \
+    # Additional utilities needed for toolchain installation
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    # Sudo support
     sudo \
+    # Build dependencies for native extensions
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    libssl-dev \
+    libffi-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    liblzma-dev \
+    # Ruby build dependencies
+    bison \
+    libyaml-dev \
+    libgdbm-dev \
+    libgmp-dev \
+    autoconf \
+    rustc \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
+# =============================================================================
 # Create agent user with sudo access
+# =============================================================================
+
 RUN useradd -m -u 1000 -s /bin/bash agent && \
     echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     mkdir -p /home/agent/.local/bin && \
     chown -R agent:agent /home/agent
 
-# Install Node.js 22 LTS
+# =============================================================================
+# Ruby Toolchain
+# Install Ruby 3.4+ with Bundler
+# =============================================================================
+
+ENV RUBY_VERSION=3.4.1
+
+RUN cd /tmp && \
+    curl -fsSL https://github.com/postmodern/ruby-install/releases/download/v0.9.4/ruby-install-0.9.4.tar.gz | tar xz && \
+    cd ruby-install-0.9.4 && \
+    make install && \
+    cd .. && rm -rf ruby-install-0.9.4
+
+RUN ruby-install --system ruby ${RUBY_VERSION} -- --disable-install-doc && \
+    rm -rf /usr/local/src/ruby-${RUBY_VERSION}* && \
+    rm -rf /tmp/*
+
+# Install Bundler
+RUN gem install bundler --no-document && \
+    gem cleanup
+
+# =============================================================================
+# Python Toolchain
+# Install Python 3.12+ with pip and virtualenv
+# =============================================================================
+
+ENV PYTHON_VERSION=3.12
+
+RUN add-apt-repository ppa:deadsnakes/ppa -y && \
+    apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
+    python${PYTHON_VERSION}-dev \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
+
+RUN curl -fsSL https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} && \
+    pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir virtualenv
+
+# =============================================================================
+# Node.js Toolchain
+# Install Node.js 22 LTS with npm
+# =============================================================================
+
 ENV NODE_VERSION=22
+
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install --no-install-recommends -y nodejs && \
-    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
     npm cache clean --force
 
-# Install Claude CLI
+# =============================================================================
+# Rust Toolchain
+# Install Rust stable with cargo using rustup
+# =============================================================================
+
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --no-modify-path --default-toolchain stable && \
+    chmod -R a+rw ${RUSTUP_HOME} ${CARGO_HOME} && \
+    rustup --version && \
+    cargo --version && \
+    rustc --version
+
+# =============================================================================
+# Go Toolchain
+# Install Go 1.23+ with standard tooling
+# =============================================================================
+
+ENV GO_VERSION=1.23.5
+ENV GOROOT=/usr/local/go
+ENV GOPATH=/home/agent/go
+ENV PATH=${GOROOT}/bin:${GOPATH}/bin:$PATH
+
+RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xz && \
+    mkdir -p ${GOPATH}/{bin,src,pkg} && \
+    chown -R agent:agent ${GOPATH}
+
+# =============================================================================
+# AI Agent CLIs
+# =============================================================================
+
+# Claude Code
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
     cp /root/.local/bin/claude /usr/local/bin/claude && \
     chmod 755 /usr/local/bin/claude
 
-# Install Gemini CLI
-RUN npm install -g @google/gemini-cli
-
-# Install Codex CLI
-RUN npm install -g @openai/codex
+# Codex and Gemini
+RUN npm install -g \
+    @openai/codex \
+    @google/gemini-cli \
+    && npm cache clean --force
 
 # =============================================================================
 # Browser Automation for UI Verification
 # =============================================================================
 
-# Install dependencies for Playwright/Chromium
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     libnss3 \
@@ -71,24 +189,46 @@ RUN apt-get update -qq && \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install agent-browser (Vercel's AI-native browser automation CLI)
 RUN npm install -g agent-browser && \
     npx agent-browser install --with-deps
 
-# Git configuration
+# =============================================================================
+# Git Configuration
+# =============================================================================
+
 RUN git config --system user.name "Red64 Agent" && \
     git config --system user.email "agent@red64.local" && \
     git config --system init.defaultBranch main
 
-# Create workspace directory
+# =============================================================================
+# Validate all toolchain installations
+# =============================================================================
+
+RUN echo "=== Validating Toolchain Installations ===" && \
+    ruby --version && \
+    bundle --version && \
+    python3 --version && \
+    pip3 --version && \
+    node --version && \
+    npm --version && \
+    rustc --version && \
+    cargo --version && \
+    go version && \
+    claude --version && \
+    codex --version && \
+    gemini --version && \
+    echo "=== All toolchains validated successfully ==="
+
+# =============================================================================
+# Final Configuration
+# =============================================================================
+
 RUN mkdir -p /workspace && chown agent:agent /workspace
 
 WORKDIR /workspace
 
-# Switch to non-root user
 USER agent
 
-ENV PATH=/home/agent/.local/bin:$PATH
+ENV PATH=/home/agent/.local/bin:/usr/local/cargo/bin:/usr/local/go/bin:/home/agent/go/bin:$PATH
 
-# Default command
 CMD ["/bin/bash"]
