@@ -2,7 +2,7 @@
 
 ## Project: red64-cli
 
-A spec driven software development framework for coding agents
+A semi autonomous software factory for coding agents
 
 ## Core Capabilities
 

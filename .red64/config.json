@@ -4,13 +4,9 @@
   "stack": "react",
   "projectType": "other",
   "projectName": "red64-cli",
-  "description": "A spec driven software development framework for coding agents",
-  "initializedAt": "2026-02-04T16:19:19.723Z",
+  "description": "A semi autonomous software factory for coding agents",
+  "initializedAt": "2026-02-13T09:05:41.985Z",
   "customValues": {},
   "agent": "claude",
-  "testCommand": "npm ci && CI=true npm test",
-  "ui": {
-    "leftSidebarWidth": 20,
-    "rightSidebarWidth": 28
-  }
+  "testCommand": "CI=true npm ci && CI=true npm test"
 }
