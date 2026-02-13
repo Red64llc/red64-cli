@@ -17,6 +17,7 @@ export {
   updateTaskEntry,
   getInProgressTask,
   getNextPendingTask,
+  getFirstFailedTask,
   getResumeTask,
   startPhaseMetric,
   completePhaseMetric,

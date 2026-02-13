@@ -2,8 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createStateStore, type StateStoreService } from '../../src/services/StateStore.js';
-import type { FlowState, FlowPhase } from '../../src/types/index.js';
+import {
+  createStateStore,
+  createTaskEntry,
+  getInProgressTask,
+  getNextPendingTask,
+  getFirstFailedTask,
+  getResumeTask,
+  markTaskStarted,
+  markTaskFailed,
+  type StateStoreService
+} from '../../src/services/StateStore.js';
+import type { FlowState, FlowPhase, TaskEntry } from '../../src/types/index.js';
 
 describe('StateStore', () => {
   let tempDir: string;
@@ -272,6 +282,103 @@ describe('StateStore', () => {
 
       expect(archived.feature).toBe('test-feature');
       expect(archived.phase.type).toBe('requirements-approval');
+    });
+  });
+});
+
+describe('Task Entry Helpers', () => {
+  describe('getFirstFailedTask', () => {
+    it('should return undefined for empty entries', () => {
+      const result = getFirstFailedTask([]);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when no failed tasks exist', () => {
+      const entries: TaskEntry[] = [
+        createTaskEntry('1', 'Task 1'),
+        { ...createTaskEntry('2', 'Task 2'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('3', 'Task 3'), status: 'in_progress', startedAt: new Date().toISOString() }
+      ];
+      const result = getFirstFailedTask(entries);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return the first failed task', () => {
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2', 'Task 2'), status: 'failed' },
+        { ...createTaskEntry('3', 'Task 3'), status: 'failed' }
+      ];
+      const result = getFirstFailedTask(entries);
+      expect(result?.id).toBe('2');
+    });
+  });
+
+  describe('getResumeTask', () => {
+    it('should return undefined for empty entries', () => {
+      const result = getResumeTask([]);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return in_progress task first (highest priority)', () => {
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'failed' },
+        { ...createTaskEntry('2', 'Task 2'), status: 'in_progress', startedAt: new Date().toISOString() },
+        createTaskEntry('3', 'Task 3') // pending
+      ];
+      const result = getResumeTask(entries);
+      expect(result?.id).toBe('2');
+    });
+
+    it('should return failed task when no in_progress task exists', () => {
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2', 'Task 2'), status: 'failed' },
+        createTaskEntry('3', 'Task 3') // pending
+      ];
+      const result = getResumeTask(entries);
+      expect(result?.id).toBe('2');
+    });
+
+    it('should return pending task when no in_progress or failed tasks exist', () => {
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2', 'Task 2'), status: 'completed', completedAt: new Date().toISOString() },
+        createTaskEntry('3', 'Task 3') // pending
+      ];
+      const result = getResumeTask(entries);
+      expect(result?.id).toBe('3');
+    });
+
+    it('should return undefined when all tasks are completed', () => {
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2', 'Task 2'), status: 'completed', completedAt: new Date().toISOString() }
+      ];
+      const result = getResumeTask(entries);
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle Docker error scenario - many failed tasks should be resumed', () => {
+      // Simulate the bug scenario: 5 completed, rest failed due to Docker error
+      const entries: TaskEntry[] = [
+        { ...createTaskEntry('1', 'Task 1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2', 'Task 2'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2.1', 'Task 2.1'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2.2', 'Task 2.2'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('2.3', 'Task 2.3'), status: 'completed', completedAt: new Date().toISOString() },
+        { ...createTaskEntry('3', 'Task 3'), status: 'failed' }, // First failed due to Docker
+        { ...createTaskEntry('3.1', 'Task 3.1'), status: 'failed' },
+        { ...createTaskEntry('3.2', 'Task 3.2'), status: 'failed' },
+        { ...createTaskEntry('4', 'Task 4'), status: 'failed' }
+      ];
+
+      const result = getResumeTask(entries);
+
+      // Should resume from first failed task, not return undefined!
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('3');
+      expect(result?.status).toBe('failed');
     });
   });
 });

@@ -88,10 +88,21 @@ export function getNextPendingTask(entries: readonly TaskEntry[]): TaskEntry | u
 }
 
 /**
- * Get the task to resume: either in_progress or first pending
+ * Get the first failed task (for retry after error)
+ */
+export function getFirstFailedTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
+  return entries.find(entry => entry.status === 'failed');
+}
+
+/**
+ * Get the task to resume: in_progress first, then failed (retry), then pending
+ * Priority: in_progress > failed > pending
+ * - in_progress: interrupted task that needs completion
+ * - failed: task that errored and needs retry
+ * - pending: task that hasn't started yet
  */
 export function getResumeTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
-  return getInProgressTask(entries) ?? getNextPendingTask(entries);
+  return getInProgressTask(entries) ?? getFirstFailedTask(entries) ?? getNextPendingTask(entries);
 }
 
 /**
