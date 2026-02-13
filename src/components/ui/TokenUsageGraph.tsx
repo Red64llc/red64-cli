@@ -140,15 +140,27 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
     return BLOCKS[blockIndex];
   });
 
-  // Calculate totals
-  const totalInput = completedTasks.reduce(
+  // Calculate totals from task entries
+  const taskInput = completedTasks.reduce(
     (sum, t) => sum + (t.tokenUsage?.inputTokens ?? 0),
     0
   );
-  const totalOutput = completedTasks.reduce(
+  const taskOutput = completedTasks.reduce(
     (sum, t) => sum + (t.tokenUsage?.outputTokens ?? 0),
     0
   );
+
+  // Calculate totals from phase metrics (for non-implementation phases)
+  const phaseInput = phaseMetrics
+    ? Object.values(phaseMetrics).reduce((sum, m) => sum + (m.inputTokens ?? 0), 0)
+    : 0;
+  const phaseOutput = phaseMetrics
+    ? Object.values(phaseMetrics).reduce((sum, m) => sum + (m.outputTokens ?? 0), 0)
+    : 0;
+
+  // Use the larger of the two sources (phase metrics include all phases, task entries only for impl)
+  const totalInput = Math.max(taskInput, phaseInput);
+  const totalOutput = Math.max(taskOutput, phaseOutput);
 
   // Get cumulative utilization from last task (if available)
   const lastTask = completedTasks[completedTasks.length - 1];
