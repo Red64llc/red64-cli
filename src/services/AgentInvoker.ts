@@ -26,7 +26,7 @@ const AGENT_CLI_CONFIGS: Record<CodingAgent, AgentCliConfig> = {
     binary: 'claude',
     envKeyName: 'ANTHROPIC_API_KEY',
     buildArgs(options) {
-      const args: string[] = ['-p', options.prompt];
+      const args: string[] = ['-p', options.prompt, '--output-format', 'json'];
       if (options.model) args.push('--model', options.model);
       if (options.skipPermissions) args.push('--dangerously-skip-permissions');
       return args;
@@ -263,11 +263,15 @@ export function createAgentInvoker(): AgentInvokerService {
               ? errorDetector.detect(stdout, stderr)
               : undefined;
             const tokenUsage = tokenUsageParser.parse(stdout);
+            // Extract text result from JSON for claude (--output-format json)
+            const extractedStdout = (options.agent ?? 'claude') === 'claude'
+              ? tokenUsageParser.extractResult(stdout)
+              : stdout;
 
             resolveOnce({
               success: false,
               exitCode,
-              stdout,
+              stdout: extractedStdout,
               stderr: stderr || (signal ? `Process killed by signal: ${signal}` : ''),
               timedOut,
               claudeError: claudeError ?? undefined,
@@ -288,12 +292,16 @@ export function createAgentInvoker(): AgentInvokerService {
 
           // Parse token usage from stdout
           const tokenUsage = tokenUsageParser.parse(stdout);
+          // Extract text result from JSON for claude (--output-format json)
+          const extractedStdout = (options.agent ?? 'claude') === 'claude'
+            ? tokenUsageParser.extractResult(stdout)
+            : stdout;
 
           // Requirements: 7.6 - Return typed result indicating success/failure
           resolveOnce({
             success,
             exitCode,
-            stdout,
+            stdout: extractedStdout,
             stderr,
             timedOut,
             claudeError: claudeError ?? undefined,
@@ -455,11 +463,15 @@ async function invokeInDocker(
           ? errorDetector.detect(stdout, stderr)
           : undefined;
         const tokenUsage = tokenUsageParser?.parse(stdout);
+        // Extract text result from JSON for claude (--output-format json)
+        const extractedStdout = (options.agent ?? 'claude') === 'claude' && tokenUsageParser
+          ? tokenUsageParser.extractResult(stdout)
+          : stdout;
 
         resolveOnce({
           success: false,
           exitCode,
-          stdout,
+          stdout: extractedStdout,
           stderr: stderr || (signal ? `Process killed by signal: ${signal}` : ''),
           timedOut,
           claudeError: claudeError ?? undefined,
@@ -480,11 +492,15 @@ async function invokeInDocker(
 
       // Parse token usage from stdout
       const tokenUsage = tokenUsageParser?.parse(stdout);
+      // Extract text result from JSON for claude (--output-format json)
+      const extractedStdout = (options.agent ?? 'claude') === 'claude' && tokenUsageParser
+        ? tokenUsageParser.extractResult(stdout)
+        : stdout;
 
       resolveOnce({
         success,
         exitCode,
-        stdout,
+        stdout: extractedStdout,
         stderr,
         timedOut,
         claudeError: claudeError ?? undefined,

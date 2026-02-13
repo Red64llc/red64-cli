@@ -18,6 +18,9 @@ export {
   getInProgressTask,
   getNextPendingTask,
   getResumeTask,
+  startPhaseMetric,
+  completePhaseMetric,
+  accumulatePhaseMetric,
   type StateStoreService
 } from './StateStore.js';
 

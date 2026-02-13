@@ -149,6 +149,12 @@ export interface PhaseMetric {
   readonly startedAt: string;
   readonly completedAt?: string;
   readonly elapsedMs?: number;
+  // Cost and usage tracking per phase
+  readonly costUsd?: number;              // Total cost in USD for this phase
+  readonly inputTokens?: number;          // Total input tokens for this phase
+  readonly outputTokens?: number;         // Total output tokens for this phase
+  readonly cacheReadTokens?: number;      // Total cache read tokens
+  readonly cacheCreationTokens?: number;  // Total cache creation tokens
 }
 
 /**
@@ -174,6 +180,7 @@ export interface TokenUsage {
   readonly model?: string;              // Model that was used (e.g., "claude-sonnet-4-20250514")
   readonly cacheReadTokens?: number;    // Tokens read from cache (if applicable)
   readonly cacheCreationTokens?: number; // Tokens written to cache (if applicable)
+  readonly costUsd?: number;            // Cost in USD for this invocation
 }
 
 /**

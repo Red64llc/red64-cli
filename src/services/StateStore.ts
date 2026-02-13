@@ -6,7 +6,7 @@
 import { mkdir, readFile, writeFile, rm, readdir, rename, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry, TokenUsage, ContextUsage } from '../types/index.js';
+import type { FlowState, FlowPhase, HistoryEntry, GroupedTaskProgress, TaskEntry, TokenUsage, ContextUsage, PhaseMetric } from '../types/index.js';
 import { CURRENT_STATE_VERSION } from '../types/index.js';
 
 /**
@@ -93,6 +93,68 @@ export function getNextPendingTask(entries: readonly TaskEntry[]): TaskEntry | u
 export function getResumeTask(entries: readonly TaskEntry[]): TaskEntry | undefined {
   return getInProgressTask(entries) ?? getNextPendingTask(entries);
 }
+
+/**
+ * Start tracking a phase metric
+ */
+export function startPhaseMetric(_phaseType: string): PhaseMetric {
+  return {
+    startedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Complete a phase metric with optional token usage for cost tracking
+ */
+export function completePhaseMetric(
+  metric: PhaseMetric,
+  tokenUsage?: TokenUsage
+): PhaseMetric {
+  const completedAt = new Date().toISOString();
+  const elapsedMs = new Date(completedAt).getTime() - new Date(metric.startedAt).getTime();
+
+  return {
+    ...metric,
+    completedAt,
+    elapsedMs,
+    ...(tokenUsage && {
+      costUsd: tokenUsage.costUsd,
+      inputTokens: tokenUsage.inputTokens,
+      outputTokens: tokenUsage.outputTokens,
+      cacheReadTokens: tokenUsage.cacheReadTokens,
+      cacheCreationTokens: tokenUsage.cacheCreationTokens
+    })
+  };
+}
+
+/**
+ * Accumulate token usage into an existing phase metric
+ * Used when a phase has multiple agent invocations (e.g., implementation tasks)
+ */
+export function accumulatePhaseMetric(
+  metric: PhaseMetric,
+  tokenUsage?: TokenUsage
+): PhaseMetric {
+  if (!tokenUsage) return metric;
+
+  return {
+    ...metric,
+    costUsd: (metric.costUsd ?? 0) + (tokenUsage.costUsd ?? 0),
+    inputTokens: (metric.inputTokens ?? 0) + tokenUsage.inputTokens,
+    outputTokens: (metric.outputTokens ?? 0) + tokenUsage.outputTokens,
+    cacheReadTokens: (metric.cacheReadTokens ?? 0) + (tokenUsage.cacheReadTokens ?? 0),
+    cacheCreationTokens: (metric.cacheCreationTokens ?? 0) + (tokenUsage.cacheCreationTokens ?? 0)
+  };
+}
+
+/**
+ * Calculate total cost across all phase metrics
+ */
+export function calculateTotalCost(phaseMetrics: Record<string, PhaseMetric> | undefined): number {
+  if (!phaseMetrics) return 0;
+  return Object.values(phaseMetrics).reduce((sum, m) => sum + (m.costUsd ?? 0), 0);
+}
+
 import { sanitizeFeatureName } from './WorktreeService.js';
 
 /**

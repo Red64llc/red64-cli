@@ -28,6 +28,9 @@ import {
   markTaskCompleted,
   markTaskFailed,
   getResumeTask,
+  startPhaseMetric,
+  completePhaseMetric,
+  accumulatePhaseMetric,
   createAgentInvoker,
   createExtendedFlowMachine,
   createWorktreeService,
@@ -1478,7 +1481,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         // Run gap analysis
         {
           addOutput('Running gap analysis...');
+          const gapPhaseMetric = startPhaseMetric('gap-analysis');
           const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
+          const completedGapMetric = completePhaseMetric(gapPhaseMetric, gapResult.tokenUsage);
+          setFlowState(prev => ({
+            ...prev,
+            phaseMetrics: { ...prev.phaseMetrics, 'gap-analysis': completedGapMetric }
+          }));
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
             addArtifact({
@@ -1502,7 +1511,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         // Run design validation
         {
           addOutput('Validating design...');
+          const valPhaseMetric = startPhaseMetric('design-validation');
           const valResult = await executeCommand(`/red64:validate-design ${effectiveName} -y`, workDir);
+          const completedValMetric = completePhaseMetric(valPhaseMetric, valResult.tokenUsage);
+          setFlowState(prev => ({
+            ...prev,
+            phaseMetrics: { ...prev.phaseMetrics, 'design-validation': completedValMetric }
+          }));
           if (valResult.success) {
             await commitChanges(`design validation`, workDir);
           }
@@ -1790,7 +1805,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating requirements...');
 
+    // Start tracking phase metrics
+    const phaseMetric = startPhaseMetric('requirements-generating');
+
     const result = await executeCommand(`/red64:spec-requirements ${effectiveName} -y`, workDir);
+
+    // Complete phase metric with cost data
+    const completedMetric = completePhaseMetric(phaseMetric, result.tokenUsage);
+    setFlowState(prev => ({
+      ...prev,
+      phaseMetrics: { ...prev.phaseMetrics, 'requirements-generating': completedMetric }
+    }));
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Requirements generation failed' });
@@ -1835,7 +1860,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating technical design...');
 
+    // Start tracking phase metrics
+    const phaseMetric = startPhaseMetric('design-generating');
+
     const result = await executeCommand(`/red64:spec-design ${effectiveName} -y`, workDir);
+
+    // Complete phase metric with cost data
+    const completedMetric = completePhaseMetric(phaseMetric, result.tokenUsage);
+    setFlowState(prev => ({
+      ...prev,
+      phaseMetrics: { ...prev.phaseMetrics, 'design-generating': completedMetric }
+    }));
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Design generation failed' });
@@ -1875,7 +1910,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput('');
     addOutput('Generating implementation tasks...');
 
+    // Start tracking phase metrics
+    const phaseMetric = startPhaseMetric('tasks-generating');
+
     const result = await executeCommand(`/red64:spec-tasks ${effectiveName} -y`, workDir);
+
+    // Complete phase metric with cost data
+    const completedMetric = completePhaseMetric(phaseMetric, result.tokenUsage);
+    setFlowState(prev => ({
+      ...prev,
+      phaseMetrics: { ...prev.phaseMetrics, 'tasks-generating': completedMetric }
+    }));
 
     if (!result.success) {
       transitionPhase({ type: 'ERROR', error: result.error ?? 'Tasks generation failed' });
@@ -1936,6 +1981,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const stateStore = createStateStore(workDir);
     const existingState = await stateStore.load(featureName);
     const existingTaskEntries = existingState?.taskProgress?.taskEntries;
+
+    // Start tracking implementation phase metrics (or resume from existing)
+    let implPhaseMetric = existingState?.phaseMetrics?.['implementing']
+      ?? startPhaseMetric('implementing');
 
     // Initialize or resume taskEntries
     // If we have existing entries, use them (for resume)
@@ -2055,9 +2104,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       // 5. Mark task as completed with timestamp and usage metrics
       taskEntries[i] = markTaskCompleted(taskEntries[i], result.tokenUsage, contextUsage);
 
+      // 5b. Accumulate implementation phase costs
+      implPhaseMetric = accumulatePhaseMetric(implPhaseMetric, result.tokenUsage);
+
       // 6. Update React state for UI (including taskEntries for usage graph)
       const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
-      setFlowState(prev => ({ ...prev, completedTasks: completedTaskIds, taskEntries: [...taskEntries] }));
+      setFlowState(prev => ({
+        ...prev,
+        completedTasks: completedTaskIds,
+        taskEntries: [...taskEntries],
+        phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric }
+      }));
 
       // 7. Save state immediately (before commit, for crash recovery)
       await saveFlowState(services.flowMachine.getPhase(), workDir, {
@@ -2078,7 +2135,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       addOutput('');
     }
 
-    // All tasks complete
+    // All tasks complete - finalize implementation phase metrics
+    const completedImplMetric = completePhaseMetric(implPhaseMetric, undefined);
+    setFlowState(prev => ({
+      ...prev,
+      phaseMetrics: { ...prev.phaseMetrics, 'implementing': completedImplMetric }
+    }));
+
     addOutput('All tasks completed!');
     await completeFlow(workDir);
   };
@@ -2202,28 +2265,44 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           break;
         case 'gap-analysis':
           // Brownfield: run gap analysis
-          addOutput('Running gap analysis...');
-          const gapResult = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
-          if (gapResult.success) {
-            await commitChanges(`gap analysis`, workDir);
-            addArtifact({
-              name: 'Gap Analysis',
-              filename: 'gap-analysis.md',
-              path: `.red64/specs/${effectiveName}/gap-analysis.md`,
-              phase: 'gap-analysis',
-              createdAt: new Date().toISOString()
-            });
+          {
+            addOutput('Running gap analysis...');
+            const gapPhaseMetric2 = startPhaseMetric('gap-analysis');
+            const gapResult2 = await executeCommand(`/red64:validate-gap ${effectiveName} -y`, workDir);
+            const completedGapMetric2 = completePhaseMetric(gapPhaseMetric2, gapResult2.tokenUsage);
+            setFlowState(prev => ({
+              ...prev,
+              phaseMetrics: { ...prev.phaseMetrics, 'gap-analysis': completedGapMetric2 }
+            }));
+            if (gapResult2.success) {
+              await commitChanges(`gap analysis`, workDir);
+              addArtifact({
+                name: 'Gap Analysis',
+                filename: 'gap-analysis.md',
+                path: `.red64/specs/${effectiveName}/gap-analysis.md`,
+                phase: 'gap-analysis',
+                createdAt: new Date().toISOString()
+              });
+            }
+            transitionPhase({ type: 'PHASE_COMPLETE' });
           }
-          transitionPhase({ type: 'PHASE_COMPLETE' });
           break;
         case 'design-validation':
           // Brownfield: run design validation
-          addOutput('Validating design...');
-          const valResult = await executeCommand(`/red64:validate-design ${effectiveName} -y`, workDir);
-          if (valResult.success) {
-            await commitChanges(`design validation`, workDir);
+          {
+            addOutput('Validating design...');
+            const valPhaseMetric2 = startPhaseMetric('design-validation');
+            const valResult2 = await executeCommand(`/red64:validate-design ${effectiveName} -y`, workDir);
+            const completedValMetric2 = completePhaseMetric(valPhaseMetric2, valResult2.tokenUsage);
+            setFlowState(prev => ({
+              ...prev,
+              phaseMetrics: { ...prev.phaseMetrics, 'design-validation': completedValMetric2 }
+            }));
+            if (valResult2.success) {
+              await commitChanges(`design validation`, workDir);
+            }
+            transitionPhase({ type: 'PHASE_COMPLETE' });
           }
-          transitionPhase({ type: 'PHASE_COMPLETE' });
           break;
         case 'complete':
           await completeFlow(workDir);
@@ -2535,9 +2614,12 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           </Box>
         )}
 
-        {/* Token/Context usage graph - shown during implementation phase */}
-        {flowState.taskEntries.length > 0 && (
-          <TokenUsageGraph taskEntries={flowState.taskEntries} />
+        {/* Token/Context usage graph - shown when we have usage data */}
+        {(flowState.taskEntries.length > 0 || Object.keys(flowState.phaseMetrics).length > 0) && (
+          <TokenUsageGraph
+            taskEntries={flowState.taskEntries}
+            phaseMetrics={flowState.phaseMetrics}
+          />
         )}
       </Box>
 

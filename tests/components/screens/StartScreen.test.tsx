@@ -53,7 +53,8 @@ vi.mock('../../../src/services/index.js', () => ({
   createExtendedFlowMachine: () => ({
     current: vi.fn().mockReturnValue({ type: 'idle' }),
     send: vi.fn().mockReturnValue({ type: 'initializing', feature: 'test', description: 'test' }),
-    canSend: vi.fn().mockReturnValue(true)
+    canSend: vi.fn().mockReturnValue(true),
+    getPhase: vi.fn().mockReturnValue({ type: 'idle' })
   }),
   createCommitService: () => ({
     stageAndCommit: vi.fn().mockResolvedValue({ success: true, commitHash: 'abc123' }),
@@ -85,7 +86,29 @@ vi.mock('../../../src/services/index.js', () => ({
     run: vi.fn().mockResolvedValue({ success: true, exitCode: 0, stdout: '', stderr: '', durationMs: 100, timedOut: false }),
     parseCommand: vi.fn().mockReturnValue({ cmd: 'npm', args: ['test'] })
   }),
-  sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  createContextUsageCalculator: () => ({
+    calculate: vi.fn().mockReturnValue({ usedTokens: 0, maxTokens: 200000, usagePercent: 0 })
+  }),
+  sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+  // Task entry helpers
+  createTaskEntry: vi.fn((task: { id: string; title: string }) => ({
+    id: task.id,
+    title: task.title,
+    status: 'pending',
+    startedAt: null,
+    completedAt: null,
+    tokenUsage: null,
+    contextUsage: null
+  })),
+  markTaskStarted: vi.fn((entry: { id: string }) => ({ ...entry, status: 'in_progress', startedAt: new Date().toISOString() })),
+  markTaskCompleted: vi.fn((entry: { id: string }) => ({ ...entry, status: 'completed', completedAt: new Date().toISOString() })),
+  markTaskFailed: vi.fn((entry: { id: string }) => ({ ...entry, status: 'failed' })),
+  getResumeTask: vi.fn().mockReturnValue(null),
+  // Phase metric helpers
+  startPhaseMetric: vi.fn((_phaseType: string) => ({ startedAt: new Date().toISOString() })),
+  completePhaseMetric: vi.fn((metric: { startedAt: string }) => ({ ...metric, completedAt: new Date().toISOString() })),
+  accumulatePhaseMetric: vi.fn((metric: { startedAt: string }) => metric),
+  getAgentSetupInstructions: vi.fn().mockReturnValue(['Install claude CLI', 'Run claude auth'])
 }));
 
 // Mock PreviewService and its dependencies

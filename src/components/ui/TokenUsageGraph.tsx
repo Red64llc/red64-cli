@@ -6,11 +6,13 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { TaskEntry } from '../../types/index.js';
+import type { TaskEntry, PhaseMetric } from '../../types/index.js';
 
 interface TokenUsageGraphProps {
   /** Task entries with token/context usage data */
   readonly taskEntries: readonly TaskEntry[];
+  /** Phase metrics with cost data */
+  readonly phaseMetrics?: Record<string, PhaseMetric>;
   /** Width of the graph area (default: 60) */
   readonly width?: number;
 }
@@ -30,6 +32,34 @@ function formatTokens(tokens: number): string {
   }
   return `${tokens}`;
 }
+
+/**
+ * Format cost for display (e.g., 0.0475 -> "$0.05")
+ */
+function formatCost(cost: number): string {
+  if (cost >= 1) {
+    return `$${cost.toFixed(2)}`;
+  }
+  if (cost >= 0.01) {
+    return `$${cost.toFixed(2)}`;
+  }
+  if (cost >= 0.001) {
+    return `$${cost.toFixed(3)}`;
+  }
+  return `$${cost.toFixed(4)}`;
+}
+
+/**
+ * Phase display labels for readable output
+ */
+const PHASE_LABELS: Record<string, string> = {
+  'requirements-generating': 'Requirements',
+  'gap-analysis': 'Gap Analysis',
+  'design-generating': 'Design',
+  'design-validation': 'Design Validation',
+  'tasks-generating': 'Tasks',
+  'implementing': 'Implementation'
+};
 
 /**
  * Generate a utilization bar (e.g., [████████░░░░░░░░░░░░] 35.2%)
@@ -56,6 +86,7 @@ function getUtilizationColor(percent: number): string {
  */
 export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
   taskEntries,
+  phaseMetrics,
   width = 60,
 }) => {
   // Filter to completed tasks with context usage data
@@ -63,8 +94,23 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
     t => t.status === 'completed' && (t.contextUsage || t.tokenUsage)
   );
 
-  // Empty state
-  if (completedTasks.length === 0) {
+  // Calculate total cost from phase metrics
+  const phaseCosts = phaseMetrics
+    ? Object.entries(phaseMetrics)
+        .filter(([_, m]) => m.costUsd !== undefined && m.costUsd > 0)
+        .map(([phase, m]) => ({
+          phase,
+          label: PHASE_LABELS[phase] ?? phase,
+          cost: m.costUsd ?? 0,
+          tokens: (m.inputTokens ?? 0) + (m.outputTokens ?? 0)
+        }))
+        .sort((a, b) => b.cost - a.cost)
+    : [];
+
+  const totalCost = phaseCosts.reduce((sum, p) => sum + p.cost, 0);
+
+  // Empty state - show if no tasks AND no phase costs
+  if (completedTasks.length === 0 && phaseCosts.length === 0) {
     return (
       <Box
         flexDirection="column"
@@ -144,6 +190,24 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
             {generateUtilizationBar(lastUtilization, barWidth)}
           </Text>
           <Text dimColor> {lastUtilization.toFixed(1)}% of {formatTokens(contextWindow)}</Text>
+        </Box>
+      )}
+
+      {/* Cost breakdown by phase */}
+      {phaseCosts.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          <Text bold dimColor>{'\u2500'} Cost by Phase {'\u2500'}</Text>
+          {phaseCosts.map(({ label, cost, tokens }) => (
+            <Box key={label}>
+              <Text dimColor>{label.padEnd(18)}</Text>
+              <Text color="yellow">{formatCost(cost).padStart(8)}</Text>
+              <Text dimColor> ({formatTokens(tokens)} tokens)</Text>
+            </Box>
+          ))}
+          <Box marginTop={1}>
+            <Text bold>{'Total Cost:'.padEnd(18)}</Text>
+            <Text bold color="yellow">{formatCost(totalCost).padStart(8)}</Text>
+          </Box>
         </Box>
       )}
 
