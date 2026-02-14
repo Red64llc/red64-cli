@@ -16,6 +16,7 @@ export type ClaudeErrorCode =
   | 'CONTEXT_EXCEEDED'     // Context length exceeded
   | 'NETWORK_ERROR'        // Network connectivity issues
   | 'PERMISSION_DENIED'    // Permission/safety refusal
+  | 'DOCKER_UNAVAILABLE'   // Docker daemon not responding
   | 'UNKNOWN';             // Unclassified error
 
 /**
@@ -222,6 +223,26 @@ const ERROR_PATTERNS: Array<{
     suggestion: 'Content was flagged by safety systems'
   },
 
+  // Docker infrastructure errors
+  {
+    pattern: /Cannot connect to the Docker daemon/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Start Docker Desktop or the Docker daemon and try again'
+  },
+  {
+    pattern: /docker.*daemon.*not running/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Start Docker Desktop or the Docker daemon and try again'
+  },
+  {
+    pattern: /Is the docker daemon running/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Start Docker Desktop or the Docker daemon and try again'
+  },
+
   // Claude CLI internal errors
   {
     pattern: /No messages returned/i,
@@ -329,5 +350,39 @@ const ERROR_CODE_LABELS: Record<ClaudeErrorCode, string> = {
   CONTEXT_EXCEEDED: 'Context Too Large',
   NETWORK_ERROR: 'Network Error',
   PERMISSION_DENIED: 'Request Blocked',
+  DOCKER_UNAVAILABLE: 'Docker Unavailable',
   UNKNOWN: 'Unknown Error'
 };
+
+/**
+ * Critical error codes that should abort the entire flow immediately
+ * These errors indicate infrastructure issues that won't be resolved by retrying
+ */
+export const CRITICAL_ERROR_CODES: readonly ClaudeErrorCode[] = [
+  'DOCKER_UNAVAILABLE',
+  'CREDIT_EXHAUSTED',
+  'AUTH_FAILED',
+  'CLI_NOT_FOUND'
+] as const;
+
+/**
+ * Check if an error is critical (should abort the entire flow)
+ */
+export function isCriticalError(error: ClaudeError | null | undefined): boolean {
+  if (!error) return false;
+  return CRITICAL_ERROR_CODES.includes(error.code);
+}
+
+/**
+ * Check if an error message indicates a critical infrastructure issue
+ * This can be used when ClaudeError is not available (e.g., raw error strings)
+ */
+export function isCriticalErrorMessage(errorMessage: string | undefined): boolean {
+  if (!errorMessage) return false;
+  const criticalPatterns = [
+    /Cannot connect to the Docker daemon/i,
+    /docker.*daemon.*not running/i,
+    /Is the docker daemon running/i,
+  ];
+  return criticalPatterns.some(pattern => pattern.test(errorMessage));
+}

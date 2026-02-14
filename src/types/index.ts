@@ -319,6 +319,7 @@ export type ClaudeErrorCode =
   | 'CONTEXT_EXCEEDED'     // Context length exceeded
   | 'NETWORK_ERROR'        // Network connectivity issues
   | 'PERMISSION_DENIED'    // Permission/safety refusal
+  | 'DOCKER_UNAVAILABLE'   // Docker daemon not responding
   | 'UNKNOWN';             // Unclassified error
 
 /**

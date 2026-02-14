@@ -146,6 +146,9 @@ export {
 
 export {
   createClaudeErrorDetector,
+  isCriticalError,
+  isCriticalErrorMessage,
+  CRITICAL_ERROR_CODES,
   type ClaudeErrorDetectorService,
   type ClaudeError,
   type ClaudeErrorCode

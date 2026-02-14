@@ -1,0 +1,1531 @@
+{
+  "feature": "remote-control",
+  "phase": {
+    "type": "implementing",
+    "feature": "remote-control",
+    "currentTask": 21,
+    "totalTasks": 30
+  },
+  "createdAt": "2026-02-13T09:12:52.480Z",
+  "updatedAt": "2026-02-13T13:46:06.983Z",
+  "history": [
+    {
+      "phase": {
+        "type": "initializing",
+        "feature": "remote-control",
+        "description": "user wants to be able to monitor CLI progress and control CLI process remotely:this can be done though a telegram bot that sends updates as the CLI progresses. The bots needs to handle HITL gates: artifact review: accept or reject steps"
+      },
+      "timestamp": "2026-02-13T09:12:52.480Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-generating",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:12:52.671Z"
+    },
+    {
+      "phase": {
+        "type": "requirements-approval",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:14:22.259Z"
+    },
+    {
+      "phase": {
+        "type": "gap-analysis",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:17:09.756Z"
+    },
+    {
+      "phase": {
+        "type": "design-generating",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:42:26.606Z"
+    },
+    {
+      "phase": {
+        "type": "design-approval",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:47:54.745Z"
+    },
+    {
+      "phase": {
+        "type": "design-validation",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:56:30.286Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T09:59:24.218Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-approval",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T10:01:27.538Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:16:50.027Z"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:16:50.038Z",
+      "event": "TASK_START",
+      "subStep": "task-1.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:22:48.935Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-1.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:22:49.116Z",
+      "event": "TASK_START",
+      "subStep": "task-1.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:27:49.025Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-1.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:27:49.205Z",
+      "event": "TASK_START",
+      "subStep": "task-2.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:34:47.913Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:34:48.128Z",
+      "event": "TASK_START",
+      "subStep": "task-2.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:41:21.721Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:41:21.914Z",
+      "event": "TASK_START",
+      "subStep": "task-2.3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:45:30.849Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-2.3-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:45:31.037Z",
+      "event": "TASK_START",
+      "subStep": "task-3.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:49:26.924Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:49:27.122Z",
+      "event": "TASK_START",
+      "subStep": "task-3.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:53:12.090Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-3.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:53:12.269Z",
+      "event": "TASK_START",
+      "subStep": "task-4.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:57:14.314Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-4.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T10:57:14.504Z",
+      "event": "TASK_START",
+      "subStep": "task-4.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:02:59.422Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-4.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:02:59.617Z",
+      "event": "TASK_START",
+      "subStep": "task-5.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:08:12.184Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-5.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:08:12.372Z",
+      "event": "TASK_START",
+      "subStep": "task-5.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:13:29.178Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-5.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:13:29.397Z",
+      "event": "TASK_START",
+      "subStep": "task-6.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:39:27.258Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-6.1-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:39:27.260Z",
+      "event": "TASK_START",
+      "subStep": "task-6.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:57:48.142Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-6.2-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T11:57:48.144Z",
+      "event": "TASK_START",
+      "subStep": "task-6.3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:02:47.433Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-6.3-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:02:47.632Z",
+      "event": "TASK_START",
+      "subStep": "task-7.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:07:20.001Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-7.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:07:20.201Z",
+      "event": "TASK_START",
+      "subStep": "task-7.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:20:27.945Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-7.2-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:20:27.947Z",
+      "event": "TASK_START",
+      "subStep": "task-7.3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:25:36.106Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-7.3-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:25:36.282Z",
+      "event": "TASK_START",
+      "subStep": "task-7.4-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:30:41.545Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-7.4-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:30:41.721Z",
+      "event": "TASK_START",
+      "subStep": "task-7.5-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:56:29.479Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-7.5-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T12:56:29.481Z",
+      "event": "TASK_START",
+      "subStep": "task-8.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:01:04.859Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-8.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:01:05.045Z",
+      "event": "TASK_START",
+      "subStep": "task-8.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:12:06.605Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-8.2-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:12:06.607Z",
+      "event": "TASK_START",
+      "subStep": "task-8.3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:17:27.748Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-8.3-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:17:27.928Z",
+      "event": "TASK_START",
+      "subStep": "task-8.4-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:24:31.714Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-8.4-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:24:31.920Z",
+      "event": "TASK_START",
+      "subStep": "task-9.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:31:04.727Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-9.1-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:31:04.973Z",
+      "event": "TASK_START",
+      "subStep": "task-9.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:39:57.586Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "task-9.2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:39:57.802Z",
+      "event": "TASK_START",
+      "subStep": "task-10.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.577Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-10.1-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.580Z",
+      "event": "TASK_START",
+      "subStep": "task-10.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.682Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-10.2-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.683Z",
+      "event": "TASK_START",
+      "subStep": "task-11.1-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.779Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-11.1-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.780Z",
+      "event": "TASK_START",
+      "subStep": "task-11.2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.879Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-11.2-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.880Z",
+      "event": "TASK_START",
+      "subStep": "task-11.3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "feature": "remote-control",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-13T13:46:06.979Z",
+      "event": "TASK_FAILED",
+      "subStep": "task-11.3-failed"
+    },
+    {
+      "phase": {
+        "type": "complete",
+        "feature": "remote-control"
+      },
+      "timestamp": "2026-02-13T13:46:06.983Z"
+    }
+  ],
+  "metadata": {
+    "description": "user wants to be able to monitor CLI progress and control CLI process remotely:this can be done though a telegram bot that sends updates as the CLI progresses. The bots needs to handle HITL gates: artifact review: accept or reject steps",
+    "mode": "brownfield",
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/remote-control",
+    "resolvedFeatureName": "remote-control"
+  },
+  "taskProgress": {
+    "completedGroups": [],
+    "totalGroups": 11,
+    "currentGroup": 1,
+    "subTasksInCurrentGroup": {
+      "completed": [],
+      "total": 2
+    },
+    "taskEntries": [
+      {
+        "id": "1.1",
+        "title": "Extend configuration system to support Telegram credentials",
+        "startedAt": "2026-02-13T10:16:50.038Z",
+        "completedAt": "2026-02-13T10:22:48.931Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 19935,
+          "outputTokens": 17866,
+          "totalTokens": 37801,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2369928,
+          "cacheCreationTokens": 206543,
+          "costUsd": 3.05108875
+        },
+        "contextUsage": {
+          "inputTokens": 19935,
+          "outputTokens": 17866,
+          "totalTokens": 37801,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2369928,
+          "cacheCreationTokens": 206543,
+          "costUsd": 3.05108875,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 9.9675,
+          "cumulativeInputTokens": 19935,
+          "cumulativeUtilization": 9.9675,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "1.2",
+        "title": "Define shared types and error definitions for remote control domain",
+        "startedAt": "2026-02-13T10:22:49.116Z",
+        "completedAt": "2026-02-13T10:27:49.024Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 24880,
+          "outputTokens": 20347,
+          "totalTokens": 45227,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1852780,
+          "cacheCreationTokens": 95606,
+          "costUsd": 2.1791824999999996
+        },
+        "contextUsage": {
+          "inputTokens": 24880,
+          "outputTokens": 20347,
+          "totalTokens": 45227,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1852780,
+          "cacheCreationTokens": 95606,
+          "costUsd": 2.1791824999999996,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 12.44,
+          "cumulativeInputTokens": 44815,
+          "cumulativeUtilization": 22.4075,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "2.1",
+        "title": "Build core Telegram bot service for API communication",
+        "startedAt": "2026-02-13T10:27:49.205Z",
+        "completedAt": "2026-02-13T10:34:47.909Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 21531,
+          "outputTokens": 26549,
+          "totalTokens": 48080,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2959436,
+          "cacheCreationTokens": 253221,
+          "costUsd": 3.85823525
+        },
+        "contextUsage": {
+          "inputTokens": 21531,
+          "outputTokens": 26549,
+          "totalTokens": 48080,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2959436,
+          "cacheCreationTokens": 253221,
+          "costUsd": 3.85823525,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 10.7655,
+          "cumulativeInputTokens": 66346,
+          "cumulativeUtilization": 33.173,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "2.2",
+        "title": "Implement message sending capabilities",
+        "startedAt": "2026-02-13T10:34:48.128Z",
+        "completedAt": "2026-02-13T10:41:21.720Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 17099,
+          "outputTokens": 13356,
+          "totalTokens": 30455,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2639554,
+          "cacheCreationTokens": 169141,
+          "costUsd": 2.81424625
+        },
+        "contextUsage": {
+          "inputTokens": 17099,
+          "outputTokens": 13356,
+          "totalTokens": 30455,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2639554,
+          "cacheCreationTokens": 169141,
+          "costUsd": 2.81424625,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 8.5495,
+          "cumulativeInputTokens": 83445,
+          "cumulativeUtilization": 41.722500000000004,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "2.3",
+        "title": "Implement command and callback handling with authorization",
+        "startedAt": "2026-02-13T10:41:21.914Z",
+        "completedAt": "2026-02-13T10:45:30.847Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 24867,
+          "outputTokens": 12945,
+          "totalTokens": 37812,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 3040427,
+          "cacheCreationTokens": 116641,
+          "costUsd": 2.716416749999999
+        },
+        "contextUsage": {
+          "inputTokens": 24867,
+          "outputTokens": 12945,
+          "totalTokens": 37812,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 3040427,
+          "cacheCreationTokens": 116641,
+          "costUsd": 2.716416749999999,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 12.4335,
+          "cumulativeInputTokens": 108312,
+          "cumulativeUtilization": 54.156000000000006,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "3.1",
+        "title": "Build message queue service for offline persistence",
+        "startedAt": "2026-02-13T10:45:31.037Z",
+        "completedAt": "2026-02-13T10:49:26.922Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 25008,
+          "outputTokens": 13096,
+          "totalTokens": 38104,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1710589,
+          "cacheCreationTokens": 124271,
+          "costUsd": 2.103709249999999
+        },
+        "contextUsage": {
+          "inputTokens": 25008,
+          "outputTokens": 13096,
+          "totalTokens": 38104,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1710589,
+          "cacheCreationTokens": 124271,
+          "costUsd": 2.103709249999999,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 12.504000000000001,
+          "cumulativeInputTokens": 133320,
+          "cumulativeUtilization": 66.66,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "3.2",
+        "title": "Implement queue management and statistics",
+        "startedAt": "2026-02-13T10:49:27.121Z",
+        "completedAt": "2026-02-13T10:53:12.087Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 26642,
+          "outputTokens": 9868,
+          "totalTokens": 36510,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2309701,
+          "cacheCreationTokens": 120691,
+          "costUsd": 2.3015802499999993
+        },
+        "contextUsage": {
+          "inputTokens": 26642,
+          "outputTokens": 9868,
+          "totalTokens": 36510,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2309701,
+          "cacheCreationTokens": 120691,
+          "costUsd": 2.3015802499999993,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 13.321,
+          "cumulativeInputTokens": 159962,
+          "cumulativeUtilization": 79.98100000000001,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "4.1",
+        "title": "Build session management for multi-session tracking",
+        "startedAt": "2026-02-13T10:53:12.268Z",
+        "completedAt": "2026-02-13T10:57:14.312Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 20808,
+          "outputTokens": 10143,
+          "totalTokens": 30951,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2697032,
+          "cacheCreationTokens": 114728,
+          "costUsd": 2.447423
+        },
+        "contextUsage": {
+          "inputTokens": 20808,
+          "outputTokens": 10143,
+          "totalTokens": 30951,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2697032,
+          "cacheCreationTokens": 114728,
+          "costUsd": 2.447423,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 10.404,
+          "cumulativeInputTokens": 180770,
+          "cumulativeUtilization": 90.385,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "4.2",
+        "title": "Implement session lifecycle management",
+        "startedAt": "2026-02-13T10:57:14.504Z",
+        "completedAt": "2026-02-13T11:02:59.421Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 12903,
+          "outputTokens": 11198,
+          "totalTokens": 24101,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1987849,
+          "cacheCreationTokens": 153419,
+          "costUsd": 2.3129672500000003
+        },
+        "contextUsage": {
+          "inputTokens": 12903,
+          "outputTokens": 11198,
+          "totalTokens": 24101,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1987849,
+          "cacheCreationTokens": 153419,
+          "costUsd": 2.3129672500000003,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 6.4515,
+          "cumulativeInputTokens": 193673,
+          "cumulativeUtilization": 96.8365,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "5.1",
+        "title": "Create message formatting utilities for Telegram display",
+        "startedAt": "2026-02-13T11:02:59.617Z",
+        "completedAt": "2026-02-13T11:08:12.182Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 21573,
+          "outputTokens": 18565,
+          "totalTokens": 40138,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2191756,
+          "cacheCreationTokens": 114242,
+          "costUsd": 2.4037154999999992
+        },
+        "contextUsage": {
+          "inputTokens": 21573,
+          "outputTokens": 18565,
+          "totalTokens": 40138,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2191756,
+          "cacheCreationTokens": 114242,
+          "costUsd": 2.4037154999999992,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 10.7865,
+          "cumulativeInputTokens": 215246,
+          "cumulativeUtilization": 107.623,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "5.2",
+        "title": "Implement artifact preview formatting",
+        "startedAt": "2026-02-13T11:08:12.372Z",
+        "completedAt": "2026-02-13T11:13:29.176Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 16254,
+          "outputTokens": 12095,
+          "totalTokens": 28349,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1987797,
+          "cacheCreationTokens": 146959,
+          "costUsd": 2.312412249999999
+        },
+        "contextUsage": {
+          "inputTokens": 16254,
+          "outputTokens": 12095,
+          "totalTokens": 28349,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 1987797,
+          "cacheCreationTokens": 146959,
+          "costUsd": 2.312412249999999,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 8.126999999999999,
+          "cumulativeInputTokens": 231500,
+          "cumulativeUtilization": 115.75,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "6.1",
+        "title": "Build command routing and parsing system",
+        "startedAt": "2026-02-13T11:13:29.396Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "6.2",
+        "title": "Implement command handlers for control commands",
+        "startedAt": "2026-02-13T11:39:27.260Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "6.3",
+        "title": "Implement abort command with confirmation",
+        "startedAt": "2026-02-13T11:57:48.143Z",
+        "completedAt": "2026-02-13T12:02:47.431Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 24463,
+          "outputTokens": 14064,
+          "totalTokens": 38527,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 3506038,
+          "cacheCreationTokens": 232840,
+          "costUsd": 3.7009689999999984
+        },
+        "contextUsage": {
+          "inputTokens": 24463,
+          "outputTokens": 14064,
+          "totalTokens": 38527,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 3506038,
+          "cacheCreationTokens": 232840,
+          "costUsd": 3.7009689999999984,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 12.231499999999999,
+          "cumulativeInputTokens": 255963,
+          "cumulativeUtilization": 127.9815,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "7.1",
+        "title": "Build remote control service for CLI orchestration",
+        "startedAt": "2026-02-13T12:02:47.632Z",
+        "completedAt": "2026-02-13T12:07:19.996Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 24537,
+          "outputTokens": 12894,
+          "totalTokens": 37431,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2571700,
+          "cacheCreationTokens": 130607,
+          "costUsd": 2.56238175
+        },
+        "contextUsage": {
+          "inputTokens": 24537,
+          "outputTokens": 12894,
+          "totalTokens": 37431,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2571700,
+          "cacheCreationTokens": 130607,
+          "costUsd": 2.56238175,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 12.2685,
+          "cumulativeInputTokens": 280500,
+          "cumulativeUtilization": 140.25,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "7.2",
+        "title": "Implement progress notification capabilities",
+        "startedAt": "2026-02-13T12:07:20.201Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "7.3",
+        "title": "Implement HITL gate notification system",
+        "startedAt": "2026-02-13T12:20:27.946Z",
+        "completedAt": "2026-02-13T12:25:36.104Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 4102,
+          "outputTokens": 16393,
+          "totalTokens": 20495,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2793316,
+          "cacheCreationTokens": 152355,
+          "costUsd": 2.79314975
+        },
+        "contextUsage": {
+          "inputTokens": 4102,
+          "outputTokens": 16393,
+          "totalTokens": 20495,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2793316,
+          "cacheCreationTokens": 152355,
+          "costUsd": 2.79314975,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 2.051,
+          "cumulativeInputTokens": 284602,
+          "cumulativeUtilization": 142.30100000000002,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "7.4",
+        "title": "Implement artifact preview capabilities",
+        "startedAt": "2026-02-13T12:25:36.282Z",
+        "completedAt": "2026-02-13T12:30:41.544Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 32375,
+          "outputTokens": 17366,
+          "totalTokens": 49741,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2651323,
+          "cacheCreationTokens": 222513,
+          "costUsd": 3.33042275
+        },
+        "contextUsage": {
+          "inputTokens": 32375,
+          "outputTokens": 17366,
+          "totalTokens": 49741,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2651323,
+          "cacheCreationTokens": 222513,
+          "costUsd": 3.33042275,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 16.1875,
+          "cumulativeInputTokens": 316977,
+          "cumulativeUtilization": 158.48850000000002,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "7.5",
+        "title": "Integrate message queue for offline resilience",
+        "startedAt": "2026-02-13T12:30:41.721Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "8.1",
+        "title": "Build approval bridge between Telegram and flow machine",
+        "startedAt": "2026-02-13T12:56:29.481Z",
+        "completedAt": "2026-02-13T13:01:04.857Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 27740,
+          "outputTokens": 15287,
+          "totalTokens": 43027,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2050507,
+          "cacheCreationTokens": 127942,
+          "costUsd": 2.3707510000000003
+        },
+        "contextUsage": {
+          "inputTokens": 27740,
+          "outputTokens": 15287,
+          "totalTokens": 43027,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2050507,
+          "cacheCreationTokens": 127942,
+          "costUsd": 2.3707510000000003,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 13.87,
+          "cumulativeInputTokens": 344717,
+          "cumulativeUtilization": 172.3585,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "8.2",
+        "title": "Implement approval handling from Telegram",
+        "startedAt": "2026-02-13T13:01:05.045Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "8.3",
+        "title": "Implement rejection handling from Telegram",
+        "startedAt": "2026-02-13T13:12:06.606Z",
+        "completedAt": "2026-02-13T13:17:27.746Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 20198,
+          "outputTokens": 14355,
+          "totalTokens": 34553,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2850696,
+          "cacheCreationTokens": 135268,
+          "costUsd": 2.753026999999998
+        },
+        "contextUsage": {
+          "inputTokens": 20198,
+          "outputTokens": 14355,
+          "totalTokens": 34553,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2850696,
+          "cacheCreationTokens": 135268,
+          "costUsd": 2.753026999999998,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 10.099,
+          "cumulativeInputTokens": 364915,
+          "cumulativeUtilization": 182.4575,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "8.4",
+        "title": "Implement timeout and fallback behavior",
+        "startedAt": "2026-02-13T13:17:27.927Z",
+        "completedAt": "2026-02-13T13:24:31.713Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 31577,
+          "outputTokens": 24170,
+          "totalTokens": 55747,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 4621853,
+          "cacheCreationTokens": 280835,
+          "costUsd": 4.86054325
+        },
+        "contextUsage": {
+          "inputTokens": 31577,
+          "outputTokens": 24170,
+          "totalTokens": 55747,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 4621853,
+          "cacheCreationTokens": 280835,
+          "costUsd": 4.86054325,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 15.788499999999999,
+          "cumulativeInputTokens": 396492,
+          "cumulativeUtilization": 198.246,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "9.1",
+        "title": "Implement authorization enforcement",
+        "startedAt": "2026-02-13T13:24:31.920Z",
+        "completedAt": "2026-02-13T13:31:04.724Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 30474,
+          "outputTokens": 12528,
+          "totalTokens": 43002,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2016473,
+          "cacheCreationTokens": 172037,
+          "costUsd": 2.58826175
+        },
+        "contextUsage": {
+          "inputTokens": 30474,
+          "outputTokens": 12528,
+          "totalTokens": 43002,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 2016473,
+          "cacheCreationTokens": 172037,
+          "costUsd": 2.58826175,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 15.237,
+          "cumulativeInputTokens": 426966,
+          "cumulativeUtilization": 213.483,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "9.2",
+        "title": "Implement data protection measures",
+        "startedAt": "2026-02-13T13:31:04.973Z",
+        "completedAt": "2026-02-13T13:39:57.584Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 45844,
+          "outputTokens": 24928,
+          "totalTokens": 70772,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 5746833,
+          "cacheCreationTokens": 324591,
+          "costUsd": 5.779645249999998
+        },
+        "contextUsage": {
+          "inputTokens": 45844,
+          "outputTokens": 24928,
+          "totalTokens": 70772,
+          "model": "claude-opus-4-5-20251101",
+          "cacheReadTokens": 5746833,
+          "cacheCreationTokens": 324591,
+          "costUsd": 5.779645249999998,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 22.922,
+          "cumulativeInputTokens": 472810,
+          "cumulativeUtilization": 236.40500000000003,
+          "modelFamily": "unknown"
+        }
+      },
+      {
+        "id": "10.1",
+        "title": "Integrate remote control service with CLI entry point",
+        "startedAt": "2026-02-13T13:39:57.802Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "10.2",
+        "title": "Integrate approval bridge with existing HITL gate handling",
+        "startedAt": "2026-02-13T13:46:06.579Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "11.1",
+        "title": "Unit tests for formatting and routing utilities",
+        "startedAt": "2026-02-13T13:46:06.683Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "11.2",
+        "title": "Unit tests for services",
+        "startedAt": "2026-02-13T13:46:06.780Z",
+        "completedAt": null,
+        "status": "failed"
+      },
+      {
+        "id": "11.3",
+        "title": "Integration tests with mocked Telegram API",
+        "startedAt": "2026-02-13T13:46:06.880Z",
+        "completedAt": null,
+        "status": "failed"
+      }
+    ],
+    "currentTaskId": "11.3"
+  },
+  "phaseMetrics": {
+    "requirements-generating": {
+      "startedAt": "2026-02-13T09:12:52.672Z",
+      "completedAt": "2026-02-13T09:14:21.679Z",
+      "elapsedMs": 89007,
+      "costUsd": 0.706301,
+      "inputTokens": 2386,
+      "outputTokens": 4704,
+      "cacheReadTokens": 231542,
+      "cacheCreationTokens": 73760
+    },
+    "gap-analysis": {
+      "startedAt": "2026-02-13T09:17:09.758Z",
+      "completedAt": "2026-02-13T09:19:46.096Z",
+      "elapsedMs": 156338,
+      "costUsd": 1.3295240000000002,
+      "inputTokens": 7492,
+      "outputTokens": 6598,
+      "cacheReadTokens": 884178,
+      "cacheCreationTokens": 109604
+    },
+    "design-generating": {
+      "startedAt": "2026-02-13T09:42:26.611Z",
+      "completedAt": "2026-02-13T09:47:54.516Z",
+      "elapsedMs": 327905,
+      "costUsd": 2.4264090000000005,
+      "inputTokens": 14253,
+      "outputTokens": 19826,
+      "cacheReadTokens": 962713,
+      "cacheCreationTokens": 212502
+    },
+    "design-validation": {
+      "startedAt": "2026-02-13T09:56:30.289Z",
+      "completedAt": "2026-02-13T09:57:34.784Z",
+      "elapsedMs": 64495,
+      "costUsd": 0.7901624999999999,
+      "inputTokens": 15972,
+      "outputTokens": 2953,
+      "cacheReadTokens": 49780,
+      "cacheCreationTokens": 97854
+    },
+    "tasks-generating": {
+      "startedAt": "2026-02-13T09:59:24.222Z",
+      "completedAt": "2026-02-13T10:01:27.324Z",
+      "elapsedMs": 123102,
+      "costUsd": 1.01192,
+      "inputTokens": 10891,
+      "outputTokens": 6352,
+      "cacheReadTokens": 420405,
+      "cacheCreationTokens": 94154
+    }
+  },
+  "artifacts": [
+    {
+      "name": "Spec Config",
+      "filename": "spec.json",
+      "path": ".red64/specs/remote-control/spec.json",
+      "phase": "initializing",
+      "createdAt": "2026-02-13T09:12:52.491Z"
+    },
+    {
+      "name": "Requirements",
+      "filename": "requirements.md",
+      "path": ".red64/specs/remote-control/requirements.md",
+      "phase": "requirements-generating",
+      "createdAt": "2026-02-13T09:14:22.246Z"
+    },
+    {
+      "name": "Gap Analysis",
+      "filename": "gap-analysis.md",
+      "path": ".red64/specs/remote-control/gap-analysis.md",
+      "phase": "gap-analysis",
+      "createdAt": "2026-02-13T09:19:46.243Z"
+    },
+    {
+      "name": "Design",
+      "filename": "design.md",
+      "path": ".red64/specs/remote-control/design.md",
+      "phase": "design-generating",
+      "createdAt": "2026-02-13T09:47:54.742Z"
+    },
+    {
+      "name": "Tasks",
+      "filename": "tasks.md",
+      "path": ".red64/specs/remote-control/tasks.md",
+      "phase": "tasks-generating",
+      "createdAt": "2026-02-13T10:01:27.535Z"
+    }
+  ],
+  "version": 2
+}

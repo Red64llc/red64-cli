@@ -45,6 +45,8 @@ import {
   createTestRunner,
   sanitizeFeatureName,
   createContextUsageCalculator,
+  isCriticalError,
+  isCriticalErrorMessage,
   type Task,
   type ClaudeError,
   type GitStatus
@@ -2082,7 +2084,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           event: 'TASK_FAILED',
           subStep: `task-${task.id}-failed`
         });
-        // Continue to next task instead of failing entirely
+
+        // Check for critical infrastructure errors that should abort the flow
+        if (isCriticalError(result.claudeError) || isCriticalErrorMessage(result.error)) {
+          addOutput('');
+          addOutput('Critical error detected - aborting flow');
+          const errorMsg = result.claudeError?.suggestion ?? result.error ?? 'Infrastructure error';
+          setFlowState(prev => ({ ...prev, error: errorMsg }));
+          return; // Abort the entire task loop
+        }
+
+        // Continue to next task for non-critical failures
         continue;
       }
 
@@ -2135,12 +2147,32 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       addOutput('');
     }
 
-    // All tasks complete - finalize implementation phase metrics
+    // All tasks iterated - finalize implementation phase metrics
     const completedImplMetric = completePhaseMetric(implPhaseMetric, undefined);
     setFlowState(prev => ({
       ...prev,
       phaseMetrics: { ...prev.phaseMetrics, 'implementing': completedImplMetric }
     }));
+
+    // Check if any tasks failed
+    const failedTasks = taskEntries.filter(e => e.status === 'failed');
+    const completedTasks = taskEntries.filter(e => e.status === 'completed');
+
+    if (failedTasks.length > 0) {
+      addOutput('');
+      addOutput(`Flow finished with errors: ${failedTasks.length} task(s) failed, ${completedTasks.length} completed`);
+      addOutput(`Worktree: ${flowState.worktreePath ?? 'none'}`);
+      addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
+      addOutput('');
+      addOutput('Failed tasks:');
+      for (const entry of failedTasks) {
+        const task = tasks.find(t => t.id === entry.id);
+        addOutput(`  - ${entry.id}: ${task?.title ?? 'Unknown task'}`);
+      }
+      addOutput('');
+      addOutput('Run "red64 start" to resume from the first failed task');
+      return;
+    }
 
     addOutput('All tasks completed!');
     await completeFlow(workDir);
