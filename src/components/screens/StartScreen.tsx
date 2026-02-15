@@ -226,6 +226,7 @@ interface FlowScreenState {
   agent: CodingAgent;  // Coding agent from config
   artifacts: Artifact[];  // Generated artifacts for display
   history: HistoryEntry[];  // Phase history for UI display
+  maxContextPercent: number;  // Peak context utilization (single task, not cumulative)
 }
 
 /**
@@ -347,7 +348,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     commitCount: 0,  // Number of commits for this feature
     agent: 'claude',  // Default, will be loaded from config
     artifacts: [],  // Generated artifacts
-    history: []  // Phase history for sidebar display
+    history: [],  // Phase history for sidebar display
+    maxContextPercent: 0  // Peak context utilization across all tasks
   });
 
   // Track if sidebar is focused (for keyboard navigation)
@@ -901,12 +903,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       artifacts: flowState.artifacts.length > 0
         ? flowState.artifacts
         : existingState?.artifacts,
+      // Peak context utilization (persisted for tracking across sessions)
+      maxContextPercent: Math.max(flowState.maxContextPercent, existingState?.maxContextPercent ?? 0),
       // Schema version for migrations
       version: CURRENT_STATE_VERSION
     };
 
     await stateStore.save(state);
-  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.tasks, flowState.phaseMetrics, flowState.artifacts, getWorkingDir, repoPath]);
+  }, [featureName, description, mode, flags.tier, flowState.worktreePath, flowState.resolvedFeatureName, flowState.completedTasks, flowState.totalTasks, flowState.tasks, flowState.phaseMetrics, flowState.artifacts, flowState.maxContextPercent, getWorkingDir, repoPath]);
 
   // Transition to next phase
   const transitionPhase = useCallback((event: Parameters<typeof services.flowMachine.send>[0]) => {
@@ -1041,7 +1045,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
                 history: existingHistory.length > 0 ? existingHistory : prev.history,
                 tasks,
                 totalTasks: tasks.length,
-                currentTask: tasks.length - pendingTasks.length
+                currentTask: tasks.length - pendingTasks.length,
+                maxContextPercent: correctedState.maxContextPercent ?? prev.maxContextPercent
               }));
               return;
             }
@@ -1057,7 +1062,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
             history: existingHistory.length > 0 ? existingHistory : prev.history,
             completedTasks: [...completedTasks],
-            totalTasks
+            totalTasks,
+            maxContextPercent: existingState.maxContextPercent ?? prev.maxContextPercent
           }));
           addOutput(`Found ${existingState.phase.type} flow for ${featureName}`);
           return;
@@ -1075,7 +1081,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
             history: existingHistory.length > 0 ? existingHistory : prev.history,
             completedTasks: [...completedTasks],
-            totalTasks
+            totalTasks,
+            maxContextPercent: existingState.maxContextPercent ?? prev.maxContextPercent
           }));
           addOutput(`Found existing flow at phase: ${existingState.phase.type}`);
           if (completedTasks.length > 0) {
@@ -1095,7 +1102,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           artifacts: existingArtifacts.length > 0 ? existingArtifacts : prev.artifacts,
           history: existingHistory.length > 0 ? existingHistory : prev.history,
           completedTasks: [...completedTasks],
-          totalTasks
+          totalTasks,
+          maxContextPercent: existingState.maxContextPercent ?? prev.maxContextPercent
         }));
         addOutput(`Found existing flow at phase: ${existingState.phase.type}`);
         if (completedTasks.length > 0) {
@@ -2003,8 +2011,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
     }
 
-    // Update state with fresh tasks (for UI display)
-    setFlowState(prev => ({ ...prev, tasks, totalTasks: tasks.length }));
+    // Update state with fresh tasks (for UI display), restore maxContextPercent from existing state
+    setFlowState(prev => ({
+      ...prev,
+      tasks,
+      totalTasks: tasks.length,
+      maxContextPercent: Math.max(prev.maxContextPercent, existingState?.maxContextPercent ?? 0)
+    }));
 
     // Find the task to resume: either in_progress (interrupted) or first pending
     const resumeTask = getResumeTask(taskEntries);
@@ -2121,11 +2134,13 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
       // 6. Update React state for UI (including taskEntries for usage graph)
       const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+      const currentUtilization = contextUsage?.utilizationPercent ?? 0;
       setFlowState(prev => ({
         ...prev,
         completedTasks: completedTaskIds,
         taskEntries: [...taskEntries],
-        phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric }
+        phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric },
+        maxContextPercent: Math.max(prev.maxContextPercent, currentUtilization)
       }));
 
       // 7. Save state immediately (before commit, for crash recovery)
@@ -2651,6 +2666,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           <TokenUsageGraph
             taskEntries={flowState.taskEntries}
             phaseMetrics={flowState.phaseMetrics}
+            maxContextPercent={flowState.maxContextPercent}
           />
         )}
       </Box>

@@ -15,6 +15,8 @@ interface TokenUsageGraphProps {
   readonly phaseMetrics?: Record<string, PhaseMetric>;
   /** Width of the graph area (default: 60) */
   readonly width?: number;
+  /** Peak context utilization percent ever reached (for max marker) */
+  readonly maxContextPercent?: number;
 }
 
 // Unicode block characters for different heights (8 levels)
@@ -62,13 +64,47 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 /**
- * Generate a utilization bar (e.g., [████████░░░░░░░░░░░░] 35.2%)
+ * Generate a utilization bar with optional max marker
+ * Shows current usage as filled bar, with a vertical line at max position
+ * e.g., [████████░░░░░░│░░░░░░] where │ marks peak usage
  */
-function generateUtilizationBar(percent: number, width: number): string {
+function generateUtilizationBar(
+  percent: number,
+  width: number,
+  maxPercent?: number
+): { bar: string; maxPosition?: number; maxColor?: string } {
   const clampedPercent = Math.min(100, Math.max(0, percent));
   const filled = Math.round((clampedPercent / 100) * width);
-  const empty = width - filled;
-  return '[' + '\u2588'.repeat(filled) + '\u2591'.repeat(empty) + ']';
+
+  // If no max or max equals current, just render simple bar
+  if (maxPercent === undefined || maxPercent <= clampedPercent) {
+    const empty = width - filled;
+    return { bar: '[' + '\u2588'.repeat(filled) + '\u2591'.repeat(empty) + ']' };
+  }
+
+  // Calculate max marker position
+  const clampedMax = Math.min(100, Math.max(0, maxPercent));
+  const maxPos = Math.round((clampedMax / 100) * width);
+  const maxColor = getUtilizationColor(clampedMax);
+
+  // Build bar: [filled░░░│░░░] where │ is at maxPos
+  const afterFilled = maxPos - filled - 1; // -1 for the marker itself
+  const afterMarker = width - maxPos;
+
+  if (afterFilled < 0) {
+    // Max is within filled area - just show filled bar
+    const empty = width - filled;
+    return { bar: '[' + '\u2588'.repeat(filled) + '\u2591'.repeat(empty) + ']' };
+  }
+
+  const bar = '[' +
+    '\u2588'.repeat(filled) +
+    '\u2591'.repeat(afterFilled) +
+    '\u2502' + // vertical line marker │
+    '\u2591'.repeat(afterMarker) +
+    ']';
+
+  return { bar, maxPosition: maxPos, maxColor };
 }
 
 /**
@@ -81,13 +117,63 @@ function getUtilizationColor(percent: number): string {
 }
 
 /**
+ * ContextBar Component
+ * Renders the context utilization bar with current usage and max marker
+ */
+interface ContextBarProps {
+  current: number;
+  max?: number;
+  width: number;
+  contextWindow: number;
+}
+
+const ContextBar: React.FC<ContextBarProps> = ({ current, max, width, contextWindow }) => {
+  const { bar, maxColor } = generateUtilizationBar(current, width, max);
+  const currentColor = getUtilizationColor(current);
+
+  // If there's a max marker, we need to render the bar in segments with different colors
+  if (max !== undefined && max > current) {
+    // Split the bar into: [ + filled (green) + empty before marker + marker (maxColor) + empty after + ]
+    const clampedCurrent = Math.min(100, Math.max(0, current));
+    const clampedMax = Math.min(100, Math.max(0, max));
+    const filledPos = Math.round((clampedCurrent / 100) * width);
+    const maxPos = Math.round((clampedMax / 100) * width);
+
+    const filled = '\u2588'.repeat(filledPos);
+    const beforeMarker = '\u2591'.repeat(Math.max(0, maxPos - filledPos - 1));
+    const afterMarker = '\u2591'.repeat(Math.max(0, width - maxPos));
+
+    return (
+      <>
+        <Text dimColor>[</Text>
+        <Text color={currentColor}>{filled}</Text>
+        <Text dimColor>{beforeMarker}</Text>
+        <Text color={maxColor}>{'\u2502'}</Text>
+        <Text dimColor>{afterMarker}</Text>
+        <Text dimColor>]</Text>
+        <Text dimColor> {current.toFixed(1)}% of {formatTokens(contextWindow)}</Text>
+      </>
+    );
+  }
+
+  // Simple bar without max marker
+  return (
+    <>
+      <Text color={currentColor}>{bar}</Text>
+      <Text dimColor> {current.toFixed(1)}% of {formatTokens(contextWindow)}</Text>
+    </>
+  );
+};
+
+/**
  * TokenUsageGraph Component
- * Renders a time-series graph of token usage per task with cumulative context utilization
+ * Renders a time-series graph of token usage per task with context utilization
  */
 export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
   taskEntries,
   phaseMetrics,
   width = 60,
+  maxContextPercent,
 }) => {
   // Filter to completed tasks with context usage data
   const completedTasks = taskEntries.filter(
@@ -162,9 +248,9 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
   const totalInput = Math.max(taskInput, phaseInput);
   const totalOutput = Math.max(taskOutput, phaseOutput);
 
-  // Get cumulative utilization from last task (if available)
+  // Get current task's context utilization (not cumulative - single task peak is what matters)
   const lastTask = completedTasks[completedTasks.length - 1];
-  const lastUtilization = lastTask?.contextUsage?.cumulativeUtilization ?? 0;
+  const currentUtilization = lastTask?.contextUsage?.utilizationPercent ?? 0;
   const contextWindow = lastTask?.contextUsage?.contextWindowSize ?? 200000;
   const modelFamily = lastTask?.contextUsage?.modelFamily ?? 'unknown';
 
@@ -194,14 +280,16 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
         <Text color="magenta">{formatTokens(totalOutput)} total</Text>
       </Box>
 
-      {/* Cumulative context utilization bar */}
-      {lastUtilization > 0 && (
+      {/* Context utilization bar with max marker */}
+      {(currentUtilization > 0 || maxContextPercent) && (
         <Box marginTop={1}>
           <Text dimColor>Context: </Text>
-          <Text color={getUtilizationColor(lastUtilization)}>
-            {generateUtilizationBar(lastUtilization, barWidth)}
-          </Text>
-          <Text dimColor> {lastUtilization.toFixed(1)}% of {formatTokens(contextWindow)}</Text>
+          <ContextBar
+            current={currentUtilization}
+            max={maxContextPercent}
+            width={barWidth}
+            contextWindow={contextWindow}
+          />
         </Box>
       )}
 

@@ -282,6 +282,8 @@ export interface FlowState {
   };
   // Artifacts generated during the flow
   readonly artifacts?: readonly Artifact[];
+  // Peak context utilization percentage (single task, not cumulative)
+  readonly maxContextPercent?: number;
   // Schema version for migrations (default: 1 for backwards compatibility)
   readonly version?: number;
 }
