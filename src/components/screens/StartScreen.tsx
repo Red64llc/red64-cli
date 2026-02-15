@@ -100,6 +100,11 @@ const PHASE_REVIEW_FILES: Record<string, string> = {
 };
 
 /**
+ * Maximum number of attempts to fix failing tests before giving up
+ */
+const MAX_FIX_TESTS_ATTEMPTS = 2;
+
+/**
  * Approval options for review phases
  */
 const APPROVAL_OPTIONS = [
@@ -326,6 +331,76 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       await appendFile(logFileRef.current, `[${timestamp}] ${message}\n`).catch(() => {});
     }
   }, []);
+
+  /**
+   * Attempt to fix failing regression tests using the fix-tests agent.
+   * Returns true if tests pass after fix attempts, false otherwise.
+   */
+  const attemptFixTests = useCallback(async (
+    testOutput: string,
+    workDir: string,
+    testCommand: string,
+    setupCommand: string | undefined,
+    addOutputFn: (line: string) => void,
+    logToFileFn: (message: string) => Promise<void>
+  ): Promise<{ success: boolean; finalOutput: string }> => {
+    const agentInvoker = servicesRef.current?.agentInvoker;
+    const testRunner = servicesRef.current?.testRunner;
+
+    if (!agentInvoker || !testRunner) {
+      return { success: false, finalOutput: testOutput };
+    }
+
+    let lastTestOutput = testOutput;
+
+    for (let attempt = 1; attempt <= MAX_FIX_TESTS_ATTEMPTS; attempt++) {
+      addOutputFn('');
+      addOutputFn(`🔧 Attempting to fix tests (attempt ${attempt}/${MAX_FIX_TESTS_ATTEMPTS})...`);
+      await logToFileFn(`Invoking fix-tests agent (attempt ${attempt})`);
+
+      // Invoke the fix-tests agent with the test output
+      const fixPrompt = `/red64:fix-tests`;
+      const fixResult = await agentInvoker.invoke({
+        prompt: fixPrompt,
+        workingDirectory: workDir,
+        skipPermissions: flags.skipPermissions ?? false,
+        tier: flags.tier,
+        agent: agentRef.current,
+        timeout: 600000  // 10 minutes for complex test fixes
+      });
+
+      if (!fixResult.success) {
+        addOutputFn(`⚠️ Fix-tests agent failed: ${fixResult.stderr || 'Unknown error'}`);
+        await logToFileFn(`Fix-tests agent failed: ${fixResult.stderr}`);
+        continue;  // Try again
+      }
+
+      addOutputFn('Fix-tests agent completed, verifying tests...');
+
+      // Re-run tests to verify fix
+      const fullCommand = setupCommand ? `${setupCommand} && ${testCommand}` : testCommand;
+      addOutputFn(`Running: ${fullCommand}`);
+      const retestResult = await testRunner.run({
+        setupCommand,
+        testCommand,
+        workingDir: workDir,
+        timeoutMs: 300000
+      });
+
+      lastTestOutput = retestResult.stderr || retestResult.stdout || '';
+
+      if (retestResult.success) {
+        addOutputFn(`✅ Tests now passing after fix (${(retestResult.durationMs / 1000).toFixed(1)}s)`);
+        await logToFileFn(`Tests fixed successfully on attempt ${attempt}`);
+        return { success: true, finalOutput: lastTestOutput };
+      }
+
+      addOutputFn(`❌ Tests still failing after attempt ${attempt}`);
+      await logToFileFn(`Tests still failing after fix attempt ${attempt}`);
+    }
+
+    return { success: false, finalOutput: lastTestOutput };
+  }, [flags.skipPermissions, flags.tier]);
 
   // Flow state
   const [flowState, setFlowState] = useState<FlowScreenState>({
@@ -1315,10 +1390,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         });
 
         if (!testResult.success) {
-          const errorMsg = testResult.timedOut
+          const initialErrorMsg = testResult.timedOut
             ? 'Tests timed out'
             : `Tests failed (exit code: ${testResult.exitCode})`;
-          await logToFile(`Test check failed: ${errorMsg}`);
+          await logToFile(`Test check failed: ${initialErrorMsg}`);
 
           // Log test output to help diagnose failures
           if (testResult.stdout) {
@@ -1331,8 +1406,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           }
 
           // Show error preview in terminal (last few meaningful lines)
-          const errorOutput = testResult.stderr || testResult.stdout || '';
-          const errorLines = errorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
+          const initialErrorOutput = testResult.stderr || testResult.stdout || '';
+          const errorLines = initialErrorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
           if (errorLines.length > 0) {
             addOutput('');
             addOutput('Error output (last 5 lines):');
@@ -1341,15 +1416,30 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             }
           }
 
-          setFlowState(prev => ({
-            ...prev,
-            error: errorMsg,
-            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
-          }));
-          return;
-        }
+          // Attempt to fix tests automatically using fix-tests agent
+          const fixResult = await attemptFixTests(
+            initialErrorOutput,
+            workDir,
+            testCommand,
+            setupCommand,
+            addOutput,
+            logToFile
+          );
 
-        addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+          if (!fixResult.success) {
+            // Tests still failing after all fix attempts
+            const errorMsg = `Tests failed and could not be automatically fixed`;
+            setFlowState(prev => ({
+              ...prev,
+              error: errorMsg,
+              phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
+            }));
+            return;
+          }
+          // Tests fixed successfully, continue with flow
+        } else {
+          addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+        }
       } else {
         addOutput('No test command configured, skipping tests');
       }
@@ -1688,10 +1778,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         });
 
         if (!testResult.success) {
-          const errorMsg = testResult.timedOut
+          const initialErrorMsg = testResult.timedOut
             ? 'Tests timed out'
             : `Tests failed (exit code: ${testResult.exitCode})`;
-          await logToFile(`Test check failed: ${errorMsg}`);
+          await logToFile(`Test check failed: ${initialErrorMsg}`);
 
           // Log test output to help diagnose failures
           if (testResult.stdout) {
@@ -1704,8 +1794,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
           }
 
           // Show error preview in terminal (last few meaningful lines)
-          const errorOutput = testResult.stderr || testResult.stdout || '';
-          const errorLines = errorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
+          const initialErrorOutput = testResult.stderr || testResult.stdout || '';
+          const errorLines = initialErrorOutput.split('\n').filter((line: string) => line.trim()).slice(-5);
           if (errorLines.length > 0) {
             addOutput('');
             addOutput('Error output (last 5 lines):');
@@ -1714,15 +1804,30 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             }
           }
 
-          setFlowState(prev => ({
-            ...prev,
-            error: errorMsg,
-            phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
-          }));
-          return;
-        }
+          // Attempt to fix tests automatically using fix-tests agent
+          const fixResult = await attemptFixTests(
+            initialErrorOutput,
+            repoPath,
+            testCommand,
+            setupCommand,
+            addOutput,
+            logToFile
+          );
 
-        addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+          if (!fixResult.success) {
+            // Tests still failing after all fix attempts
+            const errorMsg = `Tests failed and could not be automatically fixed`;
+            setFlowState(prev => ({
+              ...prev,
+              error: errorMsg,
+              phase: { type: 'error', feature: featureName, error: `${errorMsg}. Check the log file for details, or use --skip-tests to bypass.` }
+            }));
+            return;
+          }
+          // Tests fixed successfully, continue with flow
+        } else {
+          addOutput(`Tests passed (${(testResult.durationMs / 1000).toFixed(1)}s)`);
+        }
       } else {
         addOutput('No test command configured, skipping tests');
       }
