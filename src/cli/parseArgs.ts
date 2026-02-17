@@ -14,7 +14,8 @@ const VALID_COMMANDS: readonly Command[] = [
   'list',
   'abort',
   'mcp',
-  'help'
+  'help',
+  'plugin'
 ] as const;
 
 /**
@@ -149,6 +150,19 @@ Usage:
   red64 list                           List all active flows
   red64 abort <feature>                Abort and cleanup flow
   red64 help                           Show this help
+
+Plugin Commands:
+  red64 plugin install <name>          Install a plugin
+  red64 plugin uninstall <name>        Uninstall a plugin
+  red64 plugin enable <name>           Enable a plugin
+  red64 plugin disable <name>          Disable a plugin
+  red64 plugin list                    List installed plugins
+  red64 plugin update <name>           Update a plugin
+  red64 plugin search <query>          Search plugin registry
+  red64 plugin info <name>             Show plugin details
+  red64 plugin config <name> [k] [v]   View/set plugin config
+  red64 plugin create <name>           Scaffold a new plugin
+  red64 plugin validate <path>         Validate a plugin
 
 Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)

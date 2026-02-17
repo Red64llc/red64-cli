@@ -20,6 +20,7 @@ export type Command =
   | 'abort'
   | 'mcp'
   | 'help'
+  | 'plugin'
   | undefined;
 
 /**

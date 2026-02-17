@@ -53,6 +53,9 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
       return <AbortScreen {...screenProps} />;
     case 'mcp':
       return <McpScreen {...screenProps} />;
+    case 'plugin':
+      // TODO: Replace with PluginScreen when implemented (Task 10.1)
+      return <HelpScreen {...screenProps} />;
     case 'help':
     case undefined:
     default:
