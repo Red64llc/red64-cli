@@ -1,11 +1,10 @@
 {
   "feature": "plugin-system",
   "phase": {
-    "type": "requirements-generating",
-    "feature": "plugin-system"
+    "type": "tasks-generating"
   },
   "createdAt": "2026-02-17T10:37:53.592Z",
-  "updatedAt": "2026-02-17T10:37:53.773Z",
+  "updatedAt": "2026-02-17T15:25:24.656Z",
   "history": [
     {
       "phase": {
@@ -21,13 +20,57 @@
         "feature": "plugin-system"
       },
       "timestamp": "2026-02-17T10:37:53.773Z"
+    },
+    {
+      "phase": {
+        "type": "tasks-generating"
+      },
+      "timestamp": "2026-02-17T15:25:24.656Z"
     }
   ],
   "metadata": {
     "description": "implement a plugin system following this file: /Users/yacin/Workspace/lab/red64-cli/docs/red64-plugin-architecture.md",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system",
+    "resolvedFeatureName": "plugin-system"
   },
+  "artifacts": [
+    {
+      "name": "Spec Config",
+      "filename": "spec.json",
+      "path": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system/.red64/specs/plugin-system/spec.json",
+      "phase": "initializing",
+      "createdAt": "2026-02-17T11:29:34.813Z"
+    },
+    {
+      "name": "Requirements",
+      "filename": "requirements.md",
+      "path": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system/.red64/specs/plugin-system/requirements.md",
+      "phase": "requirements-generating",
+      "createdAt": "2026-02-17T10:42:08.683Z"
+    },
+    {
+      "name": "Gap Analysis",
+      "filename": "gap-analysis.md",
+      "path": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system/.red64/specs/plugin-system/gap-analysis.md",
+      "phase": "gap-analysis",
+      "createdAt": "2026-02-17T10:47:54.381Z"
+    },
+    {
+      "name": "Design",
+      "filename": "design.md",
+      "path": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system/.red64/specs/plugin-system/design.md",
+      "phase": "design-generating",
+      "createdAt": "2026-02-17T11:29:24.976Z"
+    },
+    {
+      "name": "Research",
+      "filename": "research.md",
+      "path": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system/.red64/specs/plugin-system/research.md",
+      "phase": "design-generating",
+      "createdAt": "2026-02-17T11:25:24.267Z"
+    }
+  ],
   "maxContextPercent": 0,
   "version": 2
 }
