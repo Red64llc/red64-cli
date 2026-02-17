@@ -145,7 +145,9 @@ ENV GOROOT=/usr/local/go
 ENV GOPATH=/home/agent/go
 ENV PATH=${GOROOT}/bin:${GOPATH}/bin:$PATH
 
-RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xz && \
+# Detect architecture for Go download (amd64 or arm64)
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz | tar -C /usr/local -xz && \
     mkdir -p ${GOPATH}/{bin,src,pkg} && \
     chown -R agent:agent ${GOPATH}
 

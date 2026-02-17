@@ -252,7 +252,13 @@ const ERROR_PATTERNS: Array<{
     pattern: /manifest.*not found|pull access denied/i,
     code: 'DOCKER_UNAVAILABLE',
     recoverable: false,
-    suggestion: 'Docker image not available. Check the image name or build it locally with: docker build -t ghcr.io/red64llc/red64-sandbox:latest .'
+    suggestion: 'Docker image not available. Check the image name or build locally: docker build -f Dockerfile.sandbox -t ghcr.io/red64llc/red64-sandbox:latest .'
+  },
+  {
+    pattern: /no matching manifest for.*no match for platform/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'No image for your architecture. Build locally: docker build -f Dockerfile.sandbox -t ghcr.io/red64llc/red64-sandbox:latest .'
   },
   {
     pattern: /Error response from daemon.*image/i,
@@ -405,6 +411,7 @@ export function isCriticalErrorMessage(errorMessage: string | undefined): boolea
     /manifest.*not found/i,
     /pull access denied/i,
     /Error response from daemon.*image/i,
+    /no matching manifest for.*no match for platform/i,
   ];
   return criticalPatterns.some(pattern => pattern.test(errorMessage));
 }
