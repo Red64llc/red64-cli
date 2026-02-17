@@ -149,7 +149,6 @@ Usage:
 
 Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)
-  --skip-tests              Skip test detection and execution
   --local-image             Build and use local sandbox image instead of GHCR
 
 MCP Commands:
@@ -165,6 +164,7 @@ Global Options:
   -t, --tier <name>         Use specified Claude config directory
   --sandbox                 Run Claude in Docker container for isolation
   --ollama                  Use local Ollama backend (localhost:11434)
+  --skip-tests              Skip running regression tests
   -h, --help                Show help
   -v, --version             Show version
 `.trim();
