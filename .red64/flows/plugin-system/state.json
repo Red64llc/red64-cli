@@ -1,0 +1,27 @@
+{
+  "feature": "plugin-system",
+  "phase": {
+    "type": "initializing",
+    "feature": "plugin-system",
+    "description": "implement a plugin system following this file: /Users/yacin/Workspace/lab/red64-cli/docs/red64-plugin-architecture.md"
+  },
+  "createdAt": "2026-02-17T10:37:53.592Z",
+  "updatedAt": "2026-02-17T10:37:53.592Z",
+  "history": [
+    {
+      "phase": {
+        "type": "initializing",
+        "feature": "plugin-system",
+        "description": "implement a plugin system following this file: /Users/yacin/Workspace/lab/red64-cli/docs/red64-plugin-architecture.md"
+      },
+      "timestamp": "2026-02-17T10:37:53.592Z"
+    }
+  ],
+  "metadata": {
+    "description": "implement a plugin system following this file: /Users/yacin/Workspace/lab/red64-cli/docs/red64-plugin-architecture.md",
+    "mode": "brownfield",
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system"
+  },
+  "maxContextPercent": 0,
+  "version": 2
+}
