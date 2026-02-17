@@ -74,6 +74,8 @@ Every feature gets its own git worktree and optional Docker sandbox. Parallel de
 </tr>
 </table>
 
+<img width="1918" height="791" alt="Screenshot 2026-02-13 at 11 36 12 AM" src="https://github.com/user-attachments/assets/ccdaa394-8ad3-440a-9c44-07e0c2473509" />
+
 ## How it works
 
 You describe a feature in plain English. Red64 turns that into a testable specification before any code gets written:
