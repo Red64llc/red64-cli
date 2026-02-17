@@ -1,374 +1,305 @@
 # Red64 CLI
-
 <div align="center">
 
-### 30,000 hours of experience building software.<br/>The SDLC that makes AI-generated code maintainable.
+Code is about to cost nothing. Knowing what to build is about to cost you everything.
 
-**20 years of building products. 1+ year of AI-first development. Captured in a CLI.**
+There's a reason engineering teams use requirements, design reviews, and test-driven development. Process is how teams — human or AI — deliver code that actually works in production.
 
-TDD built in. Code smells to avoid. Documentation required. Quality gates enforced.<br/>
-The process that turns AI code into production-ready software.
-The result? Code that lives and evolves—not legacy the day it ships.
+Red64 wraps your existing AI coding tool — Claude Code, Gemini CLI, or local models — with a specification-first workflow. Instead of jumping straight to code, it forces requirements, design docs, and test definitions to exist before a single line gets written. Each feature gets its own branch, its own specs, and atomic commits.
 
+```bash
+npm install -g red64-cli
+```
 [![npm version](https://img.shields.io/npm/v/red64-cli.svg)](https://www.npmjs.com/package/red64-cli)
 [![Build](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Red64](https://img.shields.io/badge/Built%20with-Red64-red)](https://red64.io/ventures)
 
-[Quick Start](#-quick-start) · [Why Red64](#-why-red64) · [Features](#-features) · [Documentation](#-documentation)
-
 </div>
 
-<img width="1283" height="378" alt="Red64 CLI screenshot (claude)" src="https://github.com/user-attachments/assets/cc309998-340b-4764-af83-902efc26b58f" />
+## Features
 
----
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## 🎯 The Problem
-
-I've spent 20 years building products and writing software. 30,000 hours of experience. Then I went all-in on AI coding tools:
-
-**They're incredible for building a feature.** But then you start iterating—and you hit a wall:
-
-- ❌ Code quality goes down the drain
-- ❌ No testing (or tests written after the fact)
-- ❌ No documentation/specs (good luck iterating on anything)
-- ❌ No careful design review, no code review
-- ❌ No quality gates—code smells everywhere
-- ❌ Large commits that can't be easily rolled back
-- ❌ No non-regression tests, so things start breaking
-
-**This is the same problem that arises in any team with no processes, no gates, no constraints.**
-
-## ✅ The Solution
-
-The solution is what I've been doing for 20 years: **Software Development Life Cycle and Processes.** The stuff tech leaders and experience software professional implement in their teams. The stuff that separates "it works" from "it's maintainable."
-
-**Red64 CLI captures both:**
-
-1. **My 30,000 hours of experience** — code smells to avoid, patterns that scale, production wisdom
-2. **My process for working with AI** — the SDLC that makes AI-generated code maintainable
-
-**The process (HOW the software professional works):**
-- Isolate every feature in a branch (git worktree)
-- Write tests FIRST (TDD built in)
-- Small atomic commits (one thing per commit)
-- Document everything (REQUIREMENTS.md, DESIGN.md)
-- High test coverage enforced
-- Quality gates at every phase
-
-**The expertise (WHAT the software professional builds):**
-- Code smells to avoid (the stuff that breaks at 3 AM)
-- Patterns and anti-patterns for Python, Next, Ruby, Rails etc...
-- Stack-specific conventions (Next.js, Rails, FastAPI, etc.)
-
-**The result:** Code that lives and evolves. We've rewritten features in another language in **days** because the documentation is so complete.
-
-<img width="1920" height="1080" alt="Screenshot 2026-02-06 at 3 23 08 AM" src="https://github.com/user-attachments/assets/d76f2e0d-691a-4148-860f-122df3b43611" />
-
-_**Legend**: work in parallel in two seperate worktrees, preview generated documentation with markdown and diagram rendering_
-
----
-
-## 🚀 Quick Start
+### 🔄 Autonomous Mode
+Start a feature, walk away. `--sandbox` runs the agent in Docker, `-y` auto-approves every phase. You review the finished branch — not every step.
 
 ```bash
-# Install
-npm install -g red64-cli
-
-# Initialize in your project
-cd /path/to/your/project
-red64 init --stack nextjs
-
-# Start a feature (interactive mode)
-red64 start "user-auth" "Add login and registration with JWT"
-
-# Or YOLO mode — no babysitting required
-red64 start "shopping-cart" "Full cart with checkout" --sandbox -y
+red64 start "checkout" "add coupons" --sandbox -y
 ```
 
-That's it. Red64 generates requirements → design → tests → implementation → documentation.
+</td>
+<td width="50%" valign="top">
 
-Each phase has review checkpoints. Each task = one clean commit. Tests first. Docs included.
+### 🤖 Multi-Agent
+Works with whatever AI coding tool you already use. Same spec-driven workflow across all of them.
 
----
+**claude** · **gemini** · **codex**
 
-## 🔥 YOLO Mode (No Babysitting)
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-Tired of approving every line?
+### 💻 Local Models
+Run the full pipeline on your machine with open-source models. Zero API costs. Same SDLC enforcement.
 
 ```bash
-red64 start "feature-name" "description" --sandbox -y
+red64 init --agent claude --model qwen3-coder-next
 ```
 
-- `--sandbox` = Docker isolation (AI can't break your system, pulls image from `ghcr.io/red64llc/red64-sandbox`)
-- `-y` = Auto-approve all phases (total autonomy)
+</td>
+<td width="50%" valign="top">
 
-**Start a feature. Go to lunch. Come back to a completed branch—with tests, docs, and clean commits.**
+### 📡 Telegram Bot
+Monitor and control your agents remotely. Get notified when a phase completes, approve or reject from your phone.
 
-With other tools, YOLO mode means "write code fast with no oversight."<br/>
-With Red64, autonomous mode means "follow the SDLC with no babysitting."
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-The AI still:
-1. Writes tests FIRST (TDD enforced)
-2. Documents everything (REQUIREMENTS.md, DESIGN.md)
-3. Makes atomic commits (easy to review, easy to rollback)
-4. Passes quality gates (no code smells ship)
+### ☁️ Cloud Mode
+Run Red64 on your own infrastructure. Same workflow, but the agent executes in your cloud instead of your laptop.
 
-**Review the PR when it's done. Like a senior engineer delegating to a junior who's been properly onboarded.**
+</td>
+<td width="50%" valign="top">
 
----
+### 🔒 Isolation
+Every feature gets its own git worktree and optional Docker sandbox. Parallel development with no conflicts, no risk.
 
-## 🏆 Battle-Tested
+</td>
+</tr>
+</table>
 
-We built **6 production products** with Red64 at [red64.io/ventures](https://red64.io/ventures):
+## How it works
 
-| Company | Industry | Status |
-|---------|----------|--------|
-| [Saife](https://red64.io/ventures) | InsurTech | Production |
-| [EngineValue](https://red64.io/ventures) | Engineering Scorecards | Production |
-| [MediaPulse](https://red64.io/ventures) | Digital Presence | Production |
-| [QueryVault](https://red64.io/ventures) | Data Platform | Production |
-| [Kafi (Internal product)](https://red64.io/ventures) | Virtual Executive Assistant | Production |
-
-Same tool. Same encoded experience. Now open source.
-
----
-
-## 💡 Why Red64?
-
-### Two Decades of Experience, Encoded
-
-I've spent 20 years building products—30,000 hours of learning what works and what breaks. Then I spent a year going all-in on AI coding tools.
-
-**The pattern is always the same:**
-
-1. **Week 1:** "This is amazing! I shipped a feature in a day!"
-2. **Week 4:** "Why is everything breaking? Why is the code so messy?"
-3. **Week 8:** "I'm afraid to touch anything. Time to rewrite."
-
-**The missing ingredient?** SDLC. The stuff that takes 20 years to learn. The stuff I've been teaching engineers my entire career.
-
-Red64 gives you both:
-
-| What Goes Wrong Without SDLC | Red64 Solution |
-|------------------------------|----------------|
-| No tests → things break when you iterate | TDD built in (tests FIRST) |
-| No docs → can't remember why anything works | REQUIREMENTS.md + DESIGN.md per feature |
-| Huge commits → can't rollback, can't review | Atomic commits (one task = one commit) |
-| No quality gates → code smells everywhere | Guardrails from 30K hours of experience |
-| Babysitting every line → slow, exhausting | Autonomous mode with SDLC guardrails |
-
-### What You Get Per Feature
+You describe a feature in plain English. Red64 turns that into a testable specification before any code gets written:
 
 ```
-feature-branch/
-├── REQUIREMENTS.md      # What we're building and why
-├── DESIGN.md            # How it works, architecture decisions
-├── TASKS.md             # Atomic breakdown with acceptance criteria
+                          ┌──────────────────┐
+                          │   your prompt    │
+                          │                  │
+                          │ "add coupon to   │
+                          │  checkout flow"  │
+                          └────────┬─────────┘
+                                   │
+                    ┌──────────────▼───────────────┐
+                    │        REQUIREMENTS          │
+                    │                              │
+                    │  User stories, acceptance    │
+                    │  criteria (EARS notation)    │
+                    └──────────────┬───────────────┘
+                                   │
+                    ┌──────────────▼───────────────┐
+                    │          DESIGN              │
+                    │                              │
+                    │  Architecture, sequence      │
+                    │  diagrams, tech decisions    │
+                    └──────────────┬───────────────┘
+                                   │
+                    ┌──────────────▼───────────────┐
+                    │           TASKS              │
+                    │                              │
+                    │  Discrete tasks, ordered     │
+                    │  by dependency               │
+                    └──────────────┬───────────────┘
+                                   │
+                    ┌──────────────▼───────────────┐
+                    │       IMPLEMENTATION         │
+                    │                              │
+                    │  TDD: tests first, then      │
+                    │  code, one commit per task   │
+                    └──────────────────────────────┘
+```
+
+Each phase produces a file you can read and review:
+
+```
+.red64/specs/support-coupon-checkout/
+├── REQUIREMENTS.md
+├── DESIGN.md
+└── TASKS.md
+```
+
+These files *are* the product. The code is a derivative.
+
+## Quick start
+
+```bash
+# Initialize in your project (once)
+cd your-project
+red64 init --agent claude --stack nextjs
+
+# Start a feature
+red64 start support-coupon-checkout "user should be able to add a coupon while checking out"
+```
+
+Red64 walks through each phase and asks for your approval before moving on. When it reaches implementation, it writes tests first, then code, committing each task individually.
+
+To let it run without stopping:
+
+```bash
+red64 start support-coupon-checkout "add coupon to checkout" --sandbox -y
+```
+
+`--sandbox` isolates execution in Docker. `-y` approves all phases automatically. You review the finished branch when it's done.
+
+## What gets generated
+
+For a feature called `support-coupon-checkout`, you end up with:
+
+```
+your-project/
+├── .red64/
+│   └── specs/
+│       └── support-coupon-checkout/
+│           ├── REQUIREMENTS.md    ← user stories, acceptance criteria
+│           ├── DESIGN.md          ← architecture, sequence diagrams
+│           └── TASKS.md           ← discrete tasks with dependencies
 ├── src/
-│   ├── feature.ts       # Implementation
-│   └── feature.test.ts  # Tests (written first)
-└── docs/
-    └── feature.md       # User-facing documentation
+│   ├── checkout/
+│   │   └── coupon.ts              ← implementation
+│   └── ...
+└── tests/
+    ├── checkout/
+    │   └── coupon.test.ts         ← written before the implementation
+    └── ...
 ```
 
-Every decision traceable. Every line has a reason. **Code that survives iteration.**
+Every task is a separate commit. The branch has a clean, reviewable history.
 
----
+## Isolation
 
-## 📊 Comparison
+Each feature runs in its own git worktree, so multiple features can be developed in parallel without conflicts. With `--sandbox`, the AI agent runs inside a Docker container and can't touch your host system.
 
-| Feature | Red64 | Cursor | Copilot | Claude Code | Gemini CLI | Aider |
-|---------|:-----:|:------:|:-------:|:-----------:|:----------:|:-----:|
-| **30K hours expertise encoded** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **SDLC/Process enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Autonomous mode** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Sandboxed execution** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
-| **MCP support** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| **TDD enforced (tests first)** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **High coverage enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Auto-generates docs** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Git worktree isolation** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Atomic commits enforced** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Phase gates with review** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Code smell guardrails** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Resumable multi-step flows** | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ |
-| **Multi-model support** | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| **Battle-tested (production)** | ✅ 6 cos | N/A | N/A | N/A | N/A | N/A |
-
-**Key:** ✅ = Built-in & enforced | ⚠️ = Partial/Optional | ❌ = Not available
-
-> **The difference:** Other tools have autonomous modes. Red64 has autonomous mode **plus** the encoded expertise and enforced process that produces production-quality code.
-
-### When to Use Red64
-
-✅ **Use Red64 when:**
-- Building complete features (not quick fixes)
-- You want code with tests, docs, and clean history
-- You need to walk away and let AI work autonomously
-- You're tired of babysitting every line
-- You want code that's safe to refactor
-
-❌ **Use other tools when:**
-- Making quick, single-file edits
-- You want real-time IDE autocomplete
-- Exploring or prototyping ideas
-
----
-
-## ⚡ Features
-
-### Multi-Agent Support
-
-Use your preferred AI:
-
-```bash
-red64 init --agent claude   # Default
-red64 init --agent gemini   # Google Gemini
-red64 init --agent codex    # OpenAI Codex
+```
+┌──────────────────────────────────────────────┐
+│  your repo (main)                            │
+│                                              │
+│   ┌─────────────────┐  ┌─────────────────┐   │
+│   │ worktree:       │  │ worktree:       │   │
+│   │ feature-a       │  │ feature-b       │   │
+│   │                 │  │                 │   │
+│   │ ┌─────────────┐ │  │ ┌─────────────┐ │   │
+│   │ │ Docker      │ │  │ │ Docker      │ │   │
+│   │ │ sandbox     │ │  │ │ sandbox     │ │   │
+│   │ └─────────────┘ │  │ └─────────────┘ │   │
+│   └─────────────────┘  └─────────────────┘   │
+│                                              │
+└──────────────────────────────────────────────┘
 ```
 
-### Local Development Stack (Ollama)
+## Agents
 
-Run Red64 with local open-source models via [Ollama](https://ollama.com) — no API costs, full privacy:
+Red64 doesn't call LLM APIs directly. It copies command definitions into your project that your AI coding tool reads natively. Pick your agent:
 
 ```bash
-# One-time setup
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen3-coder-next  # ~46GB, runs on 64GB MacBook
-
-# Use with Red64
-red64 start "feature" "description" --model qwen3-coder-next --ollama
+red64 init --agent claude    # Claude Code
+red64 init --agent gemini    # Gemini CLI
+red64 init --agent codex     # OpenAI Codex CLI
 ```
 
-The `--ollama` flag configures Red64 to use your local Ollama instance at `localhost:11434`.
+### Local models
 
-**Works with sandbox mode:**
+You can use open-source models with Claude Code's custom backend support. No API costs:
 
 ```bash
-red64 start "feature" "description" --model qwen3-coder-next --ollama --sandbox -y
+# Start Ollama with a local model
+ollama pull qwen3-coder-next
+
+# Initialize with local model
+red64 init --agent claude --model qwen3-coder-next
+
+# Same workflow, running locally
+red64 start "add-auth" "add login with JWT" --sandbox -y
 ```
 
-**Or set environment variables directly:**
+## Steering documents
 
-```bash
-export ANTHROPIC_BASE_URL="http://localhost:11434"
-export ANTHROPIC_AUTH_TOKEN="ollama"
-red64 start "feature" "description" --model qwen3-coder-next
+Red64 reads markdown files in `.red64/steering/` to tailor the AI's behavior to your project:
+
+- **product.md** — Product vision, user personas, business context
+- **tech.md** — Stack standards, patterns to follow, code smells to avoid
+- **structure.md** — Codebase organization, naming conventions
+
+These are optional but useful on larger projects.
+
+## Commands
+
 ```
-
-**Recommended local models:**
-- `qwen3-coder-next` — 80B MoE, 3B active params (best quality)
-- `deepseek-coder-v2` — Strong coding performance
-- `codellama` — Meta's code-focused Llama
-
-> **Note:** Local models are slower than cloud APIs (~10-30 tok/s vs instant) and have smaller context windows (32K-64K vs 200K). Best for cost-sensitive development or air-gapped environments.
-
-### Smart Resume
-
-Interrupted? Just run `start` again:
-
-```bash
-red64 start "shopping-cart" "..."
-# Detects in-progress flow, offers to resume
-```
-
-### MCP Server Support
-
-Configure MCP servers once, and Red64 automatically injects them into whichever agent you use (Claude, Gemini, or Codex):
-
-```bash
-# Add an MCP server
-red64 mcp add context7 npx -y @upstash/context7-mcp
-
-# List configured servers
-red64 mcp list
-
-# Remove a server
-red64 mcp remove context7
-```
-
-MCP servers are stored in `.red64/config.json` and translated into each agent's native config format before invocation. Configs are cleaned up after execution so your personal agent settings stay untouched.
-
-Works in both local and `--sandbox` mode (stdio servers run inside the container).
-
-### Note on Playright
-Please note that [Playright's](https://github.com/microsoft/playwright-mcp) capabilities are already included in the Docker Image via Vercel's AI-native browser automation CLI. There's no need to add Playrigh MCP when running in Sanbox mode. 
-
-### Steering Documents
-
-Customize AI behavior in `.red64/steering/`:
-
-- **product.md** — Product vision, user personas
-- **tech.md** — Stack standards, code smells to avoid
-- **structure.md** — Codebase organization
-
----
-
-## 📖 Documentation
-
-- [Full Documentation](./docs/README.md)
-- [Steering Document Guide](./docs/steering.md)
-- [Configuration Reference](./docs/configuration.md)
-- [Troubleshooting](./docs/troubleshooting.md)
-
----
-
-## 🛠 Commands
-
-```bash
-red64 init --agent gemini     # Initialize Red64 in your project
-red64 start <feature> <desc>  # Start a new feature
-red64 start ... --sandbox -y  # YOLO mode (autonomous)
-red64 status [feature]        # Check flow status
-red64 list                    # List all active flows
-red64 abort <feature>         # Abort and clean up
-red64 mcp list                # List configured MCP servers
-red64 mcp add <name> <cmd>    # Add an MCP server
-red64 mcp remove <name>       # Remove an MCP server
+red64 init                          Initialize Red64 in your project
+red64 start <name> <description>   Start a new feature
+red64 status [name]                 Check progress on a feature
+red64 list                          List all active features
+red64 abort <name>                  Stop and clean up a feature
 ```
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `-y, --yes` | Auto-approve all phases (YOLO mode) |
-| `--sandbox` | Run in Docker isolation (uses GHCR image by default) |
-| `--local-image` | Build and use local sandbox image instead of GHCR (init only) |
-| `-m, --model` | Override AI model |
-| `-a, --agent` | Set coding agent (claude/gemini/codex) |
-| `--ollama` | Use local Ollama backend (localhost:11434) |
-| `--verbose` | Show detailed logs |
+```
+-y, --yes       Auto-approve all phases
+--sandbox       Run in Docker isolation
+-m, --model     Override AI model
+-a, --agent     Set coding agent (claude/gemini/codex)
+--verbose        Show detailed logs
+```
 
----
+## MCP support
 
-## 🤝 Contributing
+Connect the AI to your environment with Model Context Protocol:
 
-We'd love your help encoding more production wisdom:
+```bash
+red64 init --mcp
+```
 
-1. Fork the repository
+This lets the AI query your database schema, read docs, or use custom tools during development.
+
+## How it compares
+
+The industry is converging on test-driven specification — the idea that you define what "done" looks like before generating code. AWS Kiro, for instance, requires a testable spec before any code is created.
+
+Red64 follows the same principle but works with your existing tools instead of requiring a proprietary IDE. It also enforces TDD at implementation — tests are written first, not as an afterthought.
+
+## Why specifications
+
+The most expensive failure in AI-assisted development isn't the agent that disobeys — it's the agent that executes a flawed specification flawlessly. Studies show AI-generated code produces 1.7x more logic issues than human-written code. Not syntax errors. The code does the *wrong thing* correctly.
+
+When production costs approach zero, the bottleneck shifts entirely to the precision of your intent. Vague prompts scale errors at the same speed they scale output. The teams seeing 10–80x leverage from AI aren't typing faster — they're specifying better: acceptance criteria, testable conditions, architecture decisions documented before implementation begins.
+
+Red64 enforces this discipline automatically. You describe what you want. The tool produces requirements, design, and a test plan before any code exists. The AI implements against that spec, not against a loose prompt.
+
+**The code isn't the asset. The docs, tests, and history are the asset.** We've rewritten features in entirely different languages in days because the specs were complete enough to work from.
+
+## Install
+
+```bash
+# npm
+npm install -g red64-cli
+
+# or clone
+git clone https://github.com/Red64llc/red64-cli.git
+cd red64-cli && npm install && npm link
+```
+
+Requires Node.js 18+ and one of: Claude Code, Gemini CLI, or Codex CLI.
+
+## Documentation
+
+- [Full docs](./docs/README.md)
+- [Steering guide](./docs/steering.md)
+- [Configuration reference](./docs/configuration.md)
+- [Troubleshooting](./docs/troubleshooting.md)
+
+## Contributing
+
+1. Fork the repo
 2. Create a feature branch
-3. Make your changes
-4. Run tests: `npm test`
-5. Submit a pull request
+3. Run tests: `npm test`
+4. Open a PR
 
-**What we're looking for:**
-- More code smells to catch
-- Stack-specific best practices
-- Bug fixes and improvements
+## License
 
----
-
-## 📜 License
-
-MIT — Built by [Yacin Bahi](mailto:yacin@red64.io) at [Red64.io](https://red64.io)
-
----
-
-<div align="center">
-
-### The code isn't the asset.<br/>The documentation + tests + history is the asset.<br/>The code is just the current implementation.
-
-**[⭐ Star this repo](https://github.com/Red64llc/red64-cli)** if you believe AI should write code like a senior engineer.
-
-</div>
+MIT — see [LICENSE](./LICENSE)
