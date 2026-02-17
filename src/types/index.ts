@@ -82,6 +82,8 @@ export interface GlobalFlags {
   // Test check flags
   readonly 'skip-tests'?: boolean;
   readonly 'local-image'?: boolean;
+  // Implementation granularity
+  readonly 'task-level'?: boolean;
 }
 
 /**

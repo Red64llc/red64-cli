@@ -40,6 +40,7 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     'no-steering': undefined,
     'skip-tests': undefined,
     'local-image': undefined,
+    'task-level': undefined,
     agent: undefined
   };
 
@@ -105,6 +106,8 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
       (flags as { 'local-image': boolean })['local-image'] = true;
     } else if (arg === '--ollama') {
       (flags as { ollama: boolean }).ollama = true;
+    } else if (arg === '--task-level') {
+      (flags as { 'task-level': boolean })['task-level'] = true;
     } else if (arg === '--agent' || arg === '-a') {
       const value = argValue ?? argv[i + 1];
       if (value && !value.startsWith('-') && VALID_AGENTS.includes(value as CodingAgent)) {
@@ -165,6 +168,7 @@ Global Options:
   --sandbox                 Run Claude in Docker container for isolation
   --ollama                  Use local Ollama backend (localhost:11434)
   --skip-tests              Skip running regression tests
+  --task-level              Group sub-tasks by parent task (one commit per group)
   -h, --help                Show help
   -v, --version             Show version
 `.trim();

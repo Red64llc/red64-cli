@@ -2152,119 +2152,249 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
     addOutput('');
 
-    // Execute tasks starting from resumeTask
-    const resumeIndex = taskEntries.findIndex(e => e.id === resumeTask.id);
-    for (let i = resumeIndex; i < taskEntries.length; i++) {
-      const entry = taskEntries[i];
+    // Execute tasks - either grouped by task-level or individually
+    if (flags['task-level']) {
+      // GROUPED EXECUTION MODE: Execute all sub-tasks in a task group together
+      const taskGroups = services.taskParser.groupTasks(tasks);
+      let groupsProcessed = 0;
 
-      // Skip already completed tasks
-      if (entry.status === 'completed') {
-        continue;
-      }
+      for (const group of taskGroups) {
+        // Get pending/in_progress entries for this group's sub-tasks
+        const pendingInGroup = taskEntries.filter(e =>
+          group.tasks.some(t => t.id === e.id) &&
+          (e.status === 'pending' || e.status === 'in_progress')
+        );
 
-      const task = tasks.find(t => t.id === entry.id);
-      if (!task) {
-        addOutput(`Warning: Task ${entry.id} not found in tasks.md, skipping`);
-        continue;
-      }
-
-      const overallIndex = tasks.findIndex(t => t.id === task.id);
-      const taskNum = overallIndex + 1;
-
-      setFlowState(prev => ({ ...prev, currentTask: taskNum }));
-
-      // 1. Mark task as in_progress BEFORE execution (for crash recovery)
-      if (entry.status !== 'in_progress') {
-        taskEntries[i] = markTaskStarted(entry);
-        await saveFlowState(services.flowMachine.getPhase(), workDir, {
-          taskEntries,
-          currentTaskId: task.id,
-          event: 'TASK_START',
-          subStep: `task-${task.id}-started`
-        });
-      }
-
-      addOutput(`[${completedCount + (i - resumeIndex) + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
-
-      // 2. Run spec-impl for this specific task
-      const result = await executeCommand(
-        `/red64:spec-impl ${effectiveName} ${task.id} -y`,
-        workDir
-      );
-
-      if (!result.success) {
-        addOutput(`Task ${task.id} failed: ${result.error}`);
-        // Mark as failed and save progress
-        taskEntries[i] = markTaskFailed(taskEntries[i]);
-        await saveFlowState(services.flowMachine.getPhase(), workDir, {
-          taskEntries,
-          currentTaskId: null,
-          event: 'TASK_FAILED',
-          subStep: `task-${task.id}-failed`
-        });
-
-        // Check for critical infrastructure errors that should abort the flow
-        if (isCriticalError(result.claudeError) || isCriticalErrorMessage(result.error)) {
-          addOutput('');
-          addOutput('Critical error detected - aborting flow');
-          const errorMsg = result.claudeError?.suggestion ?? result.error ?? 'Infrastructure error';
-          setFlowState(prev => ({ ...prev, error: errorMsg }));
-          return; // Abort the entire task loop
+        // Skip fully completed groups
+        if (pendingInGroup.length === 0) {
+          groupsProcessed++;
+          continue;
         }
 
-        // Continue to next task for non-critical failures
-        continue;
+        // Mark all pending as in_progress BEFORE execution
+        for (const entry of pendingInGroup) {
+          const idx = taskEntries.findIndex(e => e.id === entry.id);
+          if (taskEntries[idx].status !== 'in_progress') {
+            taskEntries[idx] = markTaskStarted(taskEntries[idx]);
+          }
+        }
+        await saveFlowState(services.flowMachine.getPhase(), workDir, {
+          taskEntries,
+          currentTaskId: pendingInGroup[0].id,
+          event: 'TASK_START',
+          subStep: `group-${group.groupId}-started`
+        });
+
+        const taskIds = pendingInGroup.map(e => e.id).join(',');
+        addOutput(`[Group ${group.groupId}/${taskGroups.length}] ${group.title} (${pendingInGroup.length} sub-tasks: ${taskIds})`);
+
+        // Execute spec-impl with comma-separated IDs
+        const result = await executeCommand(
+          `/red64:spec-impl ${effectiveName} ${taskIds} -y`,
+          workDir
+        );
+
+        if (!result.success) {
+          addOutput(`Task group ${group.groupId} failed: ${result.error}`);
+          // Mark all as failed
+          for (const entry of pendingInGroup) {
+            const idx = taskEntries.findIndex(e => e.id === entry.id);
+            taskEntries[idx] = markTaskFailed(taskEntries[idx]);
+          }
+          await saveFlowState(services.flowMachine.getPhase(), workDir, {
+            taskEntries,
+            currentTaskId: null,
+            event: 'TASK_FAILED',
+            subStep: `group-${group.groupId}-failed`
+          });
+
+          // Check for critical infrastructure errors
+          if (isCriticalError(result.claudeError) || isCriticalErrorMessage(result.error)) {
+            addOutput('');
+            addOutput('Critical error detected - aborting flow');
+            const errorMsg = result.claudeError?.suggestion ?? result.error ?? 'Infrastructure error';
+            setFlowState(prev => ({ ...prev, error: errorMsg }));
+            return;
+          }
+          continue;
+        }
+
+        // Mark all tasks in group complete in tasks.md
+        for (const entry of pendingInGroup) {
+          const markResult = await services.taskParser.markTaskComplete(specDir, entry.id);
+          if (!markResult.success) {
+            addOutput(`Warning: Failed to mark task ${entry.id} in tasks.md: ${markResult.error}`);
+          }
+        }
+
+        // Calculate context usage (attribute to first task in group)
+        const contextUsage = result.tokenUsage
+          ? services.contextUsageCalculator.calculate(
+              result.tokenUsage,
+              flags.model,
+              taskEntries.filter(e => e.status === 'completed')
+            )
+          : undefined;
+
+        // Mark all TaskEntries as completed (first gets usage, rest get none)
+        for (let j = 0; j < pendingInGroup.length; j++) {
+          const entry = pendingInGroup[j];
+          const idx = taskEntries.findIndex(e => e.id === entry.id);
+          if (j === 0) {
+            taskEntries[idx] = markTaskCompleted(taskEntries[idx], result.tokenUsage, contextUsage);
+          } else {
+            taskEntries[idx] = markTaskCompleted(taskEntries[idx]);
+          }
+        }
+
+        // Accumulate implementation phase costs
+        implPhaseMetric = accumulatePhaseMetric(implPhaseMetric, result.tokenUsage);
+
+        // Update React state for UI
+        const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+        const currentUtilization = contextUsage?.utilizationPercent ?? 0;
+        setFlowState(prev => ({
+          ...prev,
+          completedTasks: completedTaskIds,
+          taskEntries: [...taskEntries],
+          phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric },
+          maxContextPercent: Math.max(prev.maxContextPercent, currentUtilization)
+        }));
+
+        // Save state immediately
+        await saveFlowState(services.flowMachine.getPhase(), workDir, {
+          completedTasksOverride: completedTaskIds,
+          taskEntries,
+          currentTaskId: null,
+          event: 'TASK_COMPLETE',
+          subStep: `group-${group.groupId}-completed`
+        });
+
+        // One commit per group
+        await commitChanges(
+          services.commitService.formatGroupCommitMessage(effectiveName, group.groupId, group.title),
+          workDir
+        );
+
+        addOutput(`Task group ${group.groupId} completed`);
+        addOutput('');
+        groupsProcessed++;
       }
+    } else {
+      // INDIVIDUAL EXECUTION MODE: Execute each task separately (default)
+      const resumeIndex = taskEntries.findIndex(e => e.id === resumeTask.id);
+      for (let i = resumeIndex; i < taskEntries.length; i++) {
+        const entry = taskEntries[i];
 
-      // 3. Mark task complete in tasks.md
-      const markResult = await services.taskParser.markTaskComplete(specDir, task.id);
-      if (!markResult.success) {
-        addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
+        // Skip already completed tasks
+        if (entry.status === 'completed') {
+          continue;
+        }
+
+        const task = tasks.find(t => t.id === entry.id);
+        if (!task) {
+          addOutput(`Warning: Task ${entry.id} not found in tasks.md, skipping`);
+          continue;
+        }
+
+        const overallIndex = tasks.findIndex(t => t.id === task.id);
+        const taskNum = overallIndex + 1;
+
+        setFlowState(prev => ({ ...prev, currentTask: taskNum }));
+
+        // 1. Mark task as in_progress BEFORE execution (for crash recovery)
+        if (entry.status !== 'in_progress') {
+          taskEntries[i] = markTaskStarted(entry);
+          await saveFlowState(services.flowMachine.getPhase(), workDir, {
+            taskEntries,
+            currentTaskId: task.id,
+            event: 'TASK_START',
+            subStep: `task-${task.id}-started`
+          });
+        }
+
+        addOutput(`[${completedCount + (i - resumeIndex) + 1}/${tasks.length}] Task ${task.id}: ${task.title}`);
+
+        // 2. Run spec-impl for this specific task
+        const result = await executeCommand(
+          `/red64:spec-impl ${effectiveName} ${task.id} -y`,
+          workDir
+        );
+
+        if (!result.success) {
+          addOutput(`Task ${task.id} failed: ${result.error}`);
+          // Mark as failed and save progress
+          taskEntries[i] = markTaskFailed(taskEntries[i]);
+          await saveFlowState(services.flowMachine.getPhase(), workDir, {
+            taskEntries,
+            currentTaskId: null,
+            event: 'TASK_FAILED',
+            subStep: `task-${task.id}-failed`
+          });
+
+          // Check for critical infrastructure errors that should abort the flow
+          if (isCriticalError(result.claudeError) || isCriticalErrorMessage(result.error)) {
+            addOutput('');
+            addOutput('Critical error detected - aborting flow');
+            const errorMsg = result.claudeError?.suggestion ?? result.error ?? 'Infrastructure error';
+            setFlowState(prev => ({ ...prev, error: errorMsg }));
+            return; // Abort the entire task loop
+          }
+
+          // Continue to next task for non-critical failures
+          continue;
+        }
+
+        // 3. Mark task complete in tasks.md
+        const markResult = await services.taskParser.markTaskComplete(specDir, task.id);
+        if (!markResult.success) {
+          addOutput(`Warning: Failed to mark task ${task.id} in tasks.md: ${markResult.error}`);
+        }
+
+        // 4. Calculate context usage if token usage is available
+        const contextUsage = result.tokenUsage
+          ? services.contextUsageCalculator.calculate(
+              result.tokenUsage,
+              flags.model,
+              taskEntries.filter(e => e.status === 'completed')
+            )
+          : undefined;
+
+        // 5. Mark task as completed with timestamp and usage metrics
+        taskEntries[i] = markTaskCompleted(taskEntries[i], result.tokenUsage, contextUsage);
+
+        // 5b. Accumulate implementation phase costs
+        implPhaseMetric = accumulatePhaseMetric(implPhaseMetric, result.tokenUsage);
+
+        // 6. Update React state for UI (including taskEntries for usage graph)
+        const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
+        const currentUtilization = contextUsage?.utilizationPercent ?? 0;
+        setFlowState(prev => ({
+          ...prev,
+          completedTasks: completedTaskIds,
+          taskEntries: [...taskEntries],
+          phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric },
+          maxContextPercent: Math.max(prev.maxContextPercent, currentUtilization)
+        }));
+
+        // 7. Save state immediately (before commit, for crash recovery)
+        await saveFlowState(services.flowMachine.getPhase(), workDir, {
+          completedTasksOverride: completedTaskIds,
+          taskEntries,
+          currentTaskId: null,
+          event: 'TASK_COMPLETE',
+          subStep: `task-${task.id}-completed`
+        });
+
+        // 8. Commit both tasks.md and state.json together
+        await commitChanges(
+          services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
+          workDir
+        );
+
+        addOutput(`Task ${task.id} completed`);
+        addOutput('');
       }
-
-      // 4. Calculate context usage if token usage is available
-      const contextUsage = result.tokenUsage
-        ? services.contextUsageCalculator.calculate(
-            result.tokenUsage,
-            flags.model,
-            taskEntries.filter(e => e.status === 'completed')
-          )
-        : undefined;
-
-      // 5. Mark task as completed with timestamp and usage metrics
-      taskEntries[i] = markTaskCompleted(taskEntries[i], result.tokenUsage, contextUsage);
-
-      // 5b. Accumulate implementation phase costs
-      implPhaseMetric = accumulatePhaseMetric(implPhaseMetric, result.tokenUsage);
-
-      // 6. Update React state for UI (including taskEntries for usage graph)
-      const completedTaskIds = taskEntries.filter(e => e.status === 'completed').map(e => e.id);
-      const currentUtilization = contextUsage?.utilizationPercent ?? 0;
-      setFlowState(prev => ({
-        ...prev,
-        completedTasks: completedTaskIds,
-        taskEntries: [...taskEntries],
-        phaseMetrics: { ...prev.phaseMetrics, 'implementing': implPhaseMetric },
-        maxContextPercent: Math.max(prev.maxContextPercent, currentUtilization)
-      }));
-
-      // 7. Save state immediately (before commit, for crash recovery)
-      await saveFlowState(services.flowMachine.getPhase(), workDir, {
-        completedTasksOverride: completedTaskIds,
-        taskEntries,
-        currentTaskId: null,
-        event: 'TASK_COMPLETE',
-        subStep: `task-${task.id}-completed`
-      });
-
-      // 8. Commit both tasks.md and state.json together
-      await commitChanges(
-        services.commitService.formatTaskCommitMessage(effectiveName, taskNum, task.title),
-        workDir
-      );
-
-      addOutput(`Task ${task.id} completed`);
-      addOutput('');
     }
 
     // All tasks iterated - finalize implementation phase metrics

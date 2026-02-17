@@ -26,6 +26,7 @@ export interface CommitServiceInterface {
   stageAndCommit(workingDir: string, message: string): Promise<CommitResult>;
   formatTaskCommitMessage(feature: string, taskIndex: number, taskTitle: string): string;
   formatPhaseCommitMessage(feature: string, phase: string): string;
+  formatGroupCommitMessage(feature: string, groupId: number, groupTitle: string): string;
   /**
    * Count commits on current branch since branching from base
    * Returns 0 if unable to determine
@@ -179,6 +180,14 @@ export function createCommitService(): CommitServiceInterface {
      */
     formatPhaseCommitMessage(feature: string, phase: string): string {
       return `feat(${feature}): complete ${phase} phase`;
+    },
+
+    /**
+     * Format commit message for task group completion
+     * Used when --task-level flag groups sub-tasks
+     */
+    formatGroupCommitMessage(feature: string, groupId: number, groupTitle: string): string {
+      return `feat(${feature}): implement task group ${groupId} - ${groupTitle}`;
     },
 
     /**

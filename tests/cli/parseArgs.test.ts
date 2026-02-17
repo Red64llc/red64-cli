@@ -190,6 +190,23 @@ describe('parseArgs', () => {
       expect(result.flags.ollama).toBe(true);
       expect(result.flags.sandbox).toBe(true);
     });
+
+    it('should parse --task-level flag', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--task-level']);
+      expect(result.flags['task-level']).toBe(true);
+    });
+
+    it('should have task-level undefined by default', () => {
+      const result = parseArgs(['start', 'feature', 'desc']);
+      expect(result.flags['task-level']).toBeUndefined();
+    });
+
+    it('should parse --task-level with other flags', () => {
+      const result = parseArgs(['start', 'feature', 'desc', '--task-level', '-y', '--sandbox']);
+      expect(result.flags['task-level']).toBe(true);
+      expect(result.flags.yes).toBe(true);
+      expect(result.flags.sandbox).toBe(true);
+    });
   });
 
   describe('CLIConfig structure', () => {

@@ -242,6 +242,24 @@ const ERROR_PATTERNS: Array<{
     recoverable: false,
     suggestion: 'Start Docker Desktop or the Docker daemon and try again'
   },
+  {
+    pattern: /Unable to find image.*locally/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Docker image not found. Pull it with: docker pull ghcr.io/red64llc/red64-sandbox:latest'
+  },
+  {
+    pattern: /manifest.*not found|pull access denied/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Docker image not available. Check the image name or build it locally with: docker build -t ghcr.io/red64llc/red64-sandbox:latest .'
+  },
+  {
+    pattern: /Error response from daemon.*image/i,
+    code: 'DOCKER_UNAVAILABLE',
+    recoverable: false,
+    suggestion: 'Docker image error. Try: docker pull ghcr.io/red64llc/red64-sandbox:latest'
+  },
 
   // Claude CLI internal errors
   {
@@ -383,6 +401,10 @@ export function isCriticalErrorMessage(errorMessage: string | undefined): boolea
     /Cannot connect to the Docker daemon/i,
     /docker.*daemon.*not running/i,
     /Is the docker daemon running/i,
+    /Unable to find image.*locally/i,
+    /manifest.*not found/i,
+    /pull access denied/i,
+    /Error response from daemon.*image/i,
   ];
   return criticalPatterns.some(pattern => pattern.test(errorMessage));
 }

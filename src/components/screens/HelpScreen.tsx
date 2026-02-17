@@ -42,6 +42,7 @@ const COMMAND_HELP: Record<string, { usage: string; description: string; options
       '-t, --tier <name>      Use specific Claude config directory',
       '--sandbox              Run in Docker isolation',
       '--ollama               Use local Ollama backend (localhost:11434)',
+      '--task-level           Group sub-tasks by parent task (one commit per group)',
       '--verbose              Show detailed execution logs',
       '-h, --help             Show this help'
     ]
@@ -118,6 +119,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ helpCommand }) => {
       <Text>  -t, --tier {'<name>'}         Use specified Claude config directory</Text>
       <Text>  --sandbox                 Run in Docker container for isolation</Text>
       <Text>  --ollama                  Use local Ollama backend (localhost:11434)</Text>
+      <Text>  --task-level              Group sub-tasks by parent task (one commit per group)</Text>
       <Text>  -h, --help                Show help (use with command for details)</Text>
       <Text>  -v, --version             Show version</Text>
       <Text></Text>
