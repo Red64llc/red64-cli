@@ -38,3 +38,21 @@
 - Cleanup sidebar UI implementation
 - Improve test failure UX with better error messaging
 - Enhance resume capabilities with more robust state management
+# Release v0.12.0
+
+## New Features
+- Display max context window reached notifications
+- Display statistics (tokens, context, cost) in UI
+- Track and aggregate cost, token usage, and context metrics across tasks
+- Multi-stack toolchain support for improved development workflows
+- Test enforcement: Skip failing tests detection and enforce green tests requirement
+
+## Bug Fixes
+- CLI now properly exits when crash is detected
+- Improved handling when resuming after Docker crash
+- Fixed task metrics aggregation
+
+## Internal
+- Initialize Red64 framework for spec-driven development
+- Optimize token usage by moving tasks to orchestrator
+- Add steering documents for testing workflows
