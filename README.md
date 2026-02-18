@@ -1,15 +1,20 @@
 # Red64 CLI
 <div align="center">
 
-Code is about to cost nothing. Knowing what to build is about to cost you everything.
-
-There's a reason engineering teams use requirements, design reviews, and test-driven development. Process is how teams — human or AI — deliver code that actually works in production.
-
-Red64 wraps your existing AI coding tool — Claude Code, Gemini CLI, or local models — with a specification-first workflow. Instead of jumping straight to code, it forces requirements, design docs, and test definitions to exist before a single line gets written. Each feature gets its own branch, its own specs, and atomic commits.
+Run AI coding agents autonomously — no babysitting, no vendor lock-in.
+Red64 lets you start a feature and walk away. Agents run in full isolation (Docker sandbox + git worktree), execute autonomously in YOLO mode, and report back through Telegram so you can monitor and control the workflow from your phone. Run locally with open-source models at zero cost, or deploy to your own cloud. Use whatever AI tool you already have — Claude Code, Gemini CLI, Codex — and switch between them freely.
+As a bonus, every feature automatically goes through a full spec-driven pipeline: requirements, design docs, TDD, and atomic commits. The same SDLC discipline that senior engineering teams follow, enforced on every agent, on every feature, for free.
+</div>
 
 ```bash
 npm install -g red64-cli
+cd my-project
+red64 init --agent claude
+red64 start coupon-in-checkout "add support for coupon in checkout flow" -y --sandbox --model haiku
 ```
+
+<div align="center">
+
 [![npm version](https://img.shields.io/npm/v/red64-cli.svg)](https://www.npmjs.com/package/red64-cli)
 [![Build](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Red64llc/red64-cli/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
