@@ -158,7 +158,12 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # Claude Code
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
     cp /root/.local/bin/claude /usr/local/bin/claude && \
-    chmod 755 /usr/local/bin/claude
+    chmod 755 /usr/local/bin/claude && \
+    # Create .claude config directory for agent user with minimal required files
+    mkdir -p /home/agent/.claude && \
+    echo '{}' > /home/agent/.claude/remote-settings.json && \
+    echo '{}' > /home/agent/.claude/settings.json && \
+    chown -R agent:agent /home/agent/.claude
 
 # Codex and Gemini
 RUN npm install -g \
