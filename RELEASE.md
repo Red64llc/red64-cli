@@ -74,3 +74,7 @@
 
 ## Bug Fixes
 - Fixed docker service mocking functionality
+# Release v0.15.0
+
+## New Features
+- Support for latest Claude Code 2.1.45 requirements
