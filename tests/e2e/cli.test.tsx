@@ -168,7 +168,7 @@ describe('E2E: CLI Invocation', () => {
       expect(lastFrame()).toContain('Red64 Flow Orchestrator');
     });
 
-    it('should fall back to help for unknown commands', () => {
+    it('should route unknown commands to plugin system', () => {
       const config = parseArgs(['unknown-command']);
 
       const { lastFrame } = render(
@@ -181,7 +181,9 @@ describe('E2E: CLI Invocation', () => {
         </App>
       );
 
-      expect(lastFrame()).toContain('Red64 Flow Orchestrator');
+      // Unknown commands are now routed to the plugin command screen
+      // which shows "Loading plugins..." initially before checking plugin registry
+      expect(lastFrame()).toContain('Loading plugins');
     });
   });
 

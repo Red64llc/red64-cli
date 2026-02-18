@@ -4,19 +4,9 @@
  */
 
 import type { CLIConfig, Command, GlobalFlags, CodingAgent } from '../types/index.js';
+import { isCoreCommand } from '../types/index.js';
 
 const VALID_AGENTS: readonly CodingAgent[] = ['claude', 'gemini', 'codex'] as const;
-
-const VALID_COMMANDS: readonly Command[] = [
-  'init',
-  'start',
-  'status',
-  'list',
-  'abort',
-  'mcp',
-  'help',
-  'plugin'
-] as const;
 
 /**
  * Parse CLI arguments into CLIConfig
@@ -42,7 +32,11 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
     'skip-tests': undefined,
     'local-image': undefined,
     'task-level': undefined,
-    agent: undefined
+    agent: undefined,
+    // Plugin-specific flags (Task 10.2)
+    registry: undefined,
+    'local-path': undefined,
+    dev: undefined
   };
 
   const positionalArgs: string[] = [];
@@ -115,16 +109,36 @@ export function parseArgs(argv: readonly string[]): CLIConfig {
         (flags as { agent: CodingAgent }).agent = value as CodingAgent;
         if (!argValue) i++;
       }
+    } else if (arg === '--registry') {
+      // Plugin-specific: custom registry URL (Task 10.2, Req 11.3)
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { registry: string | undefined }).registry = value;
+        if (!argValue) i++;
+      }
+    } else if (arg === '--local-path') {
+      // Plugin-specific: local plugin path for install (Task 10.2)
+      const value = argValue ?? argv[i + 1];
+      if (value && !value.startsWith('-')) {
+        (flags as { 'local-path': string | undefined })['local-path'] = value;
+        if (!argValue) i++;
+      }
+    } else if (arg === '--dev') {
+      // Plugin-specific: dev mode for hot reload (Task 10.2, Req 12.3)
+      (flags as { dev: boolean }).dev = true;
     } else if (!arg.startsWith('-')) {
       positionalArgs.push(arg);
     }
   }
 
   // First positional argument is the command
+  // Accept both core commands and potential plugin commands (any string)
   if (positionalArgs.length > 0) {
-    const potentialCommand = positionalArgs[0] as Command;
-    if (VALID_COMMANDS.includes(potentialCommand)) {
-      command = potentialCommand;
+    const potentialCommand = positionalArgs[0];
+    // Set command if it's a core command OR looks like a command (not a path/file)
+    // Plugin commands will be validated later by CommandRouter
+    if (isCoreCommand(potentialCommand) || !potentialCommand.includes('/')) {
+      command = potentialCommand as Command;
       positionalArgs.shift(); // Remove command from args
     }
   }
@@ -163,6 +177,11 @@ Plugin Commands:
   red64 plugin config <name> [k] [v]   View/set plugin config
   red64 plugin create <name>           Scaffold a new plugin
   red64 plugin validate <path>         Validate a plugin
+
+Plugin Options:
+  --registry <url>            Custom registry URL for plugin operations
+  --local-path <path>         Install plugin from local path
+  --dev                       Enable dev mode (hot reload)
 
 Init Options:
   -a, --agent <name>        Coding agent: claude, gemini, codex (default: claude)

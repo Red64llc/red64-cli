@@ -72,3 +72,66 @@ export {
 
 // Export ManifestValidator service
 export { createManifestValidator } from './ManifestValidator.js';
+
+// Export PluginRegistry service
+export { createPluginRegistry, type PluginRegistryService } from './PluginRegistry.js';
+
+// Export PluginContext
+export { createPluginContext, type PluginContextOptions } from './PluginContext.js';
+
+// Export PluginLoader
+export { createPluginLoader, type PluginLoaderOptions, type PluginLoaderService as PluginLoaderServiceImpl } from './PluginLoader.js';
+
+// Export Extension Points
+export {
+  createCommandExtension,
+  type CommandExtensionService,
+  type CommandExtensionOptions,
+  type CommandExecutionResult,
+} from './extensions/CommandExtension.js';
+
+export {
+  createAgentExtension,
+  type AgentExtensionService,
+  type AgentExtensionOptions,
+  type AgentInvocationResult,
+} from './extensions/AgentExtension.js';
+
+export {
+  createHookRunner,
+  type HookRunnerOptions,
+  type HookRunnerExtendedService,
+} from './extensions/HookRunner.js';
+
+export {
+  createServiceExtension,
+  type ServiceExtensionService,
+  type ServiceExtensionOptions,
+} from './extensions/ServiceExtension.js';
+
+export {
+  createTemplateExtension,
+  type TemplateExtensionService,
+  type TemplateExtensionOptions,
+} from './extensions/TemplateExtension.js';
+
+// Export PluginManager
+export {
+  createPluginManager,
+  type PluginManagerService,
+  type PluginManagerOptions,
+  type InstallOptions,
+  type PluginInfo,
+  type PluginDetail,
+  type RegistryEntry,
+  type ScaffoldResult,
+  type InstallStep,
+  type SpawnFn,
+} from './PluginManager.js';
+
+// Export PluginBootstrap (Task 9.5)
+export {
+  createPluginBootstrap,
+  type PluginBootstrapConfig,
+  type PluginBootstrapResult,
+} from './PluginBootstrap.js';

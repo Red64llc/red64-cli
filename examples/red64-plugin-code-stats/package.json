@@ -1,0 +1,20 @@
+{
+  "name": "code-stats",
+  "version": "1.0.0",
+  "description": "Track code statistics during spec-driven development",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": ["red64-plugin"],
+  "files": ["dist", "red64-plugin.json"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "red64-cli": ">=0.12.0"
+  }
+}

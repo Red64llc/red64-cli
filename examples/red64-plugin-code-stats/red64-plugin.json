@@ -1,0 +1,27 @@
+{
+  "name": "code-stats",
+  "version": "1.0.0",
+  "description": "Track code statistics during spec-driven development",
+  "author": "Red64 Team",
+  "entryPoint": "dist/index.js",
+  "red64CliVersion": ">=0.12.0",
+  "extensionPoints": ["commands", "hooks", "services"],
+  "dependencies": [],
+  "configSchema": {
+    "includeTests": {
+      "type": "boolean",
+      "description": "Include test files in statistics",
+      "default": true
+    },
+    "extensions": {
+      "type": "array",
+      "description": "File extensions to analyze",
+      "default": [".ts", ".tsx", ".js", ".jsx"]
+    },
+    "outputFormat": {
+      "type": "string",
+      "description": "Output format: table, json, or markdown",
+      "default": "table"
+    }
+  }
+}

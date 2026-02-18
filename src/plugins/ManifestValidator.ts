@@ -126,7 +126,8 @@ function mapZodIssueToManifestError(issue: z.ZodIssue): ManifestError {
       code = 'INVALID_TYPE';
     }
   } else if (
-    issue.code === 'invalid_enum_value' ||
+    // Cast to string to handle Zod version differences in error code types
+    (issue.code as string) === 'invalid_enum_value' ||
     issue.code === 'custom'
   ) {
     code = 'INVALID_VALUE';
@@ -134,9 +135,13 @@ function mapZodIssueToManifestError(issue: z.ZodIssue): ManifestError {
     code = 'SCHEMA_ERROR';
   }
 
+  // Include the field name in the message for better error reporting
+  const fieldPath = issue.path.length > 0 ? issue.path.join('.') : 'manifest';
+  const message = `${fieldPath}: ${issue.message}`;
+
   return {
     field,
-    message: issue.message,
+    message,
     code,
   };
 }

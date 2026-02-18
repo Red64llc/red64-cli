@@ -1,6 +1,7 @@
 /**
  * Command router component
  * Requirements: 4.1-4.7
+ * Task 9.1: Integrated plugin commands
  */
 
 import React from 'react';
@@ -12,8 +13,11 @@ import {
   StatusScreen,
   ListScreen,
   AbortScreen,
-  McpScreen
+  McpScreen,
+  PluginScreen,
+  PluginCommandScreen,
 } from './screens/index.js';
+import { isCoreCommand } from '../types/index.js';
 
 /**
  * Props for CommandRouter
@@ -40,6 +44,7 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
     return <HelpScreen {...screenProps} helpCommand={command} />;
   }
 
+  // Handle core commands
   switch (command) {
     case 'init':
       return <InitScreen {...screenProps} />;
@@ -54,11 +59,22 @@ export const CommandRouter: React.FC<CommandRouterProps> = ({
     case 'mcp':
       return <McpScreen {...screenProps} />;
     case 'plugin':
-      // TODO: Replace with PluginScreen when implemented (Task 10.1)
-      return <HelpScreen {...screenProps} />;
+      // Task 9.1: Route to PluginScreen for plugin command group
+      return <PluginScreen {...screenProps} />;
     case 'help':
     case undefined:
+      return <HelpScreen {...screenProps} />;
     default:
+      // Unknown command - try plugin commands
+      if (command && !isCoreCommand(command)) {
+        return (
+          <PluginCommandScreen
+            command={command}
+            args={args}
+            flags={flags}
+          />
+        );
+      }
       return <HelpScreen {...screenProps} />;
   }
 };
