@@ -2,7 +2,9 @@
 <div align="center">
 
 Run AI coding agents autonomously — no babysitting, no vendor lock-in.
+
 Red64 lets you start a feature and walk away. Agents run in full isolation (Docker sandbox + git worktree), execute autonomously in YOLO mode, and report back through Telegram so you can monitor and control the workflow from your phone. Run locally with open-source models at zero cost, or deploy to your own cloud. Use whatever AI tool you already have — Claude Code, Gemini CLI, Codex — and switch between them freely.
+
 As a bonus, every feature automatically goes through a full spec-driven pipeline: requirements, design docs, TDD, and atomic commits. The same SDLC discipline that senior engineering teams follow, enforced on every agent, on every feature, for free.
 </div>
 
