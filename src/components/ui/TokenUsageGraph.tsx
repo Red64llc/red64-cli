@@ -281,7 +281,7 @@ export const TokenUsageGraph: React.FC<TokenUsageGraphProps> = ({
       </Box>
 
       {/* Context utilization bar with max marker */}
-      {(currentUtilization > 0 || maxContextPercent) && (
+      {(currentUtilization > 0 || (maxContextPercent !== undefined && maxContextPercent > 0)) && (
         <Box marginTop={1}>
           <Text dimColor>Context: </Text>
           <ContextBar

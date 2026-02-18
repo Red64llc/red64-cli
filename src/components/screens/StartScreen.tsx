@@ -477,6 +477,37 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     'tasks-generating': 'tasks.md'
   };
 
+  // All known artifact files for filesystem discovery
+  const KNOWN_ARTIFACTS: Array<{ filename: string; name: string; phase: string }> = [
+    { filename: 'spec.json', name: 'Spec Config', phase: 'initializing' },
+    { filename: 'requirements.md', name: 'Requirements', phase: 'requirements-generating' },
+    { filename: 'gap-analysis.md', name: 'Gap Analysis', phase: 'gap-analysis' },
+    { filename: 'design.md', name: 'Design', phase: 'design-generating' },
+    { filename: 'tasks.md', name: 'Tasks', phase: 'tasks-generating' },
+    { filename: 'research.md', name: 'Research', phase: 'design-generating' },
+  ];
+
+  // Discover artifacts from filesystem (for resume when state is missing artifacts)
+  const discoverArtifactsFromFilesystem = useCallback(async (specDir: string): Promise<Artifact[]> => {
+    const discovered: Artifact[] = [];
+    for (const { filename, name, phase } of KNOWN_ARTIFACTS) {
+      try {
+        const filePath = join(specDir, filename);
+        const fileStat = await stat(filePath);
+        discovered.push({
+          name,
+          filename,
+          path: filePath,
+          phase,
+          createdAt: fileStat.mtime.toISOString()
+        });
+      } catch {
+        // File doesn't exist, skip
+      }
+    }
+    return discovered;
+  }, []);
+
   // Phase order for brownfield and greenfield workflows
   const BROWNFIELD_PHASE_ORDER = [
     'initializing', 'requirements-generating', 'requirements-approval',
@@ -865,6 +896,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       currentTaskId?: string | null;          // Currently executing task
       event?: string;      // Event that triggered this save (e.g., 'APPROVE', 'PHASE_COMPLETE')
       subStep?: string;    // Sub-step within the phase (e.g., 'generating-started')
+      artifact?: Artifact; // New artifact to add (avoids React state race condition)
     }
   ) => {
     const dir = workDir ?? getWorkingDir();
@@ -975,9 +1007,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         ? { ...existingState?.phaseMetrics, ...flowState.phaseMetrics }
         : existingState?.phaseMetrics,
       // Persist artifacts to disk so they survive resume
-      artifacts: flowState.artifacts.length > 0
-        ? flowState.artifacts
-        : existingState?.artifacts,
+      // Use artifact from options if provided (avoids React state race condition)
+      artifacts: options?.artifact
+        ? [...(flowState.artifacts.length > 0 ? flowState.artifacts : existingState?.artifacts ?? []), options.artifact]
+        : (flowState.artifacts.length > 0 ? flowState.artifacts : existingState?.artifacts),
       // Peak context utilization (persisted for tracking across sessions)
       maxContextPercent: Math.max(flowState.maxContextPercent, existingState?.maxContextPercent ?? 0),
       // Schema version for migrations
@@ -1077,7 +1110,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         }
 
         // Always load artifacts and history from existing state for UI display
-        const existingArtifacts = existingState.artifacts ? [...existingState.artifacts] : [];
+        // If state doesn't have artifacts, discover from filesystem (backwards compat)
+        const effectiveNameForArtifacts = existingState.metadata.resolvedFeatureName ?? sanitizeFeatureName(featureName);
+        const specDirForArtifacts = join(worktreePath, '.red64', 'specs', effectiveNameForArtifacts);
+        let existingArtifacts = existingState.artifacts ? [...existingState.artifacts] : [];
+        if (existingArtifacts.length === 0) {
+          // Discover artifacts from filesystem for backwards compatibility
+          existingArtifacts = await discoverArtifactsFromFilesystem(specDirForArtifacts);
+          if (existingArtifacts.length > 0) {
+            addOutput(`Discovered ${existingArtifacts.length} artifacts from filesystem`);
+          }
+        }
         const existingHistory = existingState.history ? [...existingState.history] : [];
 
         // Check if flow is complete or aborted
@@ -1524,17 +1567,21 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       const startIdx = phaseOrder.indexOf(phaseType);
       const endIdx = phaseOrder.indexOf(targetPhase);
 
+      // Collect artifacts to save with state
+      const skippedArtifacts: Artifact[] = [];
       for (let i = startIdx; i < endIdx; i++) {
         const phase = phaseOrder[i];
         const artifactFile = PHASE_ARTIFACTS[phase];
         if (artifactFile) {
-          addArtifact({
+          const artifact: Artifact = {
             name: artifactFile.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             filename: artifactFile,
             path: `.red64/specs/${effectiveName}/${artifactFile}`,
             phase,
             createdAt: new Date().toISOString()
-          });
+          };
+          addArtifact(artifact);
+          skippedArtifacts.push(artifact);
         }
       }
 
@@ -1543,6 +1590,10 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       while (currentPhase.type !== targetPhase && currentPhase.type !== 'complete' && currentPhase.type !== 'error') {
         currentPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
       }
+      // Save state - artifacts will be saved via the accumulated flowState.artifacts
+      // since we've been calling addArtifact in the loop (async updates will have completed)
+      // But to be safe with the race condition, manually update the state
+      setFlowState(prev => ({ ...prev, artifacts: [...prev.artifacts, ...skippedArtifacts] }));
       await saveFlowState(currentPhase, workDir, { event: 'SKIP_TO_PHASE', subStep: `skipped-to-${targetPhase}` });
     } else {
       addOutput(`Continuing from ${phaseType}...`);
@@ -1588,18 +1639,20 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             ...prev,
             phaseMetrics: { ...prev.phaseMetrics, 'gap-analysis': completedGapMetric }
           }));
+          let gapArtifact: Artifact | undefined;
           if (gapResult.success) {
             await commitChanges(`gap analysis`, workDir);
-            addArtifact({
+            gapArtifact = {
               name: 'Gap Analysis',
               filename: 'gap-analysis.md',
               path: `.red64/specs/${effectiveName}/gap-analysis.md`,
               phase: 'gap-analysis',
               createdAt: new Date().toISOString()
-            });
+            };
+            addArtifact(gapArtifact);
           }
           const gapCompletePhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-          await saveFlowState(gapCompletePhase, workDir, { event: 'PHASE_COMPLETE', subStep: 'gap-analysis-completed' });
+          await saveFlowState(gapCompletePhase, workDir, { event: 'PHASE_COMPLETE', subStep: 'gap-analysis-completed', artifact: gapArtifact });
         }
         break;
 
@@ -1895,20 +1948,21 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     addOutput(`Feature name: ${initResult.featureName}`);
 
     // Track spec.json artifact
-    addArtifact({
+    const specArtifact: Artifact = {
       name: 'Spec Config',
       filename: 'spec.json',
       path: `.red64/specs/${initResult.featureName}/spec.json`,
       phase: 'initializing',
       createdAt: new Date().toISOString()
-    });
+    };
+    addArtifact(specArtifact);
 
     // Commit init
     await commitChanges(`initialize spec directory`, workDir);
 
     // Step 3: Generate requirements - pass the resolved feature name
     const reqPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(reqPhase, workDir);
+    await saveFlowState(reqPhase, workDir, { artifact: specArtifact });
     await runRequirementsPhase(workDir, initResult.featureName);
   };
 
@@ -1955,17 +2009,18 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await commitChanges(`generate requirements`, workDir);
 
     // Track requirements artifact
-    addArtifact({
+    const reqArtifact: Artifact = {
       name: 'Requirements',
       filename: 'requirements.md',
       path: `.red64/specs/${effectiveName}/requirements.md`,
       phase: 'requirements-generating',
       createdAt: new Date().toISOString()
-    });
+    };
+    addArtifact(reqArtifact);
 
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(approvalPhase, workDir);
+    await saveFlowState(approvalPhase, workDir, { artifact: reqArtifact });
   };
 
   // Run design phase
@@ -2005,17 +2060,18 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await commitChanges(`generate technical design`, workDir);
 
     // Track design artifact
-    addArtifact({
+    const designArtifact: Artifact = {
       name: 'Design',
       filename: 'design.md',
       path: `.red64/specs/${effectiveName}/design.md`,
       phase: 'design-generating',
       createdAt: new Date().toISOString()
-    });
+    };
+    addArtifact(designArtifact);
 
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(approvalPhase, workDir);
+    await saveFlowState(approvalPhase, workDir, { artifact: designArtifact });
   };
 
   // Run tasks phase
@@ -2055,13 +2111,14 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await commitChanges(`generate implementation tasks`, workDir);
 
     // Track tasks artifact
-    addArtifact({
+    const tasksArtifact: Artifact = {
       name: 'Tasks',
       filename: 'tasks.md',
       path: `.red64/specs/${effectiveName}/tasks.md`,
       phase: 'tasks-generating',
       createdAt: new Date().toISOString()
-    });
+    };
+    addArtifact(tasksArtifact);
 
     // Parse tasks for implementation phase - use effective name for spec directory
     const specDir = join(workDir, '.red64', 'specs', effectiveName);
@@ -2078,7 +2135,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     // Transition to approval
     const approvalPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
-    await saveFlowState(approvalPhase, workDir);
+    await saveFlowState(approvalPhase, workDir, { artifact: tasksArtifact });
   };
 
   // Run implementation - one task at a time with commits
@@ -2499,17 +2556,21 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         const startIdx = phaseOrder.indexOf(nextPhase.type);
         const endIdx = phaseOrder.indexOf(targetPhase);
 
+        // Collect artifacts to save with state
+        const skippedArtifacts2: Artifact[] = [];
         for (let i = startIdx; i < endIdx; i++) {
           const phase = phaseOrder[i];
           const artifactFile = PHASE_ARTIFACTS[phase];
           if (artifactFile) {
-            addArtifact({
+            const artifact: Artifact = {
               name: artifactFile.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
               filename: artifactFile,
               path: `.red64/specs/${effectiveName}/${artifactFile}`,
               phase,
               createdAt: new Date().toISOString()
-            });
+            };
+            addArtifact(artifact);
+            skippedArtifacts2.push(artifact);
           }
         }
 
@@ -2517,6 +2578,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         while (nextPhase.type !== targetPhase && nextPhase.type !== 'complete' && nextPhase.type !== 'error') {
           nextPhase = transitionPhase({ type: 'PHASE_COMPLETE' });
         }
+        // Ensure artifacts are in state before save
+        setFlowState(prev => ({ ...prev, artifacts: [...prev.artifacts, ...skippedArtifacts2] }));
         await saveFlowState(nextPhase, workDir);
       }
 
@@ -2556,17 +2619,20 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               ...prev,
               phaseMetrics: { ...prev.phaseMetrics, 'gap-analysis': completedGapMetric2 }
             }));
+            let gapArtifact2: Artifact | undefined;
             if (gapResult2.success) {
               await commitChanges(`gap analysis`, workDir);
-              addArtifact({
+              gapArtifact2 = {
                 name: 'Gap Analysis',
                 filename: 'gap-analysis.md',
                 path: `.red64/specs/${effectiveName}/gap-analysis.md`,
                 phase: 'gap-analysis',
                 createdAt: new Date().toISOString()
-              });
+              };
+              addArtifact(gapArtifact2);
             }
-            transitionPhase({ type: 'PHASE_COMPLETE' });
+            const gapPhase2 = transitionPhase({ type: 'PHASE_COMPLETE' });
+            await saveFlowState(gapPhase2, workDir, { artifact: gapArtifact2 });
           }
           break;
         case 'design-validation':
@@ -2583,7 +2649,8 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
             if (valResult2.success) {
               await commitChanges(`design validation`, workDir);
             }
-            transitionPhase({ type: 'PHASE_COMPLETE' });
+            const valPhase2 = transitionPhase({ type: 'PHASE_COMPLETE' });
+            await saveFlowState(valPhase2, workDir);
           }
           break;
         case 'complete':
