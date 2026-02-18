@@ -67,3 +67,10 @@
 
 ## Internal
 - Documentation updates to README
+# Release v0.14.0
+
+## New Features
+- Added pre-flight check in docker mode to validate environment before execution
+
+## Bug Fixes
+- Fixed docker service mocking functionality
