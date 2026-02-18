@@ -89,6 +89,10 @@ vi.mock('../../../src/services/index.js', () => ({
   createContextUsageCalculator: () => ({
     calculate: vi.fn().mockReturnValue({ usedTokens: 0, maxTokens: 200000, usagePercent: 0 })
   }),
+  createDockerService: () => ({
+    checkDocker: vi.fn().mockResolvedValue({ available: true, message: 'Docker is available' }),
+    ensureImage: vi.fn().mockResolvedValue({ exists: true, pulled: false, message: 'Image is available' })
+  }),
   sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
   // Task entry helpers
   createTaskEntry: vi.fn((task: { id: string; title: string }) => ({
@@ -108,7 +112,10 @@ vi.mock('../../../src/services/index.js', () => ({
   startPhaseMetric: vi.fn((_phaseType: string) => ({ startedAt: new Date().toISOString() })),
   completePhaseMetric: vi.fn((metric: { startedAt: string }) => ({ ...metric, completedAt: new Date().toISOString() })),
   accumulatePhaseMetric: vi.fn((metric: { startedAt: string }) => metric),
-  getAgentSetupInstructions: vi.fn().mockReturnValue(['Install claude CLI', 'Run claude auth'])
+  getAgentSetupInstructions: vi.fn().mockReturnValue(['Install claude CLI', 'Run claude auth']),
+  isCriticalError: vi.fn().mockReturnValue(false),
+  isCriticalErrorMessage: vi.fn().mockReturnValue(false),
+  CRITICAL_ERROR_CODES: ['DOCKER_UNAVAILABLE', 'CLI_NOT_FOUND']
 }));
 
 // Mock PreviewService and its dependencies
