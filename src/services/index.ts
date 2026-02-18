@@ -216,3 +216,10 @@ export {
   type PreviewError,
   type PreviewErrorCode
 } from './PreviewService.js';
+
+export {
+  createDockerService,
+  type DockerServiceInterface,
+  type DockerCheckResult,
+  type ImageCheckResult
+} from './DockerService.js';

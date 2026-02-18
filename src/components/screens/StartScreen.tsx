@@ -43,6 +43,7 @@ import {
   createConfigService,
   createProjectDetector,
   createTestRunner,
+  createDockerService,
   sanitizeFeatureName,
   createContextUsageCalculator,
   isCriticalError,
@@ -258,6 +259,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     taskParser: ReturnType<typeof createTaskParser>;
     specInitService: ReturnType<typeof createSpecInitService>;
     healthCheck: ReturnType<typeof createClaudeHealthCheck>;
+    dockerService: ReturnType<typeof createDockerService>;
     gitStatusChecker: ReturnType<typeof createGitStatusChecker>;
     configService: ReturnType<typeof createConfigService>;
     projectDetector: ReturnType<typeof createProjectDetector>;
@@ -275,6 +277,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const taskParser = createTaskParser();
     const specInitService = createSpecInitService();
     const healthCheck = createClaudeHealthCheck();
+    const dockerService = createDockerService();
     const gitStatusChecker = createGitStatusChecker();
     const configService = createConfigService();
     const projectDetector = createProjectDetector();
@@ -296,6 +299,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       taskParser,
       specInitService,
       healthCheck,
+      dockerService,
       gitStatusChecker,
       configService,
       projectDetector,
@@ -1370,6 +1374,56 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
 
     await initLogFile(workDir);
 
+    // Run Docker preflight checks if sandbox mode is enabled
+    if (flags.sandbox) {
+      addOutput('Checking Docker availability...');
+      const dockerCheck = await services.dockerService.checkDocker();
+      if (!dockerCheck.available) {
+        setFlowState(prev => ({
+          ...prev,
+          isHealthChecking: false,
+          error: dockerCheck.message,
+          claudeError: {
+            code: 'UNKNOWN',
+            message: dockerCheck.error ?? 'Docker not available',
+            recoverable: false,
+            suggestion: dockerCheck.message
+          },
+          phase: { type: 'error', feature: featureName, error: dockerCheck.message }
+        }));
+        return;
+      }
+      addOutput('Docker is running');
+
+      // Ensure sandbox image exists (pull if needed)
+      const sandboxImage = sandboxImageRef.current ?? 'ghcr.io/red64llc/red64-sandbox:latest';
+      const imageResult = await services.dockerService.ensureImage(
+        sandboxImage,
+        true,
+        (msg) => addOutput(`  ${msg}`)
+      );
+      if (!imageResult.exists) {
+        setFlowState(prev => ({
+          ...prev,
+          isHealthChecking: false,
+          error: imageResult.message,
+          claudeError: {
+            code: 'UNKNOWN',
+            message: imageResult.error ?? 'Image not available',
+            recoverable: false,
+            suggestion: imageResult.message
+          },
+          phase: { type: 'error', feature: featureName, error: imageResult.message }
+        }));
+        return;
+      }
+      if (imageResult.pulled) {
+        addOutput(`Sandbox image ready (pulled)`);
+      } else {
+        addOutput(`Sandbox image ready`);
+      }
+    }
+
     // Run health check
     const agentName = agentRef.current === 'gemini' ? 'Gemini' : agentRef.current === 'codex' ? 'Codex' : 'Claude';
     addOutput(`Checking ${agentName} API status...`);
@@ -1757,6 +1811,54 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const logPath = await initLogFile(repoPath);
     addOutput(`Log file: ${logPath}`);
     addOutput('');
+
+    // Run Docker preflight checks if sandbox mode is enabled
+    if (flags.sandbox) {
+      addOutput('Checking Docker availability...');
+      const dockerCheck = await services.dockerService.checkDocker();
+      if (!dockerCheck.available) {
+        setFlowState(prev => ({
+          ...prev,
+          error: dockerCheck.message,
+          claudeError: {
+            code: 'UNKNOWN',
+            message: dockerCheck.error ?? 'Docker not available',
+            recoverable: false,
+            suggestion: dockerCheck.message
+          },
+          phase: { type: 'error', feature: featureName, error: dockerCheck.message }
+        }));
+        return;
+      }
+      addOutput('Docker is running');
+
+      // Ensure sandbox image exists (pull if needed)
+      const sandboxImage = sandboxImageRef.current ?? 'ghcr.io/red64llc/red64-sandbox:latest';
+      const imageResult = await services.dockerService.ensureImage(
+        sandboxImage,
+        true,
+        (msg) => addOutput(`  ${msg}`)
+      );
+      if (!imageResult.exists) {
+        setFlowState(prev => ({
+          ...prev,
+          error: imageResult.message,
+          claudeError: {
+            code: 'UNKNOWN',
+            message: imageResult.error ?? 'Image not available',
+            recoverable: false,
+            suggestion: imageResult.message
+          },
+          phase: { type: 'error', feature: featureName, error: imageResult.message }
+        }));
+        return;
+      }
+      if (imageResult.pulled) {
+        addOutput(`Sandbox image ready (pulled)`);
+      } else {
+        addOutput(`Sandbox image ready`);
+      }
+    }
 
     // Run health check before starting
     const agentName = agentRef.current === 'gemini' ? 'Gemini' : agentRef.current === 'codex' ? 'Codex' : 'Claude';
