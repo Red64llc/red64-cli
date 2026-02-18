@@ -56,3 +56,14 @@
 - Initialize Red64 framework for spec-driven development
 - Optimize token usage by moving tasks to orchestrator
 - Add steering documents for testing workflows
+# Release v0.13.0
+
+## New Features
+- Multi-architecture support for broader platform compatibility
+- Configurable task implementation granularity, allowing developers to choose the level of detail when implementing specification tasks
+
+## Bug Fixes
+- Minor fixes for resume functionality and token handling
+
+## Internal
+- Documentation updates to README
