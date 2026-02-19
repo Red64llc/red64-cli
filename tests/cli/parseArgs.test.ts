@@ -48,10 +48,11 @@ describe('parseArgs', () => {
       expect(result.command).toBeUndefined();
     });
 
-    it('should return undefined for unknown commands', () => {
+    it('should pass through unknown commands for plugin command support', () => {
       const result = parseArgs(['unknown-command']);
-      expect(result.command).toBeUndefined();
-      expect(result.args).toEqual(['unknown-command']);
+      // Unknown commands are passed through for plugin system to handle
+      expect(result.command).toBe('unknown-command');
+      expect(result.args).toEqual([]);
     });
   });
 

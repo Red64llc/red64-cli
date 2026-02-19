@@ -9,10 +9,10 @@
 export type Status = 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 /**
- * Command type union for all supported commands
+ * Core command type union for built-in commands
  * Requirements: 4.1-4.7
  */
-export type Command =
+export type CoreCommand =
   | 'init'
   | 'start'
   | 'status'
@@ -20,7 +20,24 @@ export type Command =
   | 'abort'
   | 'mcp'
   | 'help'
-  | undefined;
+  | 'plugin';
+
+/**
+ * Command type - includes core commands and plugin commands (any string)
+ * undefined means no command was provided
+ */
+export type Command = CoreCommand | string | undefined;
+
+/**
+ * Check if a command is a core command
+ */
+export const CORE_COMMANDS: readonly CoreCommand[] = [
+  'init', 'start', 'status', 'list', 'abort', 'mcp', 'help', 'plugin'
+] as const;
+
+export function isCoreCommand(cmd: string | undefined): cmd is CoreCommand {
+  return cmd !== undefined && (CORE_COMMANDS as readonly string[]).includes(cmd);
+}
 
 /**
  * GlobalFlags interface for CLI options
@@ -84,6 +101,10 @@ export interface GlobalFlags {
   readonly 'local-image'?: boolean;
   // Implementation granularity
   readonly 'task-level'?: boolean;
+  // Plugin command specific flags (Task 10.2)
+  readonly registry?: string;      // Custom registry URL for plugin install/search
+  readonly 'local-path'?: string;  // Local plugin path for install
+  readonly dev?: boolean;          // Dev mode for plugin development
 }
 
 /**
