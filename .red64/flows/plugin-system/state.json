@@ -6,7 +6,7 @@
     "totalTasks": 0
   },
   "createdAt": "2026-02-17T10:37:53.592Z",
-  "updatedAt": "2026-02-19T07:36:08.121Z",
+  "updatedAt": "2026-02-19T07:38:01.058Z",
   "history": [
     {
       "phase": {
@@ -82,6 +82,26 @@
       "timestamp": "2026-02-19T07:36:08.120Z",
       "event": "TASK_COMPLETE",
       "subStep": "group-2-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:36:08.336Z",
+      "event": "TASK_START",
+      "subStep": "group-3-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:38:01.058Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "group-3-completed"
     }
   ],
   "metadata": {
@@ -91,7 +111,8 @@
   },
   "taskProgress": {
     "completedGroups": [
-      2
+      2,
+      3
     ],
     "totalGroups": 11,
     "taskEntries": [
@@ -163,16 +184,39 @@
       {
         "id": "3",
         "title": "Plugin context (controlled API surface)",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:36:08.336Z",
+        "completedAt": "2026-02-19T07:38:01.051Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 15444,
+          "outputTokens": 548,
+          "totalTokens": 15992,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "costUsd": 1.2657749999999999
+        },
+        "contextUsage": {
+          "inputTokens": 15444,
+          "outputTokens": 548,
+          "totalTokens": 15992,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "costUsd": 1.2657749999999999,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 7.7219999999999995,
+          "cumulativeInputTokens": 24026,
+          "cumulativeUtilization": 12.013,
+          "modelFamily": "unknown"
+        }
       },
       {
         "id": "3.1",
         "title": "Implement the scoped plugin context",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:36:08.336Z",
+        "completedAt": "2026-02-19T07:38:01.051Z",
+        "status": "completed"
       },
       {
         "id": "4",
@@ -399,7 +443,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "2"
+    "currentTaskId": "3"
   },
   "phaseMetrics": {
     "tasks-generating": {
