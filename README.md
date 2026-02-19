@@ -15,6 +15,42 @@ red64 init --agent claude
 red64 start coupon-in-checkout "add support for coupon in checkout flow" -y --sandbox --model haiku
 ```
 
+```mermaid
+flowchart LR
+    subgraph YOU[" "]
+        U["👤 You"]
+        P["'add coupons to checkout'"]
+        TG["📱 Telegram<br>notifications"]
+    end
+
+    subgraph SANDBOX["🐳 Docker Sandbox"]
+        direction TB
+        R64["🤖 Red64"]
+        REQ["📋 Requirements"]
+        DES["📐 Design"]
+        TSK["✅ Tasks"]
+        IMP["💻 TDD Implementation"]
+        R64 --> REQ --> DES --> TSK --> IMP
+    end
+
+    GIT["🔀 Git Branch<br>with atomic commits"]
+
+    U --> P --> R64
+    IMP --> GIT
+    R64 -.-> TG
+
+    style R64 fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#fff
+    style SANDBOX fill:#e8f4fc,stroke:#1e88e5,stroke-width:2px
+    style REQ fill:#fff,stroke:#666,color:#000
+    style DES fill:#fff,stroke:#666,color:#000
+    style TSK fill:#fff,stroke:#666,color:#000
+    style IMP fill:#fff,stroke:#666,color:#000
+    style U fill:#f5f5f5,stroke:#666,color:#000
+    style P fill:#e8e8e8,stroke:#888,color:#000
+    style GIT fill:#e8f5e9,stroke:#43a047,color:#000
+    style TG fill:#e3f2fd,stroke:#1e88e5,color:#000
+```
+
 <div align="center">
 
 [![npm version](https://img.shields.io/npm/v/red64-cli.svg)](https://www.npmjs.com/package/red64-cli)

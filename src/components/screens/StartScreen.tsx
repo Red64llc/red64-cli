@@ -1418,9 +1418,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         return;
       }
       if (imageResult.pulled) {
-        addOutput(`Sandbox image ready (pulled)`);
+        addOutput(`Sandbox image ready (updated)`);
       } else {
-        addOutput(`Sandbox image ready`);
+        addOutput(`Sandbox image ready (up to date)`);
       }
     }
 
@@ -1854,9 +1854,9 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         return;
       }
       if (imageResult.pulled) {
-        addOutput(`Sandbox image ready (pulled)`);
+        addOutput(`Sandbox image ready (updated)`);
       } else {
-        addOutput(`Sandbox image ready`);
+        addOutput(`Sandbox image ready (up to date)`);
       }
     }
 

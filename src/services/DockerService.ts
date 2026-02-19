@@ -20,6 +20,7 @@ export interface DockerCheckResult {
 export interface ImageCheckResult {
   readonly exists: boolean;
   readonly pulled: boolean;
+  readonly outdated?: boolean;
   readonly error?: string;
   readonly message: string;
 }
@@ -116,24 +117,42 @@ export function createDockerService(): DockerServiceInterface {
       const exists = await checkImageExists(image);
 
       if (exists) {
-        return {
-          exists: true,
-          pulled: false,
-          message: `Image ${image} is available`
-        };
-      }
+        // Check if local image is outdated compared to registry
+        onProgress?.('Checking for image updates...');
+        const freshness = await checkImageFreshness(image);
 
-      if (!pull) {
+        if (freshness.isLatest) {
+          return {
+            exists: true,
+            pulled: false,
+            outdated: false,
+            message: `Image ${image} is up to date`
+          };
+        }
+
+        if (!pull) {
+          return {
+            exists: true,
+            pulled: false,
+            outdated: true,
+            error: 'Image is outdated',
+            message: `Image ${image} is outdated. Run: docker pull ${image}`
+          };
+        }
+
+        // Image exists but is outdated, pull the latest
+        onProgress?.(`Updating image ${image}...`);
+      } else if (!pull) {
         return {
           exists: false,
           pulled: false,
           error: 'Image not found locally',
           message: `Image ${image} not found. Run: docker pull ${image}`
         };
+      } else {
+        // Image doesn't exist, pull it
+        onProgress?.(`Pulling image ${image}...`);
       }
-
-      // Pull the image
-      onProgress?.(`Pulling image ${image}...`);
 
       return new Promise((resolve) => {
         const proc = spawn('docker', ['pull', image], {
@@ -180,6 +199,7 @@ export function createDockerService(): DockerServiceInterface {
             resolve({
               exists: true,
               pulled: true,
+              outdated: false,
               message: `Successfully pulled ${image}`
             });
           } else {
@@ -204,6 +224,139 @@ export function createDockerService(): DockerServiceInterface {
       });
     }
   };
+}
+
+/**
+ * Image freshness check result
+ */
+interface ImageFreshnessResult {
+  readonly isLatest: boolean;
+  readonly localDigest?: string;
+  readonly remoteDigest?: string;
+  readonly error?: string;
+}
+
+/**
+ * Check if local image matches the remote registry version
+ */
+async function checkImageFreshness(image: string): Promise<ImageFreshnessResult> {
+  // Get local image digest
+  const localDigest = await getLocalImageDigest(image);
+  if (!localDigest) {
+    return { isLatest: false, error: 'Could not get local image digest' };
+  }
+
+  // Get remote image digest using docker manifest inspect
+  const remoteDigest = await getRemoteImageDigest(image);
+  if (!remoteDigest) {
+    // If we can't check remote, assume local is fine (offline mode)
+    return { isLatest: true, localDigest, error: 'Could not check remote registry' };
+  }
+
+  const isLatest = localDigest === remoteDigest;
+  return { isLatest, localDigest, remoteDigest };
+}
+
+/**
+ * Get the digest of a local Docker image
+ */
+async function getLocalImageDigest(image: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['inspect', '--format', '{{index .RepoDigests 0}}', image], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+
+    proc.stdout?.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    const timeoutId = setTimeout(() => {
+      proc.kill('SIGTERM');
+      resolve(null);
+    }, 10000);
+
+    proc.on('close', (code) => {
+      clearTimeout(timeoutId);
+      if (code === 0 && stdout.trim()) {
+        // Extract digest from format: image@sha256:abc123...
+        const match = stdout.trim().match(/@(sha256:[a-f0-9]+)/);
+        resolve(match ? match[1] : null);
+      } else {
+        resolve(null);
+      }
+    });
+
+    proc.on('error', () => {
+      clearTimeout(timeoutId);
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Get the digest of a remote Docker image from registry
+ */
+async function getRemoteImageDigest(image: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    // Use docker manifest inspect to get remote digest without pulling
+    const proc = spawn('docker', ['manifest', 'inspect', image, '--verbose'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, DOCKER_CLI_EXPERIMENTAL: 'enabled' }
+    });
+
+    let stdout = '';
+
+    proc.stdout?.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    const timeoutId = setTimeout(() => {
+      proc.kill('SIGTERM');
+      resolve(null);
+    }, 30000);
+
+    proc.on('close', (code) => {
+      clearTimeout(timeoutId);
+      if (code === 0 && stdout.trim()) {
+        try {
+          // Parse the manifest to get the digest for current platform
+          const manifest = JSON.parse(stdout);
+          // Handle multi-arch manifest list or single manifest
+          if (Array.isArray(manifest)) {
+            // Multi-arch: find matching platform
+            const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+            const platformManifest = manifest.find((m: { Descriptor?: { platform?: { architecture?: string } } }) =>
+              m.Descriptor?.platform?.architecture === arch
+            );
+            if (platformManifest?.Descriptor?.digest) {
+              resolve(platformManifest.Descriptor.digest);
+              return;
+            }
+          }
+          // Single manifest or fallback
+          if (manifest.Descriptor?.digest) {
+            resolve(manifest.Descriptor.digest);
+            return;
+          }
+          // Try to find digest in SchemaV2Manifest
+          if (manifest.SchemaV2Manifest?.config?.digest) {
+            resolve(manifest.SchemaV2Manifest.config.digest);
+            return;
+          }
+        } catch {
+          // JSON parse failed
+        }
+      }
+      resolve(null);
+    });
+
+    proc.on('error', () => {
+      clearTimeout(timeoutId);
+      resolve(null);
+    });
+  });
 }
 
 /**
