@@ -47,6 +47,25 @@ export interface PluginLoaderService {
 }
 
 // ---------------------------------------------------------------------------
+// Watcher Interface (for chokidar integration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal interface for a file system watcher (subset of chokidar FSWatcher).
+ * This interface allows injecting mock watchers during tests.
+ */
+export interface FileWatcher {
+  on(event: string, handler: (...args: unknown[]) => void): this;
+  close(): Promise<void> | void;
+}
+
+/**
+ * Factory function type for creating file watchers.
+ * Matches the signature of chokidar.watch().
+ */
+export type WatcherFactory = (path: string) => FileWatcher;
+
+// ---------------------------------------------------------------------------
 // Factory Function Options
 // ---------------------------------------------------------------------------
 
@@ -55,6 +74,12 @@ export interface PluginLoaderOptions {
   validator: ManifestValidatorService;
   contextFactory: (options: PluginContextOptions) => PluginContextInterface;
   logger?: (level: 'info' | 'warn' | 'error', message: string) => void;
+  /**
+   * Optional factory for creating file system watchers.
+   * When provided, this is used instead of real chokidar for dev mode watching.
+   * Useful for testing. Defaults to chokidar.watch when not provided.
+   */
+  watcherFactory?: WatcherFactory;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +127,7 @@ export function createPluginLoader(options: PluginLoaderOptions): PluginLoaderSe
     validator,
     contextFactory,
     logger = defaultLogger,
+    watcherFactory,
   } = options;
 
   // Store last successful config for reload
@@ -111,6 +137,58 @@ export function createPluginLoader(options: PluginLoaderOptions): PluginLoaderSe
   // Track reload counts for dev mode warning (Task 8.3)
   const reloadCounts = new Map<string, number>();
   const RELOAD_WARNING_THRESHOLD = 10;
+
+  // Track active file watchers per plugin (Task 8.3: dev mode hot reload)
+  const activeWatchers = new Map<string, FileWatcher>();
+
+  /**
+   * Create a file watcher using either the injected factory or real chokidar.
+   * Task 8.3: chokidar-based file watching for dev mode.
+   */
+  async function createWatcher(pluginDir: string): Promise<FileWatcher> {
+    if (watcherFactory) {
+      return watcherFactory(pluginDir);
+    }
+    // Fall back to real chokidar (loaded dynamically to allow dev-only usage)
+    const chokidar = await import('chokidar');
+    return chokidar.watch(pluginDir) as FileWatcher;
+  }
+
+  /**
+   * Set up a dev mode file watcher for a plugin directory.
+   * When a file change is detected, the plugin is reloaded with cache busting.
+   * Task 8.3: Watch specific plugin directory for file changes.
+   */
+  async function setupDevWatcher(pluginName: string, pluginDir: string): Promise<void> {
+    // Close any existing watcher for this plugin
+    const existingWatcher = activeWatchers.get(pluginName);
+    if (existingWatcher) {
+      await existingWatcher.close();
+      activeWatchers.delete(pluginName);
+    }
+
+    const watcher = await createWatcher(pluginDir);
+    activeWatchers.set(pluginName, watcher);
+
+    watcher.on('change', (_filePath: unknown) => {
+      logger('info', `[plugin:${pluginName}] File change detected, reloading plugin...`);
+      // Async reload - errors are caught internally
+      void reloadPlugin(pluginName).catch((err) => {
+        logger('error', `[plugin:${pluginName}] Hot reload failed: ${String(err)}`);
+      });
+    });
+  }
+
+  /**
+   * Close and remove the dev mode watcher for a specific plugin.
+   */
+  async function closeDevWatcher(pluginName: string): Promise<void> {
+    const watcher = activeWatchers.get(pluginName);
+    if (watcher) {
+      await watcher.close();
+      activeWatchers.delete(pluginName);
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Discovery Functions
@@ -563,6 +641,13 @@ export function createPluginLoader(options: PluginLoaderOptions): PluginLoaderSe
         loaded.push(loadedPlugin);
         logger('info', `Loaded plugin: ${plugin.name}@${plugin.manifest.version}`);
 
+        // Task 8.3: Set up dev mode file watcher for this plugin directory
+        // Only watch if devMode is enabled AND a watcher doesn't already exist
+        // (to avoid duplicate watchers when reloading)
+        if (config.devMode && !activeWatchers.has(plugin.name)) {
+          await setupDevWatcher(plugin.name, plugin.pluginDir);
+        }
+
       } catch (err) {
         // Catch-all for any unexpected errors
         errors.push({
@@ -585,10 +670,15 @@ export function createPluginLoader(options: PluginLoaderOptions): PluginLoaderSe
 
   /**
    * Unload a plugin from the registry.
+   * Task 8.3: Also closes the dev mode file watcher for this plugin.
    */
   async function unloadPlugin(pluginName: string): Promise<void> {
     await registry.unregisterPlugin(pluginName);
     loadedPluginPaths.delete(pluginName);
+
+    // Task 8.3: Close dev mode watcher if it exists for this plugin
+    await closeDevWatcher(pluginName);
+
     logger('info', `Unloaded plugin: ${pluginName}`);
   }
 
