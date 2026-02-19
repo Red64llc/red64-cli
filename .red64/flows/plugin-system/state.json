@@ -6,7 +6,7 @@
     "totalTasks": 0
   },
   "createdAt": "2026-02-17T10:37:53.592Z",
-  "updatedAt": "2026-02-19T07:38:48.178Z",
+  "updatedAt": "2026-02-19T07:39:48.140Z",
   "history": [
     {
       "phase": {
@@ -122,6 +122,26 @@
       "timestamp": "2026-02-19T07:38:48.178Z",
       "event": "TASK_COMPLETE",
       "subStep": "group-4-completed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:38:48.393Z",
+      "event": "TASK_START",
+      "subStep": "group-5-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:39:48.140Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "group-5-completed"
     }
   ],
   "metadata": {
@@ -133,7 +153,8 @@
     "completedGroups": [
       2,
       3,
-      4
+      4,
+      5
     ],
     "totalGroups": 11,
     "taskEntries": [
@@ -286,44 +307,67 @@
       {
         "id": "5",
         "title": "Extension points",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.137Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 5124,
+          "outputTokens": 3280,
+          "totalTokens": 8404,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 290929,
+          "cacheCreationTokens": 63230,
+          "costUsd": 0.29791565
+        },
+        "contextUsage": {
+          "inputTokens": 5124,
+          "outputTokens": 3280,
+          "totalTokens": 8404,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 290929,
+          "cacheCreationTokens": 63230,
+          "costUsd": 0.29791565,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 2.562,
+          "cumulativeInputTokens": 31955,
+          "cumulativeUtilization": 15.9775,
+          "modelFamily": "unknown"
+        }
       },
       {
         "id": "5.1",
         "title": "Implement the command extension point",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.138Z",
+        "status": "completed"
       },
       {
         "id": "5.2",
         "title": "Implement the agent extension point",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.138Z",
+        "status": "completed"
       },
       {
         "id": "5.3",
         "title": "Implement the hook runner",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.138Z",
+        "status": "completed"
       },
       {
         "id": "5.4",
         "title": "Implement the service extension point",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.138Z",
+        "status": "completed"
       },
       {
         "id": "5.5",
         "title": "Implement the template extension point",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:38:48.392Z",
+        "completedAt": "2026-02-19T07:39:48.138Z",
+        "status": "completed"
       },
       {
         "id": "6",
@@ -487,7 +531,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "4"
+    "currentTaskId": "5"
   },
   "phaseMetrics": {
     "tasks-generating": {
