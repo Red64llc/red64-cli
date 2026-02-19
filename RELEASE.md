@@ -78,3 +78,10 @@
 
 ## New Features
 - Support for latest Claude Code 2.1.45 requirements
+# Release v0.16.0
+
+## New Features
+- Pre-flight check now verifies Docker image is up-to-date, ensuring users are running the latest version before operations
+
+## Internal
+- Updated project information and documentation
