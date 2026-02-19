@@ -6,7 +6,7 @@
     "totalTasks": 0
   },
   "createdAt": "2026-02-17T10:37:53.592Z",
-  "updatedAt": "2026-02-17T16:14:44.724Z",
+  "updatedAt": "2026-02-19T07:36:08.121Z",
   "history": [
     {
       "phase": {
@@ -62,22 +62,38 @@
       "timestamp": "2026-02-17T16:14:44.724Z",
       "event": "TASK_FAILED",
       "subStep": "group-1-failed"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:34:30.154Z",
+      "event": "TASK_START",
+      "subStep": "group-2-started"
+    },
+    {
+      "phase": {
+        "type": "implementing",
+        "currentTask": 1,
+        "totalTasks": 0
+      },
+      "timestamp": "2026-02-19T07:36:08.120Z",
+      "event": "TASK_COMPLETE",
+      "subStep": "group-2-completed"
     }
   ],
   "metadata": {
     "description": "implement a plugin system following this file: /Users/yacin/Workspace/lab/red64-cli/docs/red64-plugin-architecture.md",
     "mode": "brownfield",
-    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system",
-    "resolvedFeatureName": "plugin-system"
+    "worktreePath": "/Users/yacin/Workspace/lab/red64-cli.worktrees/plugin-system"
   },
   "taskProgress": {
-    "completedGroups": [],
+    "completedGroups": [
+      2
+    ],
     "totalGroups": 11,
-    "currentGroup": 1,
-    "subTasksInCurrentGroup": {
-      "completed": [],
-      "total": 4
-    },
     "taskEntries": [
       {
         "id": "1",
@@ -110,16 +126,39 @@
       {
         "id": "2",
         "title": "Plugin registry (in-memory extension store)",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:34:30.153Z",
+        "completedAt": "2026-02-19T07:36:08.115Z",
+        "status": "completed",
+        "tokenUsage": {
+          "inputTokens": 8582,
+          "outputTokens": 220,
+          "totalTokens": 8802,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "costUsd": 0.9589175
+        },
+        "contextUsage": {
+          "inputTokens": 8582,
+          "outputTokens": 220,
+          "totalTokens": 8802,
+          "model": "claude-haiku-4-5-20251001",
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "costUsd": 0.9589175,
+          "contextWindowSize": 200000,
+          "utilizationPercent": 4.2909999999999995,
+          "cumulativeInputTokens": 8582,
+          "cumulativeUtilization": 4.2909999999999995,
+          "modelFamily": "unknown"
+        }
       },
       {
         "id": "2.1",
         "title": "Implement the central plugin registry",
-        "startedAt": null,
-        "completedAt": null,
-        "status": "pending"
+        "startedAt": "2026-02-19T07:34:30.153Z",
+        "completedAt": "2026-02-19T07:36:08.115Z",
+        "status": "completed"
       },
       {
         "id": "3",
@@ -360,7 +399,7 @@
         "status": "pending"
       }
     ],
-    "currentTaskId": "1"
+    "currentTaskId": "2"
   },
   "phaseMetrics": {
     "tasks-generating": {
