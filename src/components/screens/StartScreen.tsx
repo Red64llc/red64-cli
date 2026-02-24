@@ -44,6 +44,7 @@ import {
   createProjectDetector,
   createTestRunner,
   createDockerService,
+  createTemplateService,
   sanitizeFeatureName,
   createContextUsageCalculator,
   isCriticalError,
@@ -60,7 +61,9 @@ import { FeatureSidebar, ArtifactsSidebar, TokenUsageGraph } from '../ui/index.j
 import type { Artifact } from '../../types/index.js';
 import { join } from 'node:path';
 import { access, appendFile, mkdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { getBundledFrameworkPath } from '../../utils/paths.js';
 
 /**
  * Phase display information
@@ -130,6 +133,15 @@ const UNCOMMITTED_CHANGES_OPTIONS = [
   { value: 'commit', label: 'Commit changes (WIP) and continue' },
   { value: 'discard', label: 'Discard changes and continue' },
   { value: 'abort', label: 'Cancel' }
+];
+
+/**
+ * Options for skip-permissions approval prompt
+ * The automated flow runs Claude non-interactively (-p) and needs write access.
+ */
+const PERMISSIONS_PROMPT_OPTIONS = [
+  { value: 'approve', label: 'Yes, allow file writes (--dangerously-skip-permissions)' },
+  { value: 'abort', label: 'No, cancel' }
 ];
 
 /**
@@ -208,6 +220,7 @@ type PreStartStep =
   | { type: 'existing-flow-detected'; existingState: FlowState; gitStatus: GitStatus }
   | { type: 'uncommitted-changes'; existingState: FlowState; gitStatus: GitStatus }
   | { type: 'completed-flow-detected'; existingState: FlowState }  // Flow already complete
+  | { type: 'permissions-prompt' }  // Waiting for user to approve skip-permissions
   | { type: 'ready' }  // Ready to start/resume
   | { type: 'resuming'; fromPhase: string };  // Resuming from existing state
 
@@ -260,6 +273,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     specInitService: ReturnType<typeof createSpecInitService>;
     healthCheck: ReturnType<typeof createClaudeHealthCheck>;
     dockerService: ReturnType<typeof createDockerService>;
+    templateService: ReturnType<typeof createTemplateService>;
     gitStatusChecker: ReturnType<typeof createGitStatusChecker>;
     configService: ReturnType<typeof createConfigService>;
     projectDetector: ReturnType<typeof createProjectDetector>;
@@ -278,6 +292,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const specInitService = createSpecInitService();
     const healthCheck = createClaudeHealthCheck();
     const dockerService = createDockerService();
+    const templateService = createTemplateService();
     const gitStatusChecker = createGitStatusChecker();
     const configService = createConfigService();
     const projectDetector = createProjectDetector();
@@ -300,6 +315,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       specInitService,
       healthCheck,
       dockerService,
+      templateService,
       gitStatusChecker,
       configService,
       projectDetector,
@@ -367,7 +383,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       const fixResult = await agentInvoker.invoke({
         prompt: fixPrompt,
         workingDirectory: workDir,
-        skipPermissions: flags.skipPermissions ?? false,
+        skipPermissions: permissionsApprovedRef.current,
         tier: flags.tier,
         agent: agentRef.current,
         timeout: 600000  // 10 minutes for complex test fixes
@@ -443,6 +459,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
   // Ref to hold agent for use in callbacks (avoids stale closure from React state)
   const agentRef = useRef<CodingAgent>(flowState.agent as CodingAgent);
   const sandboxImageRef = useRef<string | undefined>(undefined);
+  const permissionsApprovedRef = useRef(flags.skipPermissions);
   const uiConfigRef = useRef<{ leftSidebarWidth?: number; rightSidebarWidth?: number }>({});
 
   // Keep refs in sync with state
@@ -738,7 +755,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     await logToFile(`--- Executing command ---`);
     await logToFile(`Command: claude -p "${prompt}"`);
     await logToFile(`Working dir: ${dir}`);
-    if (flags.skipPermissions) {
+    if (permissionsApprovedRef.current) {
       await logToFile(`Flags: --dangerously-skip-permissions`);
     }
     if (tierConfigDir) {
@@ -755,7 +772,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     if (verbose) {
       addOutput(`[verbose] Command: claude -p "${prompt}"`);
       addOutput(`[verbose] Working dir: ${dir}`);
-      if (flags.skipPermissions) {
+      if (permissionsApprovedRef.current) {
         addOutput(`[verbose] Flags: --dangerously-skip-permissions`);
       }
       if (tierConfigDir) {
@@ -774,7 +791,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const result = await services.agentInvoker.invoke({
       prompt,
       workingDirectory: dir,
-      skipPermissions: flags.skipPermissions ?? false,
+      skipPermissions: permissionsApprovedRef.current,
       tier: flags.tier,
       agent: agentRef.current,
       model: flags.model,
@@ -1275,6 +1292,18 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     }
   }, [exit, flowState.resolvedFeatureName, featureName]);
 
+  // Handle permissions prompt decision
+  const handlePermissionsDecision = useCallback(async (decision: string) => {
+    if (decision === 'approve') {
+      permissionsApprovedRef.current = true;
+      setFlowState(prev => ({ ...prev, preStartStep: { type: 'ready' } }));
+      addOutput('Write permissions approved.');
+      await continueFlowAfterPermissions();
+    } else {
+      exit();
+    }
+  }, [exit]);
+
   // Handle completion next step (push or exit)
   const handleCompletionNextStep = useCallback(async (step: string) => {
     if (step === 'push') {
@@ -1430,7 +1459,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const healthResult = await services.healthCheck.check({
       tier: flags.tier,
       sandbox: flags.sandbox,
-      timeoutMs: 30000,
+      timeoutMs: 60000,
       agent: agentRef.current,
       ollama: flags.ollama,
       model: flags.model,
@@ -1868,7 +1897,7 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
     const healthResult = await services.healthCheck.check({
       tier: flags.tier,
       sandbox: flags.sandbox,
-      timeoutMs: 30000,
+      timeoutMs: 60000,
       agent: agentRef.current,
       ollama: flags.ollama,
       model: flags.model,
@@ -1988,6 +2017,17 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
       }
     }
 
+    // Prompt for skip-permissions if not already approved
+    if (!permissionsApprovedRef.current) {
+      setFlowState(prev => ({ ...prev, preStartStep: { type: 'permissions-prompt' } }));
+      return;  // Flow continues in handlePermissionsDecision
+    }
+
+    await continueFlowAfterPermissions();
+  };
+
+  // Continue the flow after permissions have been approved
+  const continueFlowAfterPermissions = async () => {
     addOutput('');
     addOutput(`Starting flow: ${featureName}`);
     addOutput(`Mode: ${mode}`);
@@ -2020,6 +2060,19 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
         addOutput(`Worktree created: ${worktreeResult.path}`);
         addOutput(`Branch: feature/${sanitizeFeatureName(featureName)}`);
       }
+    }
+
+    // Ensure framework (.claude/ skills) is present in working directory
+    const skillsDir = join(workDir, '.claude', 'commands', 'red64');
+    if (!existsSync(skillsDir)) {
+      addOutput('Installing framework skills...');
+      const frameworkPath = getBundledFrameworkPath();
+      await services.templateService.installFramework({
+        sourceDir: frameworkPath,
+        targetDir: workDir,
+        agent: agentRef.current ?? 'claude',
+      });
+      await commitChanges('chore: install red64 framework', workDir);
     }
 
     // Step 2: Transition to initializing
@@ -3042,6 +3095,23 @@ export const StartScreen: React.FC<ScreenProps> = ({ args, flags }) => {
               <Select
                 options={COMPLETED_FLOW_OPTIONS}
                 onChange={handleCompletedFlowDecision}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* Permissions prompt - ask user to approve skip-permissions for non-interactive mode */}
+        {flowState.preStartStep.type === 'permissions-prompt' && (
+          <Box flexDirection="column" borderStyle="single" borderColor={sidebarFocused ? 'gray' : 'yellow'} paddingX={1}>
+            <Text bold color="yellow">Write Permissions Required</Text>
+            <Text dimColor>The automated flow runs Claude non-interactively and needs</Text>
+            <Text dimColor>file write access (--dangerously-skip-permissions).</Text>
+            <Text dimColor>Tip: use `red64 start -s` to skip this prompt.</Text>
+            <Box marginTop={1}>
+              <Select
+                options={PERMISSIONS_PROMPT_OPTIONS}
+                onChange={handlePermissionsDecision}
+                isDisabled={sidebarFocused}
               />
             </Box>
           </Box>

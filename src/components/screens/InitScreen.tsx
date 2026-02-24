@@ -36,6 +36,7 @@ import {
   GitHubFetchError
 } from '../../services/index.js';
 import { spawn } from 'node:child_process';
+import { getBundledFrameworkPath } from '../../utils/paths.js';
 
 const DEFAULT_REPO = 'Red64llc/red64-cli';
 const DEFAULT_VERSION = 'main';
@@ -43,17 +44,6 @@ const DEFAULT_VERSION = 'main';
 // Skip fetch mode - use bundled framework templates for development
 // Set to false to download from GitHub
 const SKIP_FETCH_MODE = true;
-
-// Get the bundled framework path (for SKIP_FETCH_MODE)
-function getBundledFrameworkPath(): string {
-  // When running from source: /path/to/red64-cli/framework
-  // When running from installed package: /path/to/node_modules/red64-cli/framework
-  const modulePath = new URL(import.meta.url).pathname;
-  const rootDir = modulePath.includes('/dist/')
-    ? modulePath.split('/dist/')[0]
-    : modulePath.split('/src/')[0];
-  return `${rootDir}/framework`;
-}
 
 // Check if directory is a git repository
 async function isGitRepo(dir: string): Promise<boolean> {

@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   createTaskParser,
   type TaskParserService,
@@ -222,7 +223,7 @@ This is a document with no actual tasks.
 
       await parser.parse('/my/spec/dir');
 
-      expect(mockReadFile).toHaveBeenCalledWith('/my/spec/dir/tasks.md', 'utf-8');
+      expect(mockReadFile).toHaveBeenCalledWith(join('/my/spec/dir', 'tasks.md'), 'utf-8');
     });
 
     it('should handle tasks with asterisk marker', async () => {

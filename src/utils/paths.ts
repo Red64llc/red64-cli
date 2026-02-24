@@ -3,7 +3,8 @@
  * Requirements: 8.2 - Use .red64/ as the unified directory
  */
 
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Get the red64 directory path
@@ -46,4 +47,19 @@ export function getFeatureDir(baseDir: string, feature: string): string {
  */
 export function getStatePath(baseDir: string, feature: string): string {
   return join(getFeatureDir(baseDir, feature), 'state.json');
+}
+
+/**
+ * Get the bundled framework path
+ * Works both from source (src/) and built (dist/) contexts
+ * Uses fileURLToPath for correct Windows path resolution
+ */
+export function getBundledFrameworkPath(): string {
+  const modulePath = fileURLToPath(import.meta.url);
+  const distMarker = `${sep}dist${sep}`;
+  const srcMarker = `${sep}src${sep}`;
+  const rootDir = modulePath.includes(distMarker)
+    ? modulePath.split(distMarker)[0]
+    : modulePath.split(srcMarker)[0];
+  return join(rootDir, 'framework');
 }

@@ -141,7 +141,8 @@ describe('PreviewService', () => {
       }
     });
 
-    it('returns FILE_READ_ERROR on permission denied', async () => {
+    // chmod(0o000) doesn't prevent reading on Windows (NTFS ACLs work differently)
+    it.skipIf(process.platform === 'win32')('returns FILE_READ_ERROR on permission denied', async () => {
       const testFile = join(testDir, 'no-permission.md');
       await writeFile(testFile, '# Content', 'utf-8');
       
