@@ -50,6 +50,30 @@ export interface TestRunnerService {
 const DEFAULT_TIMEOUT_MS = 300000;
 
 /**
+ * Extract inline environment variables from a shell command.
+ * Handles Unix-style `KEY=value command` syntax (e.g., `CI=true npm test`)
+ * and returns them separately for cross-platform compatibility,
+ * since cmd.exe on Windows does not support this syntax.
+ */
+function extractInlineEnvVars(command: string): { command: string; env: Record<string, string> } {
+  const env: Record<string, string> = {};
+  const envVarPattern = /^(\w+)=(\S+)\s+/;
+
+  const segments = command.split(/\s*&&\s*/);
+  const cleanSegments = segments.map(segment => {
+    let remaining = segment.trim();
+    let match;
+    while ((match = envVarPattern.exec(remaining)) !== null) {
+      env[match[1]] = match[2];
+      remaining = remaining.substring(match[0].length);
+    }
+    return remaining;
+  });
+
+  return { command: cleanSegments.join(' && '), env };
+}
+
+/**
  * Create test runner service
  */
 export function createTestRunner(): TestRunnerService {
@@ -70,17 +94,26 @@ export function createTestRunner(): TestRunnerService {
         ? `${options.setupCommand} && ${options.testCommand}`
         : options.testCommand;
 
+      // Extract inline env vars (e.g., CI=true) for cross-platform compatibility
+      const { command: cleanCommand, env: inlineEnv } = extractInlineEnvVars(fullCommand);
+
       return new Promise((resolve) => {
         let stdout = '';
         let stderr = '';
         let timedOut = false;
 
         // Use shell to handle complex commands (pipes, &&, etc.)
-        const proc = spawn(fullCommand, [], {
+        const proc = spawn(cleanCommand, [], {
           cwd: options.workingDir,
           stdio: ['pipe', 'pipe', 'pipe'],
-          shell: true
+          shell: true,
+          env: Object.keys(inlineEnv).length > 0
+            ? { ...process.env, ...inlineEnv }
+            : undefined
         });
+
+        // Close stdin to prevent hanging on Windows
+        proc.stdin?.end();
 
         // Set timeout
         const timeoutId = setTimeout(() => {

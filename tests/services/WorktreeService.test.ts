@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { spawn } from 'node:child_process';
+import { join, dirname, basename } from 'node:path';
 import {
   createWorktreeService,
   type WorktreeServiceInterface,
@@ -78,6 +79,7 @@ branch refs/heads/main
       const result = await service.check('/repo', 'my-feature');
 
       expect(result.exists).toBe(true);
+      // Path comes from parsing git porcelain output (always forward slashes)
       expect(result.path).toBe('/repo.worktrees/my-feature');
       expect(result.branch).toBe('feature/my-feature');
     });
@@ -115,7 +117,7 @@ branch refs/heads/main
 
       expect(result.success).toBe(true);
       // Worktrees are now in sibling directory: /repo.worktrees/
-      expect(result.path).toBe('/repo.worktrees/new-feature');
+      expect(result.path).toBe(join(dirname('/repo'), `${basename('/repo')}.worktrees`, 'new-feature'));
       expect(result.error).toBeUndefined();
     });
 
@@ -125,9 +127,10 @@ branch refs/heads/main
       await service.create('/repo', 'my-feature');
 
       // Now uses absolute path to sibling directory
+      const expectedWorktreePath = join(dirname('/repo'), `${basename('/repo')}.worktrees`, 'my-feature');
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'add', '-b', 'feature/my-feature', '/repo.worktrees/my-feature'],
+        ['worktree', 'add', '-b', 'feature/my-feature', expectedWorktreePath],
         expect.objectContaining({ cwd: '/repo' })
       );
     });
@@ -158,9 +161,10 @@ branch refs/heads/main
       await service.remove('/repo', 'feature-to-remove');
 
       // Now uses absolute path to sibling directory
+      const expectedPath = join(dirname('/repo'), `${basename('/repo')}.worktrees`, 'feature-to-remove');
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'remove', '/repo.worktrees/feature-to-remove'],
+        ['worktree', 'remove', expectedPath],
         expect.objectContaining({ cwd: '/repo' })
       );
     });
@@ -171,9 +175,10 @@ branch refs/heads/main
       await service.remove('/repo', 'dirty-feature', true);
 
       // Now uses absolute path to sibling directory
+      const expectedPath = join(dirname('/repo'), `${basename('/repo')}.worktrees`, 'dirty-feature');
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['worktree', 'remove', '--force', '/repo.worktrees/dirty-feature'],
+        ['worktree', 'remove', '--force', expectedPath],
         expect.objectContaining({ cwd: '/repo' })
       );
     });

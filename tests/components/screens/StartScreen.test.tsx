@@ -93,6 +93,12 @@ vi.mock('../../../src/services/index.js', () => ({
     checkDocker: vi.fn().mockResolvedValue({ available: true, message: 'Docker is available' }),
     ensureImage: vi.fn().mockResolvedValue({ exists: true, pulled: false, message: 'Image is available' })
   }),
+  createTemplateService: () => ({
+    installFramework: vi.fn().mockResolvedValue({ createdDirs: [], createdFiles: [] }),
+    createStructure: vi.fn().mockResolvedValue({ createdDirs: [], createdFiles: [] }),
+    listStacks: vi.fn().mockResolvedValue([]),
+    applyStackTemplates: vi.fn().mockResolvedValue([])
+  }),
   sanitizeFeatureName: (name: string) => name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
   // Task entry helpers
   createTaskEntry: vi.fn((task: { id: string; title: string }) => ({
